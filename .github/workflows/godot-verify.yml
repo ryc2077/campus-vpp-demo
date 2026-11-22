@@ -1,0 +1,74 @@
+name: Godot verify + export
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scenes/**'
+      - 'scripts/**'
+      - 'data/**'
+      - 'project.godot'
+      - 'export_presets.cfg'
+      - 'tools/**'
+      - '.github/workflows/godot-verify.yml'
+
+jobs:
+  verify-export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Cache Godot 4.4
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-cache
+          key: godot-4.4-stable
+
+      - name: Install Godot 4.4 + export templates
+        run: |
+          mkdir -p ~/godot-cache ~/.local/share/godot/export_templates/4.4.stable
+          cd ~/godot-cache
+          if [ ! -x Godot_v4.4-stable_linux.x86_64 ]; then
+            curl -sL -o godot.zip https://github.com/godotengine/godot/releases/download/4.4-stable/Godot_v4.4-stable_linux.x86_64.zip
+            unzip -o -q godot.zip
+          fi
+          if [ ! -f templates.tpz ]; then
+            curl -sL -o templates.tpz https://github.com/godotengine/godot/releases/download/4.4-stable/Godot_v4.4-stable_export_templates.tpz
+          fi
+          rm -rf /tmp/tpl && mkdir -p /tmp/tpl && unzip -o -q templates.tpz -d /tmp/tpl
+          cp -r /tmp/tpl/templates/* ~/.local/share/godot/export_templates/4.4.stable/ 2>/dev/null || cp -r /tmp/tpl/* ~/.local/share/godot/export_templates/4.4.stable/
+          ls ~/.local/share/godot/export_templates/4.4.stable/ | head
+          ~/godot-cache/Godot_v4.4-stable_linux.x86_64 --version
+
+      - name: Headless verify (21 checks)
+        run: ~/godot-cache/Godot_v4.4-stable_linux.x86_64 --headless --path . -s tools/verify_fixes.gd
+
+      - name: Export Web
+        run: |
+          mkdir -p export/web
+          ~/godot-cache/Godot_v4.4-stable_linux.x86_64 --headless --path . --export-release "Web" export/web/index.html
+          ls -lh export/web/
+
+      - name: Serve + screenshots (max quality)
+        run: |
+          python3 serve_web.py > /tmp/serve.log 2>&1 &
+          sleep 3
+          CHROME=/usr/bin/google-chrome bash tools/shots_all.sh || true
+          ls -lh screenshots/*.png || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: godot-web-export
+          path: export/web/
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: godot-screenshots
+          path: screenshots/*.png
+          retention-days: 30

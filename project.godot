@@ -1,0 +1,41 @@
+; Engine configuration file.
+; Campus VPP Demo — Godot 4.4 rewrite of the Three.js demo.
+; Data authority: 2026-10-31 hand-revised core files (upload.docx / 1031.docx / 1.docx).
+; All numbers live in data/*.json; scripts only read them.
+
+config_version=5
+
+[application]
+
+config/name="Campus VPP Demo"
+config/description="苏州大学附属中学 · 校园虚拟电厂仿真 Demo（Godot 重写版）"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.4", "GL Compatibility")
+config/icon="res://icon.svg"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=1
+
+[gui]
+
+theme/default_font="res://assets/fonts/NotoSansSC-Regular.ttf"
+# MSDF 关：848 个 CJK 字形的 MSDF 图集在 Web 导出下会丢字形（实测全部显示为 □），
+# 改普通位图字形图集（固定字号 UI，清晰度足够）。
+theme/default_font_multichannel_signed_distance_field=false
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.553, 0.788, 0.941, 1)
+textures/vram_compression/import_etc2_astc=true
+anti_aliasing/quality/msaa_3d=2
