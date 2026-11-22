@@ -56,7 +56,9 @@ def _ensure_camera(scene):
     # 3/4 high view: from +X, -Y, above, looking at the bbox centre.
     direction = Vector((1.0, -1.0, 0.75)).normalized()
     # Fit the bounding sphere inside the frame with margin.
-    half_fov = math.radians(cam_data.angle) / 2.0
+    # NOTE: Camera.angle is already in radians; do NOT math.radians() it
+    # (that put the camera ~56x too far away and the model was invisible).
+    half_fov = cam_data.angle / 2.0
     dist = radius / math.sin(half_fov) * 1.15
     cam.location = center + direction * dist
     cam.rotation_euler = (center - cam.location).to_track_quat('-Z', 'Y').to_euler()
