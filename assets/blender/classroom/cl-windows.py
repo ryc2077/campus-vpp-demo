@@ -1,0 +1,362 @@
+# cl-windows v2: 教室内部·窗户窗帘（返工）
+# 规约: assets/blender/SPEC.md §6 教室局部坐标
+#   房间中心原点, x 长 9.68m (-4.84~+4.84), y 宽 7.26m (-3.63~+3.63), z 0-3.0m
+#   黑板墙在 x=-4.84 一侧, 南侧窗户沿 y=-3.63 墙面, 北侧沿 y=+3.63 墙面
+#   每扇窗 1.8(x) x 1.5(高)m, 窗台高 0.9m (窗 z 0.9-2.4), x 中心 -3.6, -1.2, +1.2, +3.6
+# v2 返工 (旧版 60 对象布局保持, 只补结构与材质):
+#   1. 真实结构: 窗框加厚 (y 向 0.14m) + 窗洞内凹 (框面退进墙面 0.05m, 不贴墙)
+#      + 上/侧 jamb 内衬 + 窗台板 (外伸 0.14m) + 竖中梃 + 横中梃 (2x2 分格)
+#   2. 玻璃反光: Principled Transmission 0.9 + 低粗糙度 + 淡淡蓝灰,
+#      Eevee 开 Screen Space Reflections/Refraction + Reflection Cubemap 探针
+#   3. 窗帘: 南侧带帘 (杆 + 托架 + 端头 + 波浪/褶皱几何布帘 + 布纹噪波), 北侧无帘
+#   4. 材质分开: 框 (塑钢/金属噪波 Bump + 粗糙度变化) / 玻璃 (微噪波) /
+#      窗帘 (布纹噪波 Bump + 颜色微变化) / 杆 (金属), 不许全平
+#   5. 结构件倒角 (bevel)
+# 只做窗户/窗框/玻璃/窗帘杆/窗帘, 不做桌椅/黑板/空调/灯具/地面墙面。
+# 新规矩: 渲染全部走 GitHub Actions, 本脚本不渲染、不出预览图。
+#   只交付: 脚本 + .blend + .glb, 导出后回读校验并做 GLB 节点坐标验证。
+
+import bpy
+import math
+import os
+
+BASE = os.path.expanduser(
+    "~/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot")
+BLEND_PATH = os.path.join(BASE, "assets/blender/classroom/cl-windows.blend")
+GLB_PATH = os.path.join(BASE, "assets/models/cl-windows.glb")
+
+# ---- sRGB hex -> linear (SPEC 坑: Principled Base Color 要线性值) ----
+def srgb_to_linear(c):
+    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+def hex_linear(h):
+    h = h.lstrip("#")
+    r = int(h[0:2], 16) / 255.0
+    g = int(h[2:4], 16) / 255.0
+    b = int(h[4:6], 16) / 255.0
+    return (srgb_to_linear(r), srgb_to_linear(g), srgb_to_linear(b), 1.0)
+
+# ---- 清空场景 ----
+bpy.ops.wm.read_factory_settings(use_empty=True)
+
+# ---- 材质工具 ----
+def principled(name, color_hex, roughness=0.6, metallic=0.0):
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    bsdf.inputs["Base Color"].default_value = hex_linear(color_hex)
+    bsdf.inputs["Roughness"].default_value = roughness
+    bsdf.inputs["Metallic"].default_value = metallic
+    return mat
+
+def add_noise_bump(mat, scale, strength, distance=0.05):
+    """噪波 -> Bump, 让表面不全平. 返回 noise 节点 (供复用)."""
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    tex = nt.nodes.new("ShaderNodeTexNoise")
+    tex.inputs["Scale"].default_value = scale
+    tex.inputs["Detail"].default_value = 2.0
+    tex.inputs["Roughness"].default_value = 0.7
+    bump = nt.nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = strength
+    bump.inputs["Distance"].default_value = distance
+    nt.links.new(tex.outputs["Fac"], bump.inputs["Height"])
+    nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    return tex
+
+def add_roughness_variation(mat, tex, lo, hi):
+    """噪波 Fac -> Map Range -> 粗糙度, 粗糙度有变化."""
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    mr = nt.nodes.new("ShaderNodeMapRange")
+    mr.inputs["From Min"].default_value = 0.0
+    mr.inputs["From Max"].default_value = 1.0
+    mr.inputs["To Min"].default_value = lo
+    mr.inputs["To Max"].default_value = hi
+    nt.links.new(tex.outputs["Fac"], mr.inputs["Value"])
+    nt.links.new(mr.outputs["Result"], bsdf.inputs["Roughness"])
+
+# 窗框: 塑钢白, 微金属感, 噪波 Bump + 粗糙度 0.35~0.6 变化
+MAT_FRAME = principled("cl-windows_frame_white", "#E8E8E8",
+                        roughness=0.45, metallic=0.15)
+_tex_f = add_noise_bump(MAT_FRAME, scale=8.0, strength=0.15, distance=0.02)
+add_roughness_variation(MAT_FRAME, _tex_f, 0.35, 0.6)
+
+# 玻璃: 淡淡蓝灰 #9FC3D8, Principled Transmission 0.9, 粗糙度 0.05,
+#   IOR 1.45, 微噪波 Bump (0.03) 模拟玻璃不绝对平整
+MAT_GLASS = principled("cl-windows_glass", "#9FC3D8",
+                        roughness=0.05, metallic=0.0)
+_bsdf_g = MAT_GLASS.node_tree.nodes["Principled BSDF"]
+_bsdf_g.inputs["Transmission Weight"].default_value = 0.9
+_bsdf_g.inputs["IOR"].default_value = 1.45
+_bsdf_g.inputs["Specular IOR Level"].default_value = 1.0
+try:
+    MAT_GLASS.surface_render_method = 'BLENDED'
+except Exception:
+    pass
+add_noise_bump(MAT_GLASS, scale=15.0, strength=0.03, distance=0.01)
+
+# 窗帘布: 米白, 高粗糙, 布纹噪波 Bump (0.3) + 噪波颜色微变化
+MAT_CURTAIN = principled("cl-windows_curtain_cream", "#F3E9D2", roughness=0.95)
+_tex_c = add_noise_bump(MAT_CURTAIN, scale=6.0, strength=0.3, distance=0.05)
+_nt_c = MAT_CURTAIN.node_tree
+_bsdf_c = _nt_c.nodes["Principled BSDF"]
+_mix = _nt_c.nodes.new("ShaderNodeMixRGB")
+_mix.blend_type = 'MIX'
+_mix.inputs[1].default_value = hex_linear("#F3E9D2")
+_mix.inputs[2].default_value = hex_linear("#E2D5B8")
+_nt_c.links.new(_tex_c.outputs["Fac"], _mix.inputs[0])
+_nt_c.links.new(_mix.outputs["Color"], _bsdf_c.inputs["Base Color"])
+
+# 窗帘杆: 金属灰, 金属度 0.85, 细噪波 Bump
+MAT_ROD = principled("cl-windows_rod_metal", "#8A8F94",
+                      roughness=0.35, metallic=0.85)
+add_noise_bump(MAT_ROD, scale=12.0, strength=0.08, distance=0.01)
+
+# ---- Eevee 反射设置 (玻璃反光用; 本脚本不渲染, 只留设置进 .blend) ----
+scene = bpy.context.scene
+try:
+    scene.eevee.use_ssr = True
+    scene.eevee.use_ssr_refraction = True
+    scene.eevee.use_ssr_halfres = False
+except Exception as e:
+    print("eevee ssr setup skipped:", e)
+
+# ---- 集合 ----
+coll = bpy.data.collections.new("cl-windows")
+bpy.context.scene.collection.children.link(coll)
+
+piece_objs = []
+
+def add_box(name, loc, dims, mat, bevel=0.0):
+    bpy.ops.mesh.primitive_cube_add(location=loc)
+    ob = bpy.context.active_object
+    ob.name = name
+    ob.dimensions = dims
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    if bevel > 0:
+        mod = ob.modifiers.new("bevel", 'BEVEL')
+        mod.width = bevel
+        mod.segments = 2
+    ob.data.materials.append(mat)
+    coll.objects.link(ob)
+    bpy.context.scene.collection.objects.unlink(ob)
+    piece_objs.append(ob)
+    return ob
+
+def add_cylinder_x(name, loc, radius, depth, mat):
+    bpy.ops.mesh.primitive_cylinder_add(radius=radius, depth=depth,
+                                        location=loc, vertices=16,
+                                        rotation=(0, math.radians(90), 0))
+    ob = bpy.context.active_object
+    ob.name = name
+    ob.data.materials.append(mat)
+    coll.objects.link(ob)
+    bpy.context.scene.collection.objects.unlink(ob)
+    piece_objs.append(ob)
+    return ob
+
+def add_sphere(name, loc, radius, mat):
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=radius, location=loc,
+                                         segments=16, ring_count=12)
+    ob = bpy.context.active_object
+    ob.name = name
+    ob.data.materials.append(mat)
+    coll.objects.link(ob)
+    bpy.context.scene.collection.objects.unlink(ob)
+    piece_objs.append(ob)
+    return ob
+
+def add_curtain(name, cx, y, z_top, width, height, mat):
+    """波浪/褶皱布帘: 网格平面, y 向按正弦起伏 (4 个褶, 振幅向底部渐大),
+    加 Solidify 给布厚 0.012m. 法线朝室内 (+y, 南侧)."""
+    nx, nz = 16, 20
+    verts = []
+    for j in range(nz + 1):
+        t = j / nz  # 0 顶部 -> 1 底部
+        amp = 0.03 + 0.015 * t
+        for i in range(nx + 1):
+            s = i / nx
+            # 顶点用局部坐标, 对象原点放在 (cx, y, z_top), 避免原点落在房间中心
+            verts.append(((s - 0.5) * width,
+                          amp * math.sin(s * math.pi * 2 * 4),
+                          -t * height))
+    faces = []
+    for j in range(nz):
+        for i in range(nx):
+            a = j * (nx + 1) + i
+            b = a + 1
+            c = a + (nx + 1) + 1
+            d = a + (nx + 1)
+            faces.append((a, b, c, d))
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    # UV: x 归一化 / z 归一化, 供布纹噪波贴图
+    uv_layer = mesh.uv_layers.new(name="UVMap")
+    for poly in mesh.polygons:
+        for li in poly.loop_indices:
+            v = mesh.vertices[mesh.loops[li].vertex_index].co
+            uv_layer.data[li].uv = ((v.x + width / 2.0) / width,
+                                    -v.z / height)
+    ob = bpy.data.objects.new(name, mesh)
+    ob.location = (cx, y, z_top)
+    coll.objects.link(ob)
+    sol = ob.modifiers.new("solidify", 'SOLIDIFY')
+    sol.thickness = 0.012
+    sol.offset = 0.0
+    ob.data.materials.append(mat)
+    piece_objs.append(ob)
+    return ob
+
+# ---- 窗户参数 ----
+WIN_W = 1.8        # 窗宽 (x)
+WIN_H = 1.5        # 窗高 (z)
+WIN_Z0 = 0.9       # 窗台高
+WIN_ZC = WIN_Z0 + WIN_H / 2.0   # 窗中心 z = 1.65
+FRAME_W = 0.06     # 边框宽
+FRAME_T = 0.14     # 窗框 y 向厚度 (加厚, 有框厚)
+GLASS_T = 0.02
+RECESS = 0.05      # 窗洞内凹: 框面退进墙面 0.05m, 不贴墙面
+WALL_Y_S = -3.63   # 南墙面
+WALL_Y_N = 3.63    # 北墙面
+COLS_X = [-3.6, -1.2, 1.2, 3.6]
+
+def build_window(side_tag, xc, y_wall, inward):
+    """一扇窗: 玻璃 + 4 根边框 + 竖中梃 + 横中梃 + 窗台 + 上/侧 jamb 内衬.
+    inward: +1 南侧 (室内为 +y), -1 北侧 (室内为 -y).
+    框中心 y = 墙面 + inward*RECESS, 即嵌进墙洞 0.05m."""
+    y_f = y_wall + inward * RECESS
+    # 玻璃: 整扇 1.8 x 1.5, 薄片, 居于框厚中央
+    add_box("cl-windows_glass_%s" % side_tag, (xc, y_f, WIN_ZC),
+            (WIN_W, GLASS_T, WIN_H), MAT_GLASS)
+    # 边框: 上/下横框 (全宽), 左/右竖框 (扣除横框后的净高), 倒角 0.008
+    add_box("cl-windows_frame_top_%s" % side_tag,
+            (xc, y_f, WIN_Z0 + WIN_H - FRAME_W / 2.0),
+            (WIN_W, FRAME_T, FRAME_W), MAT_FRAME, bevel=0.008)
+    add_box("cl-windows_frame_bottom_%s" % side_tag,
+            (xc, y_f, WIN_Z0 + FRAME_W / 2.0),
+            (WIN_W, FRAME_T, FRAME_W), MAT_FRAME, bevel=0.008)
+    add_box("cl-windows_frame_left_%s" % side_tag,
+            (xc - WIN_W / 2.0 + FRAME_W / 2.0, y_f, WIN_ZC),
+            (FRAME_W, FRAME_T, WIN_H - 2 * FRAME_W), MAT_FRAME, bevel=0.008)
+    add_box("cl-windows_frame_right_%s" % side_tag,
+            (xc + WIN_W / 2.0 + FRAME_W / 2.0 - FRAME_W, y_f, WIN_ZC),
+            (FRAME_W, FRAME_T, WIN_H - 2 * FRAME_W), MAT_FRAME, bevel=0.008)
+    # 竖中梃 + 横中梃: 2x2 分格, 倒角 0.005
+    add_box("cl-windows_mullion_%s" % side_tag,
+            (xc, y_f, WIN_ZC),
+            (FRAME_W, FRAME_T, WIN_H - 2 * FRAME_W), MAT_FRAME, bevel=0.005)
+    add_box("cl-windows_transom_%s" % side_tag,
+            (xc, y_f, WIN_ZC),
+            (WIN_W - 2 * FRAME_W, FRAME_T, FRAME_W), MAT_FRAME, bevel=0.005)
+    # 窗台板: 宽出窗洞 0.09/侧, 厚 0.045, 深 0.18 (室内外伸约 0.14m), 倒角
+    add_box("cl-windows_sill_%s" % side_tag,
+            (xc, y_wall + inward * 0.05, WIN_Z0 - 0.0225),
+            (WIN_W + 0.18, 0.18, 0.045), MAT_FRAME, bevel=0.008)
+    # jamb 内衬: 左右侧衬 (窗洞侧面) + 顶部衬 (窗洞顶面), 框白
+    add_box("cl-windows_jamb_left_%s" % side_tag,
+            (xc - WIN_W / 2.0 - 0.025, y_f, WIN_ZC),
+            (0.05, FRAME_T, WIN_H), MAT_FRAME, bevel=0.004)
+    add_box("cl-windows_jamb_right_%s" % side_tag,
+            (xc + WIN_W / 2.0 + 0.025, y_f, WIN_ZC),
+            (0.05, FRAME_T, WIN_H), MAT_FRAME, bevel=0.004)
+    add_box("cl-windows_jamb_top_%s" % side_tag,
+            (xc, y_f, WIN_Z0 + WIN_H + 0.025),
+            (WIN_W + 0.10, FRAME_T, 0.05), MAT_FRAME, bevel=0.004)
+
+# ---- 南侧 4 扇窗 + 窗帘杆 + 托架 + 端头 + 波浪窗帘 ----
+ROD_Z = 2.5
+ROD_Y = -3.55
+CURTAIN_Z_TOP = 2.4
+CURTAIN_H = 1.2
+CURTAIN_W = 0.5
+
+for i, xc in enumerate(COLS_X, start=1):
+    tag = "s%d" % i
+    build_window(tag, xc, WALL_Y_S, +1)
+    add_cylinder_x("cl-windows_rod_%s" % tag, (xc, ROD_Y, ROD_Z),
+                   0.015, 2.0, MAT_ROD)
+    # 托架: 杆两端各一, 连墙到杆
+    for dx in (-0.95, 0.95):
+        add_box("cl-windows_bracket_%s_%s" % (tag, "l" if dx < 0 else "r"),
+                (xc + dx, -3.59, ROD_Z),
+                (0.03, 0.09, 0.03), MAT_ROD, bevel=0.004)
+    # 端头球: 杆两端各一
+    for dx in (-1.0, 1.0):
+        add_sphere("cl-windows_finial_%s_%s" % (tag, "l" if dx < 0 else "r"),
+                   (xc + dx, ROD_Y, ROD_Z), 0.025, MAT_ROD)
+    # 波浪窗帘两片, 收在窗两侧, 中心 x = xc ± 0.65
+    for k, dx in enumerate((-0.65, 0.65), start=1):
+        add_curtain("cl-windows_curtain_%s_%d" % (tag, k),
+                    xc + dx, ROD_Y, CURTAIN_Z_TOP, CURTAIN_W, CURTAIN_H,
+                    MAT_CURTAIN)
+
+# ---- 北侧 4 扇窗 (只要窗, 不做窗帘) ----
+for i, xc in enumerate(COLS_X, start=1):
+    build_window("n%d" % i, xc, WALL_Y_N, -1)
+
+# ---- Reflection Cubemap 探针 (玻璃反光用, 不导出, 只进 .blend) ----
+bpy.ops.object.lightprobe_add(type='SPHERE', location=(0, 0, 1.6))
+probe = bpy.context.active_object
+probe.name = "cl-windows_reflection_probe"
+try:
+    probe.data.influence_distance = 6.0
+    probe.data.falloff = 0.5
+except Exception:
+    pass
+
+from collections import Counter
+kinds = Counter(ob.name.split("_")[1] if "_" in ob.name else ob.name
+                for ob in piece_objs)
+print("windows built: %d objects" % len(piece_objs))
+print("object kinds:", dict(kinds))
+# 预期: 每扇窗 11 件 x8 = 88; 南侧每扇杆 1 + 托架 2 + 端头 2 + 窗帘 2 = 7 x4 = 28; 合计 116
+
+# ---- 存 .blend (只含本件 + 探针) ----
+os.makedirs(os.path.dirname(BLEND_PATH), exist_ok=True)
+bpy.ops.wm.save_as_mainfile(filepath=BLEND_PATH)
+print("blend saved:", BLEND_PATH, "size", os.path.getsize(BLEND_PATH))
+
+# ---- 导出 .glb (只选本件对象, 不含探针) ----
+bpy.ops.object.select_all(action='DESELECT')
+for ob in piece_objs:
+    ob.select_set(True)
+bpy.context.view_layer.objects.active = piece_objs[0]
+os.makedirs(os.path.dirname(GLB_PATH), exist_ok=True)
+bpy.ops.export_scene.gltf(filepath=GLB_PATH, export_format='GLB',
+                           use_selection=True, export_apply=True)
+print("glb exported:", GLB_PATH, "size", os.path.getsize(GLB_PATH))
+
+# ---- 回读校验 + GLB 节点坐标验证 (南北两侧窗都在) ----
+n_before = len(bpy.data.objects)
+bpy.ops.import_scene.gltf(filepath=GLB_PATH)
+imported = [ob for ob in bpy.data.objects if ob not in piece_objs
+            and ob.name != "cl-windows_reflection_probe"]
+print("gltf reimport: %d objects imported" % len(imported))
+assert len(imported) > 0, "glTF reimport failed"
+
+def _count(objs, pred):
+    return sum(1 for ob in objs if pred(ob))
+
+south = [ob for ob in imported if ob.location.y < 0]
+north = [ob for ob in imported if ob.location.y > 0]
+glass_s = _count(imported, lambda o: "glass" in o.name and o.location.y < 0)
+glass_n = _count(imported, lambda o: "glass" in o.name and o.location.y > 0)
+curtain_s = _count(imported, lambda o: "curtain" in o.name)
+curtain_n = _count(imported, lambda o: "curtain" in o.name and o.location.y > 0)
+rod_s = _count(imported, lambda o: "rod" in o.name)
+print("reimport south objects: %d, north objects: %d" % (len(south), len(north)))
+print("reimport glass south: %d, glass north: %d" % (glass_s, glass_n))
+print("reimport curtains south: %d, curtains north: %d" % (curtain_s, curtain_n))
+print("reimport rods: %d" % rod_s)
+assert len(south) > 0 and len(north) > 0, "missing south or north windows"
+assert glass_s == 4 and glass_n == 4, "glass count wrong: S=%d N=%d" % (glass_s, glass_n)
+assert curtain_s == 8 and curtain_n == 0, "curtain layout wrong: S=%d N=%d" % (curtain_s, curtain_n)
+assert rod_s == 4, "rod count wrong: %d" % rod_s
+# 位置抽查: 南侧玻璃 y 应在 -3.6 附近 (内凹 -3.58), 北侧在 +3.58 附近
+ys = sorted(round(ob.location.y, 2) for ob in imported if "glass" in ob.name)
+print("reimport glass y values:", ys)
+assert all(abs(y) > 3.5 and abs(y) < 3.65 for y in ys), "glass y out of range"
+
+print("DONE cl-windows")
