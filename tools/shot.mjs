@@ -27,6 +27,11 @@ const chrome = spawn(CHROME, [
   `--user-data-dir=${PROFILE}`,
   "about:blank",
 ], { stdio: "ignore" });
+console.log("[chrome]", CHROME);
+chrome.on("error", (e) => {
+  console.error("[shot-fail] chrome spawn failed: " + e.message + " (" + CHROME + ")");
+  process.exit(2);
+});
 
 const errors = [];
 const logs = [];

@@ -67,8 +67,11 @@ jobs:
         run: |
           python3 serve_web.py > /tmp/serve.log 2>&1 &
           sleep 3
-          CHROME=/usr/bin/google-chrome bash tools/shots_all.sh || true
-          ls -lh screenshots/*.png || true
+          curl -s -o /dev/null -w "serve HTTP %{http_code}\n" http://127.0.0.1:8931/
+          google-chrome --version || echo "CHROME MISSING at /usr/bin/google-chrome"
+          ls -la /usr/bin/google-chrome || true
+          CHROME=/usr/bin/google-chrome bash tools/shots_all.sh
+          ls -lh screenshots/*.png
 
       - uses: actions/upload-artifact@v4
         with:

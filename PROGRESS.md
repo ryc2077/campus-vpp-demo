@@ -331,7 +331,16 @@ CPU 与内存，负载一度 31，内存只剩约 300MB–1GB，期间还发生�
   `export/`（54MB 导出产物）、`tools/fonts/`（运行时只用 `assets/fonts/` 的子集字体）；
   import 步加 `timeout-minutes: 20`。本地因 CPU 被 Blender 烘焙占满、多次被运行时重启打断，未能跑完一次全量导入；
   以 Actions 跑 4 核无争用为准验收。
-- 待 Actions：推仓库 → 触发 godot-verify → 验证脚本 + Web 导出 + 10 张截图验收。
+- **Actions 首跑成功（run 45048318226，success）**：14 步全绿；验证脚本 `VERIFY-SUMMARY: PASS=49 FAIL=0`；
+  Web 导出产物 `godot-web-export` 26.54MB 已上传。
+- **但 10 张截图一张没产出**：日志里 10 张都显示 done，但 `ls screenshots/*.png` 报 No such file，
+  `godot-screenshots` 产物为空。根因是诊断被吞了：shots_all.sh 的 grep 只放行 `[shot]/[console]`，
+  `[shot-fail]`（spawn 失败/端点超时）和 `[page]`（页面状态）全被滤掉，`|| true` 又把失败抹掉——
+  每张约 60 秒正好是 DevTools 端点 60 秒超时，说明 Chrome 根本没起来（或页面没加载），却显示 done。
+  修复：① shot.mjs 加 `chrome.on("error")` 处理 + 打印 `[chrome] <路径>`；② shots_all.sh 的 grep 放行
+  `[page]/[shot-fail]/[chrome]`，每张校验文件存在、失败记 FAILED、最后 exit 1；③ workflow 截图步先
+  curl 测服务、打印 `google-chrome --version`，去掉 `|| true` 让失败显形。重推重跑中。
+- 待 Actions：推仓库 → 触发 godot-verify → 10 张截图验收。
 
 ## 收尾状态（22:02 前）
 - 工程：`demo-godot/`（project.godot、6 scenes、11 scripts、6 data JSON、shaders、assets/fonts 282KB 子集字体）。
