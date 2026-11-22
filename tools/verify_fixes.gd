@@ -41,6 +41,17 @@ func _process(_delta: float) -> bool:
 	_frames += 1
 	if _frames < 5:
 		return false
+	# 防空转：检查中途报错会跳过 quit()、下帧重跑、无限循环（曾在 Actions 上刷出 193MB 日志）。
+	# 60 帧还没跑完就直接失败退出；场景脚本没挂上也立刻失败退出。
+	if _frames > 60:
+		print("VERIFY-TIMEOUT: checks did not finish")
+		quit(2)
+		return true
+	var _panel = _main.get_node("UI/ScenePanel")
+	if not _panel.has_method("set_live"):
+		print("VERIFY-FAIL: ScenePanel script did not attach (class cache stale?)")
+		quit(2)
+		return true
 	# ---- 顶栏 / 天气 / 提示 ----
 	var title := _main.get_node("UI/TopBar/HBox/TitleLabel") as Label
 	_chk("TitleLabel 深色 #0f172a", _col(_label_color(title)) == "#0f172a", _col(_label_color(title)))

@@ -45,7 +45,15 @@ jobs:
           ls ~/.local/share/godot/export_templates/4.4.stable/ | head
           ~/godot-cache/Godot_v4.4-stable_linux.x86_64 --version
 
+      - name: Import project (build script class cache)
+        run: |
+          # 新检出没有 .godot/ 类缓存时，所有 class_name（SimEngine、ScenePanel……）
+          # 都解析不到，脚本编译失败、验证脚本空转。先 --import 建缓存再跑验证。
+          ~/godot-cache/Godot_v4.4-stable_linux.x86_64 --headless --path . --import
+          test -f .godot/global_script_class_cache.cfg && grep -c "class_name" .godot/global_script_class_cache.cfg || true
+
       - name: Headless verify (21 checks)
+        timeout-minutes: 10
         run: ~/godot-cache/Godot_v4.4-stable_linux.x86_64 --headless --path . -s tools/verify_fixes.gd
 
       - name: Export Web

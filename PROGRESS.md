@@ -319,6 +319,11 @@ CPU 与内存，负载一度 31，内存只剩约 300MB–1GB，期间还发生�
   ② verify 脚本 detail 参数误传 Color（`_chk` 要求 String）导致每帧报错循环、到不了 quit（已包 `_col()`）。
 - **无头逻辑验证 49/49 全过**（原 21 + 新 28）：token、窄屏 390/1280 双向、双开重叠、 sky/地面色、
   减弱动效四项、colors.csv、→ 字形。本地只跑无头验证，未渲染未截图（按任务要求走 Actions）。
+- **Actions 首跑踩坑（已定位，在修）**：新检出没有 `.godot/` 类缓存，`--headless -s` 直接跑验证时
+  全部 class_name（SimEngine、ScenePanel……）解析不到，脚本编译失败；且验证脚本中途报错会跳过 quit()
+  下帧重跑、无限循环，首跑刷出 193MB 日志、两路运行卡在 Headless verify 步 25 分钟以上。
+  修复：① workflow 在验证前加 `--import` 建缓存；② 验证步加 `timeout-minutes: 10`；③ 验证脚本加防空转
+  （60 帧未完成 quit(2)；ScenePanel 没挂上 set_live 立刻 quit(2)）。已取消三路卡住的运行，重推重跑。
 - 待 Actions：推仓库 → 触发 godot-verify → 验证脚本 + Web 导出 + 10 张截图验收。
 
 ## 收尾状态（22:02 前）
