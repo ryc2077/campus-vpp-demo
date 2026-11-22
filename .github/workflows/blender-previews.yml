@@ -6,6 +6,7 @@ on:
     paths:
       - 'assets/blender/**'
       - '.github/workflows/blender-previews.yml'
+      - 'tools/render_max.py'
 
 jobs:
   render:
@@ -30,22 +31,62 @@ jobs:
             cd /tmp && curl -sL -o blender.tar.xz https://download.blender.org/release/Blender4.2/blender-4.2.0-linux-x64.tar.xz
             tar -xf blender.tar.xz
           fi
-          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb > /dev/null
+          # EEVEE_NEXT needs EGL/OpenGL + Mesa software GL on headless runners
+          # (xvfb alone is not enough: Blender core-dumps on missing libEGL.so.1).
+          sudo apt-get update -qq && sudo apt-get install -y -qq \
+            xvfb libegl1 libgl1 libgl1-mesa-dri libglx-mesa0 libglvnd0 \
+            libglib2.0-0 libsm6 libice6 libx11-6 libxext6 libxi6 libxrender1 \
+            libxkbcommon0 libfontconfig1 libxcb1 > /dev/null
           /tmp/blender-4.2.0-linux-x64/blender --version
 
       - name: Render group (max quality)
         run: |
+          set -euo pipefail
           mkdir -p screenshots/blender /tmp/render
-          for f in assets/blender/${{ matrix.group }}/*.blend; do
+          shopt -s nullglob
+          files=(assets/blender/${{ matrix.group }}/*.blend)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "ERROR: no .blend files in group ${{ matrix.group }}"
+            exit 1
+          fi
+          failed=0
+          for f in "${files[@]}"; do
             name=$(basename "$f" .blend)
             echo "=== $name ==="
-            xvfb-run -a /tmp/blender-4.2.0-linux-x64/blender -b "$f" -E BLENDER_EEVEE_NEXT --python tools/render_max.py -o /tmp/render/${name}_ -f 1 || echo "FAILED: $name"
-            mv /tmp/render/${name}_0001.png "screenshots/blender/${name}.png" 2>/dev/null || echo "NO OUTPUT: $name"
+            rm -f "/tmp/render/${name}_0001.png"
+            rc=0
+            xvfb-run -a /tmp/blender-4.2.0-linux-x64/blender -b "$f" -E BLENDER_EEVEE_NEXT --python tools/render_max.py -o "/tmp/render/${name}_" -f 1 || rc=$?
+            if [ "$rc" -ne 0 ]; then
+              echo "FAILED: $name (blender exit $rc)"
+              failed=1
+              continue
+            fi
+            if [ ! -s "/tmp/render/${name}_0001.png" ]; then
+              echo "NO OUTPUT: $name"
+              failed=1
+              continue
+            fi
+            mv "/tmp/render/${name}_0001.png" "screenshots/blender/${name}.png"
           done
+          echo "--- rendered files ---"
           ls -la screenshots/blender/
+          if [ "$failed" -ne 0 ]; then
+            echo "ERROR: one or more renders failed in group ${{ matrix.group }}"
+            exit 1
+          fi
+
+      - name: Check outputs before upload
+        run: |
+          count=$(ls screenshots/blender/*.png 2>/dev/null | wc -l)
+          echo "PNG count: $count"
+          if [ "$count" -eq 0 ]; then
+            echo "ERROR: screenshots/blender/ is empty, nothing to upload"
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
           name: blender-previews-${{ matrix.group }}
           path: screenshots/blender/*.png
+          if-no-files-found: error
           retention-days: 30
