@@ -260,8 +260,9 @@ def make_car(tag, color_hex, cx, cy, rot_z_deg):
 # Local front is +X, so rotate -90 deg about Z (+X -> -Y).
 make_car("blue", "#3B82C4", 38, -76, -90)
 make_car("red", "#C4534E", 45, -76, -90)
-# White non-V2G near x=52, front toward +Y.
-make_car("white", "#D7DDE3", 52, -76, 90)
+# White non-V2G moved into empty bay 4 (x=48.5), front toward -Y like blue/red.
+# (2026-11-22 fix: was at x=52 outside bay 4, facing +Y; now -90 deg = south.)
+make_car("white", "#D7DDE3", 48.5, -76, -90)
 
 car_objs = [o for o in bpy.data.objects
             if o.name.startswith("ch-cars_")]
@@ -303,7 +304,8 @@ cam.name = "ch-cars_cam"
 cam.rotation_euler = (target - cam.location).to_track_quat('-Z', 'Y').to_euler()
 bpy.context.scene.camera = cam
 
-# ---- render preview ----
+# ---- render settings (baked into the .blend for the GitHub Actions render job;
+#  no local render: 2026-11-22 user decision, all previews render on Actions) ----
 scene = bpy.context.scene
 scene.render.engine = 'BLENDER_EEVEE_NEXT'
 scene.eevee.taa_render_samples = 16
@@ -313,7 +315,7 @@ scene.render.resolution_x = 640
 scene.render.resolution_y = 360
 scene.render.filepath = PNG_PATH
 os.makedirs(os.path.dirname(PNG_PATH), exist_ok=True)
-bpy.ops.render.render(write_still=True)
+# bpy.ops.render.render(write_still=True)  # local render disabled, see above
 
 # ---- remove preview-only helpers, keep only the cars ----
 for obj in (ground, sun, cam, probe):

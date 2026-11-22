@@ -1,5 +1,7 @@
 # ch-piles: 4x DC charging piles, charging area, Blender coords (x east, y north, z up, metres)
-# Charge area centre Blender (44, -76). Piles at x=38, 41.5, 45, 48.5, y=-76.
+# Charge area centre Blender (44, -76). Piles at x=38, 41.5, 45, 48.5, y=-73.25
+# (moved 2026-11-22: north of the bays, outside the bay north line -73.50,
+#  so piles no longer intersect the V2G cars; car north end is -73.75).
 # Only piles + gun cables + concrete plinths. No cars, no bay lines, no canopy.
 # Texture pass (2026-11-22): procedural textures only, geometry/camera untouched.
 #   - white paint: BRUSHED metal streaks (noise stretched vertically via Mapping)
@@ -222,7 +224,7 @@ def box(name, loc, size, material, bevel=0.0):
 
 pile_objs = []
 XS = [38.0, 41.5, 45.0, 48.5]
-Y = -76.0
+Y = -73.25
 for i, cx in enumerate(XS):
     p = f"ch-piles_p{i+1}"
     # concrete plinth 0.8 x 0.6 x 0.1
