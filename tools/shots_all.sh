@@ -3,10 +3,11 @@
 # 用法：bash tools/shots_all.sh [base_url]，默认 http://127.0.0.1:8931
 BASE="${1:-http://127.0.0.1:8931}"
 cd "$(dirname "$0")/.."
+mkdir -p screenshots # 新检出仓库里没有 screenshots/ 目录，shot.mjs 写文件会 ENOENT（rc=2）
 FAILED=0
 shot() { # $1=query $2=outfile $3=w $4=h $5=wait $6=settle
   # 诊断行不过滤：[shot-fail]/[page]/[chrome] 曾被旧 grep 吞掉，10 张全挂还显示 done。
-  node tools/shot.mjs "${BASE}/?$1" "screenshots/$2" "${3:-1280}" "${4:-720}" "${5:-20000}" "${6:-3000}" 2>&1 | grep -E "\[shot\]|\[page\]|\[console\]|\[chrome\]|FONT-DIAG" | head -8
+  node tools/shot.mjs "${BASE}/?$1" "screenshots/$2" "${3:-1280}" "${4:-720}" "${5:-20000}" "${6:-3000}" 2>&1 | grep -E "\[shot\]|shot-fail|\[page\]|\[console\]|\[chrome\]|FONT-DIAG" | head -8
   rc=${PIPESTATUS[0]}
   if [ "$rc" -ne 0 ] || [ ! -f "screenshots/$2" ]; then echo "--- $2 FAILED rc=$rc"; FAILED=1; else echo "--- $2 done"; fi
 }

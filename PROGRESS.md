@@ -340,6 +340,9 @@ CPU 与内存，负载一度 31，内存只剩约 300MB–1GB，期间还发生�
   修复：① shot.mjs 加 `chrome.on("error")` 处理 + 打印 `[chrome] <路径>`；② shots_all.sh 的 grep 放行
   `[page]/[shot-fail]/[chrome]`，每张校验文件存在、失败记 FAILED、最后 exit 1；③ workflow 截图步先
   curl 测服务、打印 `google-chrome --version`，去掉 `|| true` 让失败显形。重推重跑中。
+- **截图失败根因找到**：run 45049590832 里服务 200、Chrome 正常、页面已加载（`[page] {"title":"Campus VPP Demo","canvas":true}`），
+  但 10 张全是 `FAILED rc=2`。查仓库：`screenshots/` 目录根本不在仓库里（404），shot.mjs 写文件报 ENOENT。
+  修复：shots_all.sh 开头 `mkdir -p screenshots`；grep 再补上 `shot-fail`（这次它的报错行仍被滤掉了）。
 - 待 Actions：推仓库 → 触发 godot-verify → 10 张截图验收。
 
 ## 收尾状态（22:02 前）
