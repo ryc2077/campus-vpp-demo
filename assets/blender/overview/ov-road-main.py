@@ -300,6 +300,113 @@ cam.data.clip_end = 500.0
 cam.rotation_euler = (target - cam.location).to_track_quat("-Z", "Y").to_euler()
 bpy.context.scene.camera = cam
 
+# ---------- 烘焙程序化纹理为图片 (照抄 dist/di-walls.py 已验证做法) ----------
+# glTF 无法导出 Noise/Voronoi 程序化节点: 每种不透明材质选其全部对象,
+# Cycles CPU (samples 4) 烘焙 color/rough/normal 三张 1024px 图
+# (diffuse 只取 color 通道, 不带光照; margin 16px), 再重建材质为图片纹理节点。
+# 立方体自带 UV (每面 0~1); from_pydata 的棱柱角块没有 UV, 先补 UV 再烘焙。
+import time
+TEX_DIR = os.path.join(PY_DIR, "ov-road-main_textures")
+os.makedirs(TEX_DIR, exist_ok=True)
+_bake_scene = bpy.context.scene
+_bake_t0 = time.time()
+
+
+def _ensure_uv(ob):
+    me = ob.data
+    if me is None or not hasattr(me, "uv_layers") or len(me.uv_layers) > 0:
+        return
+    me.uv_layers.new(name="UVMap")
+    bpy.ops.object.select_all(action='DESELECT')
+    ob.select_set(True)
+    bpy.context.view_layer.objects.active = ob
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.uv.smart_project(angle_limit=66.0, island_margin=0.02)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.select_all(action='DESELECT')
+    print("uv added:", ob.name)
+
+
+def _bake_images(mat, mat_objs, color_size=1024):
+    nt = mat.node_tree
+    imgs = {}
+    specs = [("color", 'DIFFUSE', color_size, 'sRGB'),
+             ("rough", 'ROUGHNESS', 1024, 'Non-Color'),
+             ("normal", 'NORMAL', 1024, 'Non-Color')]
+    bpy.ops.object.select_all(action='DESELECT')
+    for ob in mat_objs:
+        ob.select_set(True)
+    bpy.context.view_layer.objects.active = mat_objs[0]
+    _bake_scene.render.engine = 'CYCLES'
+    _bake_scene.cycles.device = 'CPU'
+    _bake_scene.cycles.samples = 4
+    bake = _bake_scene.render.bake
+    bake.use_selected_to_active = False
+    bake.margin = 16
+    for key, btype, size, cs in specs:
+        img = bpy.data.images.new("%s_%s" % (mat.name, key),
+                                  width=size, height=size, alpha=False)
+        img.colorspace_settings.name = cs
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = img
+        nt.nodes.active = tex
+        if btype == 'DIFFUSE':
+            bake.use_pass_direct = False
+            bake.use_pass_indirect = False
+            bake.use_pass_color = True
+        elif btype == 'NORMAL':
+            bake.normal_space = 'TANGENT'
+        bpy.ops.object.bake(type=btype)
+        img.filepath_raw = os.path.join(TEX_DIR, "%s_%s.png" % (mat.name, key))
+        img.file_format = 'PNG'
+        img.save()
+        imgs[key] = img
+        nt.nodes.remove(tex)
+        print("baked:", mat.name, key, img.filepath_raw,
+              os.path.getsize(img.filepath_raw))
+    _bake_scene.render.engine = 'BLENDER_EEVEE_NEXT'
+    return imgs
+
+
+def _rebuild_with_images(mat, imgs):
+    nt = mat.node_tree
+    for n in list(nt.nodes):
+        nt.nodes.remove(n)
+    bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    bsdf.inputs["Base Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+    bsdf.inputs["Roughness"].default_value = 1.0
+    bsdf.inputs["Metallic"].default_value = 0.0
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    nt.links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
+    tex_c = nt.nodes.new("ShaderNodeTexImage")
+    tex_c.image = imgs["color"]
+    nt.links.new(tex_c.outputs["Color"], bsdf.inputs["Base Color"])
+    tex_r = nt.nodes.new("ShaderNodeTexImage")
+    tex_r.image = imgs["rough"]
+    nt.links.new(tex_r.outputs["Color"], bsdf.inputs["Roughness"])
+    tex_n = nt.nodes.new("ShaderNodeTexImage")
+    tex_n.image = imgs["normal"]
+    nmap = nt.nodes.new("ShaderNodeNormalMap")
+    nmap.space = 'TANGENT'
+    nt.links.new(tex_n.outputs["Color"], nmap.inputs["Color"])
+    nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+
+
+_by_mat = {}
+for _ob in roads:
+    _by_mat.setdefault(_ob.data.materials[0], []).append(_ob)
+for _m_objs in _by_mat.values():
+    for _ob in _m_objs:
+        _ensure_uv(_ob)
+_baked = {}
+for _mat, _m_objs in _by_mat.items():
+    _baked[_mat.name] = _bake_images(_mat, _m_objs)
+for _mat in _by_mat:
+    _rebuild_with_images(_mat, _baked[_mat.name])
+print("bake done, materials rebuilt with image textures, elapsed %.1fs"
+      % (time.time() - _bake_t0))
+
 # ---- save .blend ----
 os.makedirs(PY_DIR, exist_ok=True)
 os.makedirs(os.path.dirname(GLB_PATH), exist_ok=True)
@@ -320,11 +427,25 @@ bpy.ops.export_scene.gltf(filepath=GLB_PATH, export_format="GLB",
 print("exported glb:", GLB_PATH, "objects:", len(roads))
 
 # ---- read back the .glb to confirm it opens, then drop the duplicates ----
-bpy.ops.object.select_all(action="DESELECT")
+# 回读验证 (di-walls 做法): 对象数一致, 且每种材质的贴图数 >= 3 (烘焙贴图齐全)。
+before = set(bpy.data.objects)
 bpy.ops.import_scene.gltf(filepath=GLB_PATH)
-imported = [o for o in bpy.context.selected_objects]
-print("glb re-import OK, imported objects:", len(imported))
-bpy.ops.object.delete(use_global=False)  # remove re-imported copies before render
+imported = [o for o in bpy.data.objects if o not in before]
+print("glb re-import OK, imported objects:", len(imported),
+      [o.name for o in imported])
+for ob in imported:
+    for slot in ob.material_slots:
+        m = slot.material
+        if m and m.use_nodes:
+            imgs = [n.image.name for n in m.node_tree.nodes
+                    if n.type == 'TEX_IMAGE' and n.image is not None]
+            print("GLB reimport mat:", ob.name, m.name, "images:", imgs)
+            assert len(imgs) >= 3, "glb material lost baked textures: %s" % m.name
+assert len(imported) == len(roads), "glb reimport failed: expected %d objects, got %d" % (len(roads), len(imported))
+bpy.ops.object.select_all(action='DESELECT')
+for ob in imported:
+    ob.select_set(True)
+bpy.ops.object.delete()
 print("re-imported copies deleted, scene objects:", len(bpy.context.scene.objects))
 
 # ---- render preview: Eevee, 640x360, 16 samples ----
@@ -336,7 +457,7 @@ scene.render.resolution_percentage = 100
 scene.eevee.taa_render_samples = 16
 scene.render.filepath = PNG_PATH
 scene.render.image_settings.file_format = "PNG"
-bpy.ops.render.render(write_still=True)
-print("rendered preview:", PNG_PATH)
+# 本地不渲染预览图 (渲染全部走 GitHub Actions); 上面的渲染设置留给 Actions 用。
+print("preview render skipped (GitHub Actions renders):", PNG_PATH)
 
 print("DONE ov-road-main")
