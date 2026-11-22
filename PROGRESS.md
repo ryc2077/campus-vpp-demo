@@ -355,7 +355,13 @@ CPU 与内存，负载一度 31，内存只剩约 300MB–1GB，期间还发生�
   只有约 2px）。labels.gd 设的是 fixed_size + font_size 16，理论上屏上应只有 16px，实际渲染出来上百 px——
   原因未定位（疑似 Compatibility 渲染器下 fixed_size 与 pixel_size 的相互作用，或相机落位问题），
   本地无头跑不了渲染、不能空猜硬改。明天 Godot 整合时修，验收标准：总览截图里标签 16px 左右、互不重叠。
-- 待 Actions：推仓库 → 触发 godot-verify → 10 张截图验收。
+- **最终验收（run 45052964648，success，2026-11-22 18:05）**：14 步全绿；验证脚本 `VERIFY-SUMMARY: PASS=50 FAIL=0`
+  （含新增配电房面板宽检查）；Web 导出 `godot-web-export` 26.54MB；截图 `godot-screenshots` 3.15MB，10/10 张；
+  目视确认储能/配电房面板已收进屏内、长行正常换行。注意：中间有一次假成功——修复 5 的首推与 Blender 拼装
+  推送撞车、commit 没建出来（只建了 blob），跑的是旧提交、截图与旧版字节相同；重推后核对仓库文件
+  （autowrap×2、chart 180）才确认落地，此后凡推必核 commit 是否建出。
+- 补漏任务到此结束。还剩：① 3D 标签巨大模糊（总览/光伏截图，见上）；② 配电房/教室內景相机角度待查
+  （配电房内景截图大面积空白墙）；③ 窄屏总览雾感偏重。①②③ 都留给明天 18:15 的 Godot 整合。
 
 ## 收尾状态（22:02 前）
 - 工程：`demo-godot/`（project.godot、6 scenes、11 scripts、6 data JSON、shaders、assets/fonts 282KB 子集字体）。
