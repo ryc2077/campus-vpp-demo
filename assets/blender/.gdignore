@@ -1,0 +1,3 @@
+# Blender 源码目录（.blend/.py/烘焙贴图），不是 Godot 运行时内容。
+# Godot 4.4 的编辑器导入扫描到 .blend 文件会卡住（全新检出 --import 300 秒零导入）。
+# Godot 只用 assets/models/*.glb，拼装/渲染仍走 Blender 与 Actions，与此无关。

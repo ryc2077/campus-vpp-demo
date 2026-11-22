@@ -324,6 +324,13 @@ CPU 与内存，负载一度 31，内存只剩约 300MB–1GB，期间还发生�
   下帧重跑、无限循环，首跑刷出 193MB 日志、两路运行卡在 Headless verify 步 25 分钟以上。
   修复：① workflow 在验证前加 `--import` 建缓存；② 验证步加 `timeout-minutes: 10`；③ 验证脚本加防空转
   （60 帧未完成 quit(2)；ScenePanel 没挂上 set_live 立刻 quit(2)）。已取消三路卡住的运行，重推重跑。
+- **--import 本身也卡（已定位，在修）**：本地全新导入复现——有 `assets/blender/` 时 300 秒零导入；
+  去掉它后开始走（145 个已导入），但 43 个 .glb + 烘焙贴图在 1.5 核本机上极慢（又 240 秒只到 163 个），
+  且 `tools/fonts/NotoSansSC-static.ttf`（17.8MB 全量字体）导入也很慢。
+  修复：三个 `.gdignore` 提交进仓库——`assets/blender/`（.blend 不是 Godot 运行时内容，Godot 只用 .glb）、
+  `export/`（54MB 导出产物）、`tools/fonts/`（运行时只用 `assets/fonts/` 的子集字体）；
+  import 步加 `timeout-minutes: 20`。本地因 CPU 被 Blender 烘焙占满、多次被运行时重启打断，未能跑完一次全量导入；
+  以 Actions 跑 4 核无争用为准验收。
 - 待 Actions：推仓库 → 触发 godot-verify → 验证脚本 + Web 导出 + 10 张截图验收。
 
 ## 收尾状态（22:02 前）

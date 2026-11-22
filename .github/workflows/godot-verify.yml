@@ -46,6 +46,7 @@ jobs:
           ~/godot-cache/Godot_v4.4-stable_linux.x86_64 --version
 
       - name: Import project (build script class cache)
+        timeout-minutes: 20
         run: |
           # 新检出没有 .godot/ 类缓存时，所有 class_name（SimEngine、ScenePanel……）
           # 都解析不到，脚本编译失败、验证脚本空转。先 --import 建缓存再跑验证。
