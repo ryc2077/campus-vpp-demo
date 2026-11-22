@@ -298,6 +298,29 @@ CPU 与内存，负载一度 31，内存只剩约 300MB–1GB，期间还发生�
   原生 Godot 截图（Xvfb + llvmpipe）170 秒跑不完 30–60 帧。标题/标签/颜色类修复已由无头逻辑验证 21/21
   覆盖，视觉验收待机器空闲后重拍（`tools/shots_all.sh` 一键 10 张已备好）。
 
+## 23:18– 补漏任务：P2-1/P2-4/偏淡/重叠 + P3 小项（与 Blender 拼装并行，验证走 Actions）
+- **P2-1 窄屏分支重构**（ui_controller.gd `_apply_narrow_layout` + scene_panel.gd `apply_narrow_layout`，
+  视口 resize 信号触发，`_ready` 时 deferred 调一次）：<975 滑杆 150→100；<672 模式芯片隐藏、标题 14px、
+  场景栏按钮取消固定宽均分整栏、ABC/场景面板满宽（左右留 12px）；<560 滑杆与时间标签隐藏、天气标签隐藏、
+  ABC 表格字 14px（重建一次）、天气按钮 40px。恢复时全部还原因子。
+- **P2-4 样式 token 化**（新增 scripts/ui_tokens.gd，单一来源；配色见 data/colors.csv 第 1 行 SaaS）：
+  玻璃按钮（场景栏/天气）与实色按钮（顶栏操作/面板按钮）共用 token：实色白底 + #e2e8f0 描边 + 10px 圆角，
+  hover #f1f5f9，激活态与玻璃按钮同款深绿 #0f766e + 白字；两类按钮都有 2px #2563eb 键盘焦点环（P3-6）。
+  ui_controller/scene_panel 里原来 `_style_glass_button` 的实现与默认主题按钮全部改走 UITokens；
+  UITokens 用 preload 引用（新文件进不了本地陈旧的 .godot 类缓存，headless 报未声明；Actions 新检出不受影响）。
+- **总览偏淡**：天顶 #8ec9f0→#63a9e6（weather_system.gd `day`，每帧覆盖处）、初始天空材质加深、
+  tscn Environment 背景/环境/雾色加深；地面绿 #69b45e→#4f9d43、内场绿 #46a04e→#3d8f43（data/campus.json）。
+- **ABC/场景面板重叠**（ui_controller.gd `layout_panels`，main.gd 在面板显隐处调用）：双开时场景面板顶 =
+  ABC 底 + 12（452）、底贴场景栏上方（anchor_bottom=1.0、offset_bottom=-84）；单开恢复顶 60、底 620。
+- **P3**：P3-2 data/colors.csv 落到工程内（SaaS 行原样复制），ui_controller 注释改指 res://data/colors.csv；
+  P3-4 减弱动效贯通 weather（`reduced_motion` 标志：停闪电、云漂移、云影漂移）+ main 树摆停摆；
+  P3-6 焦点环见上；P3-7 界面文字 "DC→AC" 改 "DC 转 AC"（子集字体含 转/直/流/交 字形，已核对 cmap）。
+- **修法中的两个坑（已修好）**：① 第一版误删了 `_abc_tween/_abc_token/_abc_exit_token` 声明（已补回）；
+  ② verify 脚本 detail 参数误传 Color（`_chk` 要求 String）导致每帧报错循环、到不了 quit（已包 `_col()`）。
+- **无头逻辑验证 49/49 全过**（原 21 + 新 28）：token、窄屏 390/1280 双向、双开重叠、 sky/地面色、
+  减弱动效四项、colors.csv、→ 字形。本地只跑无头验证，未渲染未截图（按任务要求走 Actions）。
+- 待 Actions：推仓库 → 触发 godot-verify → 验证脚本 + Web 导出 + 10 张截图验收。
+
 ## 收尾状态（22:02 前）
 - 工程：`demo-godot/`（project.godot、6 scenes、11 scripts、6 data JSON、shaders、assets/fonts 282KB 子集字体）。
 - Web 导出：`export/web/`（index.html + index.js + index.wasm 41MB + index.pck **362KB**，2026-11-22 13:02，

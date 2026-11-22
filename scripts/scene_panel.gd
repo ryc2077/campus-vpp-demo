@@ -1,6 +1,9 @@
 class_name ScenePanel
 extends PanelContainer
 ## 场景面板：只留图表与实时数据行，不写介绍文字段落（用户要求）。
+## （UITokens 用 preload：见 ui_controller.gd 注释。）
+
+const UITokens = preload("res://scripts/ui_tokens.gd")
 ## 内容：标题、附加控件（教室策略下拉 / 储能外壳开关）、实时数据行、
 ## SOC/负载条、曲线图、返回按钮。窄屏默认收起只留标题与返回。
 
@@ -34,6 +37,9 @@ func _ready() -> void:
 	live_box = $VBox/SPLive
 	chart = $VBox/SPChart
 	min_btn = $VBox/SPTitleRow/SPMinBtn
+	# 面板按钮与顶栏按钮共用 UITokens 一套 token（P2-4），不再用默认主题样式。
+	UITokens.style_solid_button(min_btn)
+	UITokens.style_solid_button($VBox/SPBack)
 	min_btn.pressed.connect(_on_min_pressed)
 	$VBox/SPBack.pressed.connect(func() -> void: back_pressed.emit())
 	_springs.attach(min_btn)
@@ -84,7 +90,7 @@ func build(title: String, extra_kind: String, shell_open: bool) -> void:
 		var sel := OptionButton.new()
 		if font != null:
 			sel.add_theme_font_override("font", font)
-		sel.add_theme_font_size_override("font_size", 16)
+		UITokens.style_option_button(sel)
 		sel.custom_minimum_size = Vector2(0, 44)
 		sel.add_item("预冷 + 峰段间歇", 0)
 		sel.add_item("恒温 26 ℃", 1)
@@ -100,6 +106,7 @@ func build(title: String, extra_kind: String, shell_open: bool) -> void:
 		btn.text = "外壳半透明：" + ("开" if shell_open else "关")
 		if font != null:
 			btn.add_theme_font_override("font", font)
+		UITokens.style_solid_button(btn)
 		btn.toggle_mode = true
 		btn.button_pressed = shell_open
 		btn.toggled.connect(func(on: bool) -> void:
@@ -175,6 +182,19 @@ func set_minimized(m: bool) -> void:
 	extra_box.visible = not m
 	min_btn.text = "展开详情" if m else "收起详情"
 	minimize_toggled.emit(m)
+
+
+## 窄屏（P2-1）：面板满宽（左右各留 12px），图表取消 320px 强制最小宽，
+## 跟着面板宽走；最小宽 330px → 280px。
+func apply_narrow_layout(w: float) -> void:
+	if w < 672.0:
+		offset_left = -(w - 24.0)
+		custom_minimum_size = Vector2(280, 0)
+		chart.custom_minimum_size = Vector2(0, 200)
+	else:
+		offset_left = -372.0
+		custom_minimum_size = Vector2(330, 0)
+		chart.custom_minimum_size = Vector2(320, 200)
 
 func _on_min_pressed() -> void:
 	set_minimized(not _minimized)

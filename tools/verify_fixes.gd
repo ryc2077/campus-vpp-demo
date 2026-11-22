@@ -102,6 +102,78 @@ func _process(_delta: float) -> bool:
 	var band_idx := charts_src.find("24–28℃ 舒适带")
 	var band_line := charts_src.substr(band_idx, 120) if band_idx >= 0 else ""
 	_chk("charts.gd 舒适带文字用 #047857", band_idx >= 0 and band_line.find("047857") >= 0, band_line.left(80))
+	# ---- P2-4 按钮样式统一（UITokens 一套 token） ----
+	var play_btn := _main.get_node("UI/TopBar/HBox/PlayButton") as Button
+	var play_normal := play_btn.get_theme_stylebox("normal") as StyleBoxFlat
+	_chk("实色按钮 normal 白底", play_normal != null and _col(play_normal.bg_color) == "#ffffff", _col(play_normal.bg_color) if play_normal != null else "null")
+	_chk("实色按钮字色 #1e293b", _col(play_btn.get_theme_color("font_color")) == "#1e293b", _col(play_btn.get_theme_color("font_color")))
+	var play_focus := play_btn.get_theme_stylebox("focus") as StyleBoxFlat
+	_chk("实色按钮焦点环 ≥2px（P3-6）", play_focus != null and play_focus.border_width_left >= 2, str(play_focus.border_width_left) if play_focus != null else "null")
+	var abc_tgl := _main.get_node("UI/TopBar/HBox/ABCToggle") as Button
+	var abc_normal := abc_tgl.get_theme_stylebox("normal") as StyleBoxFlat
+	_chk("ABCToggle 同款实色按钮", abc_normal != null and _col(abc_normal.bg_color) == "#ffffff", _col(abc_normal.bg_color) if abc_normal != null else "null")
+	var scene_btn := _main.get_node("UI/SceneBar/HBox/BtnOverview") as Button
+	_chk("玻璃按钮 normal 仍透明", scene_btn.get_theme_stylebox("normal") is StyleBoxEmpty, str(scene_btn.get_theme_stylebox("normal")))
+	var glass_focus := scene_btn.get_theme_stylebox("focus") as StyleBoxFlat
+	_chk("玻璃按钮焦点环 ≥2px（P3-6）", glass_focus != null and glass_focus.border_width_left >= 2, str(glass_focus.border_width_left) if glass_focus != null else "null")
+	# ---- P2-1 窄屏分支（390px） ----
+	ui.call("_apply_narrow_layout", 390.0)
+	var mode_chip := _main.get_node("UI/TopBar/HBox/ModeChip") as Label
+	_chk("390px 模式芯片隐藏", not mode_chip.visible, str(mode_chip.visible))
+	var tslider := _main.get_node("UI/TopBar/HBox/TimeSlider") as HSlider
+	_chk("390px 时间滑杆隐藏", not tslider.visible, str(tslider.visible))
+	_chk("390px 场景按钮字 13px", scene_btn.get_theme_font_size("font_size") == 13, str(scene_btn.get_theme_font_size("font_size")))
+	var abc_panel := _main.get_node("UI/ABCPanel") as PanelContainer
+	_chk("390px ABC 面板满宽", abc_panel.offset_left == -366.0, str(abc_panel.offset_left))
+	_chk("390px ABC 表格字 14px", (grid.get_child(0) as Label).get_theme_font_size("font_size") == 14, str((grid.get_child(0) as Label).get_theme_font_size("font_size")))
+	ui.call("_apply_narrow_layout", 1280.0)
+	_chk("1280px 恢复：模式芯片可见", mode_chip.visible, str(mode_chip.visible))
+	_chk("1280px 恢复：滑杆可见", tslider.visible, str(tslider.visible))
+	_chk("1280px 恢复：场景按钮字 16px", scene_btn.get_theme_font_size("font_size") == 16, str(scene_btn.get_theme_font_size("font_size")))
+	_chk("1280px 恢复：ABC 面板 548px", abc_panel.offset_left == -560.0, str(abc_panel.offset_left))
+	# ---- ABC/场景面板重叠（两者同开时场景面板下移） ----
+	var sp_panel := _main.get_node("UI/ScenePanel") as PanelContainer
+	abc_panel.visible = true
+	sp_panel.visible = true
+	ui.call("layout_panels")
+	_chk("双开：场景面板顶 = ABC 底 + 12", sp_panel.offset_top == 452.0, str(sp_panel.offset_top))
+	_chk("双开：场景面板底贴场景栏上方", sp_panel.anchor_bottom == 1.0 and sp_panel.offset_bottom == -84.0, str(sp_panel.offset_bottom))
+	abc_panel.visible = false
+	ui.call("layout_panels")
+	_chk("单开：场景面板恢复顶 60", sp_panel.offset_top == 60.0, str(sp_panel.offset_top))
+	sp_panel.visible = false
+	# ---- 总览偏淡修复（天空/地面加深） ----
+	var wsys = _main.get_node("Weather")
+	var sky_mat = wsys._sky.sky_material as ProceduralSkyMaterial
+	_chk("白天天顶色加深 #63a9e6", _col(sky_mat.sky_top_color) == "#63a9e6", _col(sky_mat.sky_top_color))
+	var ground_mi := _main.get_node("Campus").get_child(0) as MeshInstance3D
+	_chk("地面绿加深 #4f9d43", ground_mi != null and _col((ground_mi.material_override as StandardMaterial3D).albedo_color) == "#4f9d43", _col((ground_mi.material_override as StandardMaterial3D).albedo_color) if ground_mi != null else "null")
+	# ---- P3-4 减弱动效：停闪电、云漂移与树摆 ----
+	_main.call("_set_reduced_motion", true)
+	_chk("减弱模式已贯通 weather", wsys.reduced_motion == true, str(wsys.reduced_motion))
+	wsys.call("set_weather", "storm")
+	var cx0: float = (wsys.clouds[0] as MeshInstance3D).position.x
+	wsys.call("update_frame", 12.0, 1.0)
+	wsys.call("update_frame", 12.0, 1.0)
+	_chk("减弱模式云不漂移", (wsys.clouds[0] as MeshInstance3D).position.x == cx0, str((wsys.clouds[0] as MeshInstance3D).position.x - cx0))
+	_chk("减弱模式暴雨不闪电", wsys.flash_light.light_energy == 0.0, str(wsys.flash_light.light_energy))
+	var canopy0 = _main.campus.tree_canopies[0] as Node3D
+	_main._t += 1.0
+	_main.call("_update_visuals", _main.sim.state_at(9.0), 0.016)
+	var rot_a: float = canopy0.rotation.z
+	_main._t += 1.0
+	_main.call("_update_visuals", _main.sim.state_at(9.0), 0.016)
+	_chk("减弱模式树不摆", canopy0.rotation.z == rot_a, str(canopy0.rotation.z - rot_a))
+	_main.call("_set_reduced_motion", false)
+	wsys.call("set_weather", "sunny")
+	# ---- P3-2 colors.csv 落到工程内 ----
+	_chk("data/colors.csv 存在", FileAccess.file_exists("res://data/colors.csv"), "")
+	var csv_txt := FileAccess.get_file_as_string("res://data/colors.csv")
+	_chk("colors.csv 有 SaaS 行", csv_txt.find("SaaS (General)") >= 0, csv_txt.left(60))
+	# ---- P3-7 → 字形：界面文字不再用箭头字形 ----
+	var main_src := FileAccess.get_file_as_string("res://scripts/main.gd")
+	_chk("界面文字无 DC→AC 箭头", main_src.find("DC→AC") < 0, "")
+	_chk("逆变器状态改文字 DC 转 AC", main_src.find("DC 转 AC") >= 0, "")
 	print("VERIFY-SUMMARY: PASS=", _passes, " FAIL=", _fails)
 	quit(1 if _fails > 0 else 0)
 	return true

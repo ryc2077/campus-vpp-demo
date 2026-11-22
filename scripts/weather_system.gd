@@ -17,6 +17,7 @@ var clouds: Array[MeshInstance3D] = []
 var cloud_mats: Array[StandardMaterial3D] = []
 var shadow_blobs: Array[MeshInstance3D] = []
 var flash_light: DirectionalLight3D
+var reduced_motion := false # P3-4：减弱动效时停闪电、云漂移与云影漂移（由 main._set_reduced_motion 设置）
 var _flash_until := -1.0
 var _next_flash := 6.0
 var _t := 0.0
@@ -29,10 +30,11 @@ func setup(data: Dictionary, p_sun: DirectionalLight3D, p_env: WorldEnvironment)
 	env = p_env
 	_sky = Sky.new()
 	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color("#6db9f2")
-	sky_mat.sky_horizon_color = Color("#dff2ff")
-	sky_mat.ground_bottom_color = Color("#5d7a4a")
-	sky_mat.ground_horizon_color = Color("#c8d9ea")
+	# 总览偏淡修复：天顶/地平加深一档（之前 #6db9f2/#dff2ff 洗得发白）
+	sky_mat.sky_top_color = Color("#4f9fe8")
+	sky_mat.sky_horizon_color = Color("#cfe8fb")
+	sky_mat.ground_bottom_color = Color("#4a6b38")
+	sky_mat.ground_horizon_color = Color("#b7d2e8")
 	_sky.sky_material = sky_mat
 	env.environment.background_mode = Environment.BG_SKY
 	env.environment.sky = _sky
@@ -152,9 +154,9 @@ func update_frame(hour: float, delta: float) -> void:
 	sun.light_color = warm.lerp(noon, daylight)
 	# 太阳方位：东升西落
 	sun.rotation_degrees = Vector3(-55.0 * maxf(sun_el, 0.05) - 8.0, -35.0 + 70.0 * clampf((hour - rise) / maxf(0.1, set_h - rise), 0.0, 1.0), 0.0)
-	# 天空颜色：昼夜 + 天气压暗
+	# 天空颜色：昼夜 + 天气压暗（白天顶色加深一档，之前 #8ec9f0 偏淡）
 	var night := Color("#33507c")
-	var day := Color("#8ec9f0")
+	var day := Color("#63a9e6")
 	var dusk := Color("#f6bd8a")
 	var sky_col := night.lerp(day, daylight)
 	var dusk_f: float = (1.0 - absf(sun_el - 0.16) / 0.24) if (sun_el > -0.05 and sun_el < 0.38) else 0.0
@@ -166,26 +168,27 @@ func update_frame(hour: float, delta: float) -> void:
 	sky_mat.sky_horizon_color = sky_col.lerp(Color.WHITE, 0.45)
 	env.environment.ambient_light_energy = 0.32 + 0.5 * daylight
 	env.environment.fog_light_color = sky_col.lerp(Color.WHITE, 0.25)
-	# 云漂移 + 云影
-	var spd := 2.6 if current_key == "storm" else (1.5 if current_key == "cloudy" or current_key == "overcast" else 1.0)
-	var i := 0
-	for c in clouds:
-		c.position.x += delta * (1.0 + i * 0.17) * spd * 2.0
-		if c.position.x > 300.0:
-			c.position.x = -300.0
-		i += 1
-	var blob_target := 0.13 if current_key == "cloudy" else (0.17 if current_key == "overcast" else 0.0)
-	for b in shadow_blobs:
-		var m: StandardMaterial3D = b.material_override
-		var a: float = m.albedo_color.a
-		a += (blob_target - a) * 0.03
-		m.albedo_color.a = a
-		b.visible = a > 0.01
-		b.position.x += delta * 3.2 * spd
-		if b.position.x > 240.0:
-			b.position.x = -240.0
-	# 暴雨闪电
-	if current_key == "storm":
+	# 云漂移 + 云影（减弱动效时冻结，P3-4）
+	if not reduced_motion:
+		var spd := 2.6 if current_key == "storm" else (1.5 if current_key == "cloudy" or current_key == "overcast" else 1.0)
+		var i := 0
+		for c in clouds:
+			c.position.x += delta * (1.0 + i * 0.17) * spd * 2.0
+			if c.position.x > 300.0:
+				c.position.x = -300.0
+			i += 1
+		var blob_target := 0.13 if current_key == "cloudy" else (0.17 if current_key == "overcast" else 0.0)
+		for b in shadow_blobs:
+			var m: StandardMaterial3D = b.material_override
+			var a: float = m.albedo_color.a
+			a += (blob_target - a) * 0.03
+			m.albedo_color.a = a
+			b.visible = a > 0.01
+			b.position.x += delta * 3.2 * spd
+			if b.position.x > 240.0:
+				b.position.x = -240.0
+	# 暴雨闪电（减弱动效时不闪，P3-4）
+	if current_key == "storm" and not reduced_motion:
 		if _t > _next_flash:
 			_flash_until = _t + 0.14
 			_next_flash = _t + 3.0 + randf() * 6.0

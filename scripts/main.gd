@@ -32,6 +32,7 @@ var _t := 0.0
 var _shot_mode := false
 var _freeze_u := -1.0 # ?freeze=0..1：冻结在飞行进度 u 处（慢速/逐帧检查缓动与弧线）
 var _glass_mode := "auto" # ?glass=0 关闭 / low 低质量 / high 高质量 / auto（窄屏自动降质）
+var _reduced := false # 减弱动效：停闪电/云漂移/树摆（P3-4），由 _set_reduced_motion 设置
 var _last_vp_w := 0.0
 var ui_font: Font # 中文字体：启动时加载，全 UI 的文字控件都显式挂上它
 
@@ -253,9 +254,11 @@ func _setup_glass() -> void:
 			g.set_glass_enabled(on)
 
 func _set_reduced_motion(on: bool) -> void:
+	_reduced = on
 	rig.reduced_motion = on
 	panel.reduced_motion = on
 	ui.reduced_motion = on
+	weather.reduced_motion = on
 
 func _deferred_enter(key: String) -> void:
 	if _shot_mode and _freeze_u >= 0.0:
@@ -358,6 +361,7 @@ func _show_panel_for(key: String) -> void:
 	panel.set_strategy_sel(cls_strategy)
 	var narrow := get_viewport().get_visible_rect().size.x < 760.0
 	panel.set_minimized(narrow)
+	ui.layout_panels()
 
 func enter_scene(key: String) -> void:
 	if key == "overview":
@@ -424,6 +428,7 @@ func exit_scene() -> void:
 	active_scene = ""
 	_pending_entry = ""
 	panel.visible = false
+	ui.layout_panels()
 	ui.set_scene_active("overview")
 	if key == "classroom" or key == "dist":
 		# 两段退出：藏内景、恢复楼体 → 楼前 500ms → 总览 500ms
@@ -505,11 +510,12 @@ func _update_visuals(st: Dictionary, delta: float) -> void:
 	var set_h: float = current_wx.get("set", 19.0)
 	var daylight := clampf(sin(PI * (hour - rise) / maxf(0.1, set_h - rise)) * 1.7, 0.0, 1.0)
 	campus.set_night_windows(1.0 - daylight)
-	# 树冠微摆
-	var i := 0
-	for t in campus.tree_canopies:
-		t.rotation.z = sin(_t * 0.7 + i * 1.3) * 0.02
-		i += 1
+	# 树冠微摆（减弱动效时停摆，P3-4）
+	if not _reduced:
+		var i := 0
+		for t in campus.tree_canopies:
+			t.rotation.z = sin(_t * 0.7 + i * 1.3) * 0.02
+			i += 1
 	# 储能标签实时 SOC
 	if not _storage_label.is_empty():
 		labels.set_dynamic_text(_storage_label, "储能柜 · SOC %d%%" % int(round(soc * 100.0)))
@@ -537,7 +543,7 @@ func _refresh_panel() -> void:
 				["当前天气 / 光伏系数", "%s ×%.2f" % [str(current_wx.get("name", "")), float(current_wx.get("pv_factor", 1.0))]],
 				["有效日照时段（情景设定）", "%s–%s · %.1f 小时" % [SimEngine.fmt_hour(float(current_wx.get("rise", 6.0))), SimEngine.fmt_hour(float(current_wx.get("set", 19.0))), float(current_wx.get("set", 19.0)) - float(current_wx.get("rise", 6.0))]],
 				["今日累计发电", "%s kWh" % _fmt_num(float(sim.plan.get("pv_gen", 0.0)))],
-				["逆变器状态", "DC→AC 转换中" if float(st["pv"]) > 2.0 else "待机（无光照）"],
+				["逆变器状态", "DC 转 AC 转换中" if float(st["pv"]) > 2.0 else "待机（无光照）"],
 			])
 			panel.chart.set_day(sim.plan, hour, 0.556)
 		"storage":
