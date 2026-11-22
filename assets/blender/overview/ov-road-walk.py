@@ -284,6 +284,137 @@ box("curb_walk2_east", 1.575, -33.5, CURB_Z0, CURB_Z1, 0.15, 103.7, MAT_CURB, be
 
 print("walk objects:", len(walk))
 
+# ---------- 烘焙程序化纹理为图片 (照抄 dist/di-walls.py 已验证做法) ----------
+# glTF 无法导出 Noise/Voronoi/Wave 程序化节点: 每种不透明材质选其全部对象,
+# Cycles CPU (samples 4) 烘焙 color/rough/normal 三张 1024px 图
+# (diffuse 只取 color 通道, 不带光照; margin 16px), 再重建材质为图片纹理节点。
+# 立方体自带 UV (每面 0~1); 本件全部是立方体, 无需补 UV (_ensure_uv 备用)。
+import time
+TEX_DIR = os.path.join(PY_DIR, "ov-road-walk_textures")
+os.makedirs(TEX_DIR, exist_ok=True)
+_bake_scene = bpy.context.scene
+_bake_t0 = time.time()
+
+
+def _ensure_uv(ob):
+    me = ob.data
+    if me is None or not hasattr(me, "uv_layers") or len(me.uv_layers) > 0:
+        return
+    me.uv_layers.new(name="UVMap")
+    bpy.ops.object.select_all(action='DESELECT')
+    ob.select_set(True)
+    bpy.context.view_layer.objects.active = ob
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.uv.smart_project(angle_limit=66.0, island_margin=0.02)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.select_all(action='DESELECT')
+    print("uv added:", ob.name)
+
+
+def _pack_uvs(mat_objs):
+    """把同材质各对象的 UV 分别缩放到一张 1024 图里的不重叠瓦片 (网格排布,
+    瓦片间留 32px 间隙, 容纳两侧各 16px 烘焙 margin)。立方体默认 UV 是每面
+    0~1 全图重叠, 不分瓦片时同一纹素会被每个对象反复烘焙, 对象越多越慢
+    (128 个缝线对象曾让一遍烘焙超过 1 小时); 分瓦片后每纹素只烘焙一次。
+    只改 UV, 不动几何/配色/位置; 导出 GLB 时 UV 随贴图一起走, Godot 采样正确。"""
+    n = len(mat_objs)
+    cols = int(math.ceil(math.sqrt(n)))
+    rows = int(math.ceil(n / cols))
+    gap = 32.0 / 1024.0  # 瓦片间隙 (UV 单位)
+    su = 1.0 / cols - gap
+    sv = 1.0 / rows - gap
+    for idx, ob in enumerate(mat_objs):
+        u_off = (idx % cols) / cols + gap / 2.0
+        v_off = (idx // cols) / rows + gap / 2.0
+        uv = ob.data.uv_layers.active
+        if uv is None:
+            continue
+        for luv in uv.data:
+            u, v = luv.uv
+            luv.uv = (u * su + u_off, v * sv + v_off)
+    print("uv packed:", len(mat_objs), "objects into", cols, "x", rows, "tiles")
+
+
+def _bake_images(mat, mat_objs, color_size=1024):
+    nt = mat.node_tree
+    imgs = {}
+    specs = [("color", 'DIFFUSE', color_size, 'sRGB'),
+             ("rough", 'ROUGHNESS', 1024, 'Non-Color'),
+             ("normal", 'NORMAL', 1024, 'Non-Color')]
+    bpy.ops.object.select_all(action='DESELECT')
+    for ob in mat_objs:
+        ob.select_set(True)
+    bpy.context.view_layer.objects.active = mat_objs[0]
+    _bake_scene.render.engine = 'CYCLES'
+    _bake_scene.cycles.device = 'CPU'
+    _bake_scene.cycles.samples = 4
+    bake = _bake_scene.render.bake
+    bake.use_selected_to_active = False
+    bake.margin = 16
+    for key, btype, size, cs in specs:
+        img = bpy.data.images.new("%s_%s" % (mat.name, key),
+                                  width=size, height=size, alpha=False)
+        img.colorspace_settings.name = cs
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = img
+        nt.nodes.active = tex
+        if btype == 'DIFFUSE':
+            bake.use_pass_direct = False
+            bake.use_pass_indirect = False
+            bake.use_pass_color = True
+        elif btype == 'NORMAL':
+            bake.normal_space = 'TANGENT'
+        bpy.ops.object.bake(type=btype)
+        img.filepath_raw = os.path.join(TEX_DIR, "%s_%s.png" % (mat.name, key))
+        img.file_format = 'PNG'
+        img.save()
+        imgs[key] = img
+        nt.nodes.remove(tex)
+        print("baked:", mat.name, key, img.filepath_raw,
+              os.path.getsize(img.filepath_raw))
+    _bake_scene.render.engine = 'BLENDER_EEVEE_NEXT'
+    return imgs
+
+
+def _rebuild_with_images(mat, imgs):
+    nt = mat.node_tree
+    for n in list(nt.nodes):
+        nt.nodes.remove(n)
+    bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    bsdf.inputs["Base Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+    bsdf.inputs["Roughness"].default_value = 1.0
+    bsdf.inputs["Metallic"].default_value = 0.0
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    nt.links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
+    tex_c = nt.nodes.new("ShaderNodeTexImage")
+    tex_c.image = imgs["color"]
+    nt.links.new(tex_c.outputs["Color"], bsdf.inputs["Base Color"])
+    tex_r = nt.nodes.new("ShaderNodeTexImage")
+    tex_r.image = imgs["rough"]
+    nt.links.new(tex_r.outputs["Color"], bsdf.inputs["Roughness"])
+    tex_n = nt.nodes.new("ShaderNodeTexImage")
+    tex_n.image = imgs["normal"]
+    nmap = nt.nodes.new("ShaderNodeNormalMap")
+    nmap.space = 'TANGENT'
+    nt.links.new(tex_n.outputs["Color"], nmap.inputs["Color"])
+    nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+
+
+_by_mat = {}
+for _ob in walk:
+    _by_mat.setdefault(_ob.data.materials[0], []).append(_ob)
+_baked = {}
+for _mat, _m_objs in _by_mat.items():
+    for _ob in _m_objs:
+        _ensure_uv(_ob)
+    _pack_uvs(_m_objs)
+    _baked[_mat.name] = _bake_images(_mat, _m_objs)
+for _mat in _by_mat:
+    _rebuild_with_images(_mat, _baked[_mat.name])
+print("bake done, materials rebuilt with image textures, elapsed %.1fs"
+      % (time.time() - _bake_t0))
+
 # ---- save .blend (落盘优先, 先存盘再导出) ----
 os.makedirs(PY_DIR, exist_ok=True)
 os.makedirs(os.path.dirname(GLB_PATH), exist_ok=True)
@@ -303,11 +434,25 @@ bpy.ops.export_scene.gltf(filepath=GLB_PATH, export_format="GLB",
 print("exported glb:", GLB_PATH, "objects:", len(walk))
 
 # ---- read back the .glb to confirm it opens, then drop the duplicates ----
-bpy.ops.object.select_all(action="DESELECT")
+# 回读验证 (di-walls 做法): 对象数一致, 且每种材质的贴图数 >= 3 (烘焙贴图齐全)。
+before = set(bpy.data.objects)
 bpy.ops.import_scene.gltf(filepath=GLB_PATH)
-imported = [o for o in bpy.context.selected_objects]
-print("glb re-import OK, imported objects:", len(imported))
-bpy.ops.object.delete(use_global=False)  # remove re-imported copies
+imported = [o for o in bpy.data.objects if o not in before]
+print("glb re-import OK, imported objects:", len(imported),
+      [o.name for o in imported])
+for ob in imported:
+    for slot in ob.material_slots:
+        m = slot.material
+        if m and m.use_nodes:
+            imgs = [n.image.name for n in m.node_tree.nodes
+                    if n.type == 'TEX_IMAGE' and n.image is not None]
+            print("GLB reimport mat:", ob.name, m.name, "images:", imgs)
+            assert len(imgs) >= 3, "glb material lost baked textures: %s" % m.name
+assert len(imported) == len(walk), "glb reimport failed: expected %d objects, got %d" % (len(walk), len(imported))
+bpy.ops.object.select_all(action='DESELECT')
+for ob in imported:
+    ob.select_set(True)
+bpy.ops.object.delete()
 print("re-imported copies deleted, scene objects:", len(bpy.context.scene.objects))
 
 print("DONE ov-road-walk")
