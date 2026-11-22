@@ -9,6 +9,15 @@
 # - 环校路 4 段直路 + 4 个倒角五边形角块拼成, 直路段端头与角块端点精确对接, 互不重叠。
 # - 南侧主路北侧路缘石在东侧主路口断开 (x 102..114 留出路口)。
 # - 黄色中心线只做南、东两条主路 ("主路各一条"); 环校路为校内路, 按鸟瞰图不画黄线。
+#   (2026-11-23 修正: 鸟瞰图里内环路基本被楼体遮挡, 无法确认有无黄线;
+#   SPEC §5 本件写明含"黄色中心线", 第二轮复核点名环路无中心线, 故按 SPEC 补齐
+#   环路中心线: 4 直段 + 4 拐角斜段, 与主路同宽 0.15m。)
+# - 烘焙颜色变化 (2026-11-23 修复, 见 make_mat): DIFFUSE 烘焙只取 Base Color,
+#   底色不链接时烘出的 color 图是纯色 (实测 Asphalt 59% 纯黑未烘焙区 + 其余纯底色),
+#   法线图也近乎平坦 (灰度标准差约 1), 所以渲染全图纯色。修复: 烘焙前把颗粒/磨损
+#   以 MixRGB 乘进 Base Color (只为烘焙提供颜色变化), 并加强 Bump;
+#   _rebuild_with_images 会删掉全部节点用烘好的贴图重建, 最终材质只连烘焙贴图,
+#   glTF 不受影响。
 
 import bpy
 import math
@@ -25,6 +34,7 @@ PNG_PATH = os.path.join(BASE, "screenshots/blender/ov-road-main.png")
 ROAD_Z0, ROAD_Z1 = 0.0, 0.08      # 沥青路面厚 0.08m
 LINE_Z0, LINE_Z1 = 0.08, 0.105    # 黄线贴在路面上
 CURB_Z0, CURB_Z1 = 0.0, 0.12      # 路缘石高 0.12m
+CH = 4.0 * math.sqrt(2.0)         # 拐角斜段长 (4m 倒角的斜边)
 
 
 def hex_rgb(h):
@@ -101,6 +111,9 @@ def make_mat(name, hexcol, rough=0.9, metallic=0.0, kind="asphalt"):
         grain = _voronoi(nt, texcoord, 2.0, "F1").outputs["Distance"]
         # 磨损/修补: 大尺度噪波 (4m 斑块)
         wear = _noise(nt, texcoord, 0.25, 2.0).outputs["Fac"]
+        # 大斑块: 极低频噪波 (20m 级明暗, 顶面 UV 沿路向每纹素约 4.6m,
+        # 4m 斑块会被抹平, 只有 20m 级能在渲染尺度留住明暗变化)
+        patch_big = _noise(nt, texcoord, 0.05, 2.0).outputs["Fac"]
         # 细裂纹: Voronoi 边距 (2.2m 胞网), 边缘处下陷成沟
         crack_dist = _voronoi(nt, texcoord, 0.45, "DISTANCE_TO_EDGE").outputs["Distance"]
         ramp = nt.nodes.new("ShaderNodeValToRGB")
@@ -122,7 +135,18 @@ def make_mat(name, hexcol, rough=0.9, metallic=0.0, kind="asphalt"):
                   _math(nt, "MULTIPLY", wear, 0.5))
         h = _math(nt, "SUBTRACT", h, _math(nt, "MULTIPLY", crack, 0.5), clamp=True)
         h = _math(nt, "ADD", h, _math(nt, "MULTIPLY", ramp_p.outputs["Color"], 0.15), clamp=True)
-        strength, dist = 0.4, 0.08
+        # 烘焙用颜色因子 (2026-11-23 探针实测: Noise Fac 线性标准差约 0.09~0.10、
+        # Voronoi F1 Distance 约 0.19, 均值约 0.5; 所以因子以 1.0 为中心放大偏差,
+        # 均值不变、底色不变。大斑块 1.0±0.10 × 磨损 1.0±0.09 × 颗粒 1.0±0.10
+        # × 修补 1.00~1.12, 合计线性标准差约 0.17)
+        color_factor = _math(nt, "MULTIPLY",
+            _math(nt, "MULTIPLY",
+                  _math(nt, "ADD", _math(nt, "MULTIPLY", _math(nt, "SUBTRACT", patch_big, 0.5), 1.1), 1.0),
+                  _math(nt, "ADD", _math(nt, "MULTIPLY", _math(nt, "SUBTRACT", wear, 0.5), 0.9), 1.0)),
+            _math(nt, "MULTIPLY",
+                  _math(nt, "ADD", _math(nt, "MULTIPLY", _math(nt, "SUBTRACT", grain, 0.5), 0.55), 1.0),
+                  _math(nt, "ADD", _math(nt, "MULTIPLY", ramp_p.outputs["Color"], 0.12), 1.0)))
+        strength, dist = 0.9, 0.20
     elif kind == "concrete":
         # 混凝土路缘石: 细骨料噪波 + 小 Voronoi 麻点 + 斑驳, 无裂纹网
         agg = _noise(nt, texcoord, 1.5, 2.0).outputs["Fac"]
@@ -131,15 +155,25 @@ def make_mat(name, hexcol, rough=0.9, metallic=0.0, kind="asphalt"):
         h = _math(nt, "ADD",
                   _math(nt, "MULTIPLY", _math(nt, "ADD", agg, speck), 0.35),
                   _math(nt, "MULTIPLY", blotch, 0.3), clamp=True)
-        strength, dist = 0.2, 0.03
+        # 烘焙用颜色因子 (以 1.0 为中心放大偏差, 均值不变): 骨料 ±0.08
+        # × 麻点 ±0.08 × 斑驳 ±0.06
+        color_factor = _math(nt, "MULTIPLY",
+            _math(nt, "MULTIPLY",
+                  _math(nt, "ADD", _math(nt, "MULTIPLY", _math(nt, "SUBTRACT", agg, 0.5), 0.8), 1.0),
+                  _math(nt, "ADD", _math(nt, "MULTIPLY", _math(nt, "SUBTRACT", speck, 0.2), 1.0), 1.0)),
+            _math(nt, "ADD", _math(nt, "MULTIPLY", _math(nt, "SUBTRACT", blotch, 0.5), 0.7), 1.0))
+        strength, dist = 0.4, 0.08
     elif kind == "paint":
         # 磨损漆面标线: 粗噪波斑驳, 轻微凹凸
         w1 = _noise(nt, texcoord, 3.0, 2.0).outputs["Fac"]
         h = _math(nt, "MULTIPLY", w1, 0.7, clamp=True)
-        strength, dist = 0.06, 0.02
+        # 烘焙用颜色因子 (以 1.0 为中心放大偏差, 均值不变): 磨损 ±0.08 (掉漆斑驳)
+        color_factor = _math(nt, "ADD", _math(nt, "MULTIPLY", _math(nt, "SUBTRACT", w1, 0.5), 1.5), 1.0)
+        strength, dist = 0.15, 0.05
     else:  # grass (单层噪波斑驳即可, 省求值)
         g1 = _noise(nt, texcoord, 0.5, 2.0).outputs["Fac"]
         h = _math(nt, "MULTIPLY", g1, 0.8, clamp=True)
+        color_factor = _math(nt, "ADD", _math(nt, "MULTIPLY", _math(nt, "SUBTRACT", g1, 0.5), 0.8), 1.0)
         strength, dist = 0.12, 0.05
 
     bump = nt.nodes.new("ShaderNodeBump")
@@ -147,6 +181,18 @@ def make_mat(name, hexcol, rough=0.9, metallic=0.0, kind="asphalt"):
     bump.inputs["Distance"].default_value = dist
     nt.links.new(_sock(h), bump.inputs["Height"])
     nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    # ---- 烘焙用颜色变化 (只为烘焙服务, 见文件头注释) ----
+    # Base Color = 底色 RGB × 颜色因子 (MixRGB 乘法)。烘焙时 DIFFUSE/color
+    # 通道取到这个值; 烘焙后 _rebuild_with_images 删掉全部节点, 最终材质
+    # Base Color 只连烘焙贴图, 这条临时链不进 .blend/.glb。
+    base_rgb = nt.nodes.new("ShaderNodeRGB")
+    base_rgb.outputs[0].default_value = hex_rgb(hexcol)
+    mix = nt.nodes.new("ShaderNodeMixRGB")
+    mix.blend_type = 'MULTIPLY'
+    mix.inputs["Fac"].default_value = 1.0
+    nt.links.new(base_rgb.outputs["Color"], mix.inputs["Color1"])
+    nt.links.new(_sock(color_factor), mix.inputs["Color2"])
+    nt.links.new(mix.outputs["Color"], bsdf.inputs["Base Color"])
     return m
 
 
@@ -218,9 +264,23 @@ prism("road_ring_corner_SE", [(91, -76), (91, -84), (95, -84), (99, -80), (99, -
 prism("road_ring_corner_SW", [(-91, -76), (-99, -76), (-99, -80), (-95, -84), (-91, -84)],
       ROAD_Z0, ROAD_Z1, MAT_ROAD)
 
-# ---- 黄色中心线 (0.15m 宽, 主路各一条) ----
+# ---- 黄色中心线 (0.15m 宽, 主路各一条 + 环路一圈) ----
 box("line_S_main", 0.0, -108.0, LINE_Z0, LINE_Z1, 260.0, 0.15, MAT_LINE, bevel=0.0)
 box("line_E_main", 108.0, 4.0, LINE_Z0, LINE_Z1, 0.15, 212.0, MAT_LINE, bevel=0.0)
+# 环路中心线 (2026-11-23 补, 见文件头): 4 直段沿环路中心, 4 斜段过拐角
+# (斜段中心 (93,78) 等、长 CH, 与路缘石斜段平行且居中, 方向与路缘石斜段一致)
+box("line_ring_N", 0.0, 80.0, LINE_Z0, LINE_Z1, 182.0, 0.15, MAT_LINE, bevel=0.0)
+box("line_ring_S", 0.0, -80.0, LINE_Z0, LINE_Z1, 182.0, 0.15, MAT_LINE, bevel=0.0)
+box("line_ring_W", -95.0, 0.0, LINE_Z0, LINE_Z1, 0.15, 152.0, MAT_LINE, bevel=0.0)
+box("line_ring_E", 95.0, 0.0, LINE_Z0, LINE_Z1, 0.15, 152.0, MAT_LINE, bevel=0.0)
+box("line_ring_chamfer_NE", 93.0, 78.0, LINE_Z0, LINE_Z1,
+    CH, 0.15, MAT_LINE, bevel=0.0, rot_z=-math.pi / 4)
+box("line_ring_chamfer_NW", -93.0, 78.0, LINE_Z0, LINE_Z1,
+    CH, 0.15, MAT_LINE, bevel=0.0, rot_z=math.pi / 4)
+box("line_ring_chamfer_SE", 93.0, -78.0, LINE_Z0, LINE_Z1,
+    CH, 0.15, MAT_LINE, bevel=0.0, rot_z=math.pi / 4)
+box("line_ring_chamfer_SW", -93.0, -78.0, LINE_Z0, LINE_Z1,
+    CH, 0.15, MAT_LINE, bevel=0.0, rot_z=-math.pi / 4)
 
 # ---- 路缘石 (0.3m 宽, 0.12m 高, 浅灰) ----
 # 南侧主路: 南缘通长; 北缘在东侧主路口 (x 102..114) 断开
@@ -240,7 +300,6 @@ box("curb_ring_inner_S", 0.0, -75.85, CURB_Z0, CURB_Z1, 174.0, 0.3, MAT_CURB)
 box("curb_ring_inner_W", -90.85, 0.0, CURB_Z0, CURB_Z1, 0.3, 144.0, MAT_CURB)
 box("curb_ring_inner_E", 90.85, 0.0, CURB_Z0, CURB_Z1, 0.3, 144.0, MAT_CURB)
 # 环校路: 倒角斜段 8 条 (长 4*sqrt(2)=5.657m, 沿倒角线, 向内外各偏 0.15m)
-CH = 4.0 * math.sqrt(2.0)
 OFF = 0.15 / math.sqrt(2.0)
 box("curb_ring_chamfer_outer_NE", 97 + OFF, 82 + OFF, CURB_Z0, CURB_Z1,
     CH, 0.3, MAT_CURB, rot_z=-math.pi / 4)

@@ -53,7 +53,7 @@ jobs:
           for f in "${files[@]}"; do
             name=$(basename "$f" .blend)
             echo "=== $name ==="
-            rm -f "/tmp/render/${name}_0001.png"
+            rm -f "/tmp/render/${name}_0001.png" /tmp/render/${name}-*.png
             rc=0
             xvfb-run -a /tmp/blender-4.2.0-linux-x64/blender -b "$f" -E BLENDER_EEVEE_NEXT --python tools/render_max.py -o "/tmp/render/${name}_" -f 1 || rc=$?
             if [ "$rc" -ne 0 ]; then
@@ -67,6 +67,11 @@ jobs:
               continue
             fi
             mv "/tmp/render/${name}_0001.png" "screenshots/blender/${name}.png"
+            # Sparse pieces (render_max.py cluster framing) also emit
+            # <name>-<cluster>.png stills; collect them as well.
+            for extra in /tmp/render/${name}-*.png; do
+              [ -e "$extra" ] && mv "$extra" screenshots/blender/
+            done
           done
           echo "--- rendered files ---"
           ls -la screenshots/blender/
