@@ -42,12 +42,17 @@ def _ensure_camera(scene):
             p = ob.matrix_world @ Vector(corner)
             mins = Vector(map(min, mins, p))
             maxs = Vector(map(max, maxs, p))
-    if mins.x == float('inf'):
-        center = Vector((0.0, 0.0, 0.0))
-        radius = 5.0
-    else:
-        center = (mins + maxs) * 0.5
-        radius = max((maxs - mins).length * 0.5, 0.5)
+    # Bounding box of all geometry, in world space.
+    mins = Vector((float('inf'),) * 3)
+    maxs = Vector((float('-inf'),) * 3)
+    for ob in scene.objects:
+        if ob.type not in {'MESH', 'CURVE', 'SURFACE', 'FONT', 'META',
+                           'LATTICE', 'GPENCIL'}:
+            continue
+        for corner in ob.bound_box:
+            p = ob.matrix_world @ Vector(corner)
+            mins = Vector(map(min, mins, p))
+            maxs = Vector(map(max, maxs, p))
 
     cam_data = bpy.data.cameras.new("PreviewCamera")
     cam_data.type = 'PERSP'
@@ -56,18 +61,58 @@ def _ensure_camera(scene):
     scene.collection.objects.link(cam)
     # 3/4 high view: from +X, -Y, above, looking at the bbox centre.
     direction = Vector((1.0, -1.0, 0.75)).normalized()
-    # Fit the bounding sphere inside the frame with margin.
+    # --- Framing fit (2026-11-23 magenta-root-cause fix) ---
+    # OLD: bounding-sphere fit, dist = radius / sin(angle/2) * 1.15.
+    # Two faults: (1) Camera.angle is the FOV of the LONGER frame side
+    # (16:9 render -> horizontal), so using it as the limiting FOV put
+    # the camera ~33% too close vertically and cropped flat/wide pieces
+    # (pv-roof: 2nd roof plane cut in half); (2) a sphere + one 1.15
+    # margin fits every shape the same way, wasting frame on flat
+    # pieces and leaving small pieces tiny.
+    # NEW: project the 8 bbox corners onto the camera right/up axes and
+    # fit each axis against its OWN half-FOV, derived from the render
+    # aspect ratio (margin is per-axis, from the frame proportions, not
+    # a single sphere factor). Near corners stick out toward the camera
+    # by hd, so the centre-plane distance is raised by hd as well.
     # NOTE: Camera.angle is already in radians; do NOT math.radians() it
     # (that put the camera ~56x too far away and the model was invisible).
-    half_fov = cam_data.angle / 2.0
-    dist = radius / math.sin(half_fov) * 1.15
+    fwd = -direction  # camera -> bbox centre
+    world_up = Vector((0.0, 0.0, 1.0))
+    right = fwd.cross(world_up).normalized()
+    up = right.cross(fwd).normalized()
+    aspect = (scene.render.resolution_x * scene.render.resolution_percentage
+              / max(1.0, scene.render.resolution_y
+                    * scene.render.resolution_percentage))
+    aspect = min(max(aspect, 0.25), 4.0)  # guard against degenerate resolutions
+    if aspect >= 1.0:
+        h_half = cam_data.angle / 2.0
+        v_half = math.atan(math.tan(h_half) / aspect)
+    else:
+        v_half = cam_data.angle / 2.0
+        h_half = math.atan(math.tan(v_half) * aspect)
+    if mins.x == float('inf'):
+        center = Vector((0.0, 0.0, 0.0))
+        dist = 5.0 / math.sin(min(h_half, v_half)) * 1.10
+    else:
+        center = (mins + maxs) * 0.5
+        hw = hh = hd = 0.0
+        for sx in (mins.x, maxs.x):
+            for sy in (mins.y, maxs.y):
+                for sz in (mins.z, maxs.z):
+                    v = Vector((sx, sy, sz)) - center
+                    hw = max(hw, abs(v.dot(right)))
+                    hh = max(hh, abs(v.dot(up)))
+                    hd = max(hd, -v.dot(fwd))
+        margin = 1.10
+        dist = max(hw / math.tan(h_half), hh / math.tan(v_half)) * margin + hd
     cam.location = center + direction * dist
     cam.rotation_euler = (center - cam.location).to_track_quat('-Z', 'Y').to_euler()
     cam_data.clip_start = max(0.01, dist / 1000.0)
     cam_data.clip_end = max(1000.0, dist * 10.0)
     scene.camera = cam
     print(f"render_max: created camera at {tuple(round(v, 2) for v in cam.location)} "
-          f"looking at {tuple(round(v, 2) for v in center)} (radius {radius:.2f})")
+          f"looking at {tuple(round(v, 2) for v in center)} (dist {dist:.2f}, "
+          f"aspect {aspect:.2f})")
 
 
 def _ensure_light(scene):
