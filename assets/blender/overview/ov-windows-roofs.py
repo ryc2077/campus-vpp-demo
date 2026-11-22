@@ -227,14 +227,18 @@ for b in BUILDINGS:
     for fi, (z0, z1, hx, hy) in enumerate(b["floors"], start=1):
         band_h = 2.0 if fi == 1 else 1.6
         zc = (z0 + z1) / 2.0
+        # faces: (名, 外法向 n, 沿带切向 t, 墙面偏移半距 off, 沿带半长 half)
+        # S/N 面在 y=±hy 处、窗带沿 x 走、半长 hx；E/W 面在 x=±hx 处、
+        # 窗带沿 y 走、半长 hy。旧版只用一个 half 兼作偏移与半长，
+        # 把 hx/hy 用反：S/N 带只有 2*hy-2、E/W 带长达 2*hx-2 而悬空。
         faces = [
-            ("S", Vector((0, -1, 0)), Vector((1, 0, 0)), hy),
-            ("N", Vector((0, 1, 0)), Vector((1, 0, 0)), hy),
-            ("E", Vector((1, 0, 0)), Vector((0, 1, 0)), hx),
-            ("W", Vector((-1, 0, 0)), Vector((0, 1, 0)), hx),
+            ("S", Vector((0, -1, 0)), Vector((1, 0, 0)), hy, hx),
+            ("N", Vector((0, 1, 0)), Vector((1, 0, 0)), hy, hx),
+            ("E", Vector((1, 0, 0)), Vector((0, 1, 0)), hx, hy),
+            ("W", Vector((-1, 0, 0)), Vector((0, 1, 0)), hx, hy),
         ]
-        for fname, n, t, half in faces:
-            base = Vector((cx, cy, 0.0)) + n * half
+        for fname, n, t, off, half in faces:
+            base = Vector((cx, cy, 0.0)) + n * off
             band_len = 2.0 * half - 2.0
 
             def obox(bm, u, off, z, length, depth, height):
@@ -432,6 +436,188 @@ except Exception as e:
     print("SSR setting failed:", e)
 scene.render.filepath = PNG_PATH
 
+# ---------- 烘焙程序化纹理为图片 (glTF 无法导出 Noise/Voronoi) ----------
+# 照抄 dist/di-walls.py 已验证做法: 每种不透明材质选其全部对象 ->
+# Cycles CPU 烘焙 color/rough/normal 三张 1024px 图 (margin 16px) ->
+# 重建材质为图片纹理节点。玻璃材质不烘焙, 保持原样。
+# 立方体自带 UV, 无需重展。烘焙图在 ov-windows-roofs_textures/。
+# 金属注意 (di-walls 全是非金属, 没这个问题): Principled 的 diffuse
+# lobe 按 (1-metallic) 缩放, 直接烘 DIFFUSE 会把金属底色烘暗
+# (实测 MetalGrey metallic 0.3 烘出来线性值正好是 0.7 倍)。
+# 所以 color 烘焙时先把 Metallic 临时置 0 (只影响 diffuse 通道,
+# rough/normal 与 metallic 无关), 烘完恢复; 重建材质时把原 metallic
+# 常数写回 Principled, glTF 照常导出 metallicFactor。
+TEX_DIR = os.path.join(BASE, "assets/blender/overview/ov-windows-roofs_textures")
+
+
+def _ensure_uv(ob):
+    """bmesh 手建网格没有 UV 层, 烘焙前用 Smart UV Project 补一层。
+    立方体/圆柱自带 UV 的直接跳过。只加 UV 层, 不动几何。"""
+    me = ob.data
+    if getattr(me, "uv_layers", None) and len(me.uv_layers) > 0:
+        return
+    bpy.ops.object.select_all(action='DESELECT')
+    ob.select_set(True)
+    bpy.context.view_layer.objects.active = ob
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.uv.smart_project(angle_limit=1.152, island_margin=0.02)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.select_all(action='DESELECT')
+    print("uv added:", ob.name)
+
+
+def _bake_images(mat, mat_objs, piece_objs):
+    nt = mat.node_tree
+    imgs = {}
+    specs = [("color", 'DIFFUSE', 1024, 'sRGB'),
+             ("rough", 'ROUGHNESS', 1024, 'Non-Color'),
+             ("normal", 'NORMAL', 1024, 'Non-Color')]
+    bsdf = nt.nodes.get("Principled BSDF")
+    _metal_in = bsdf.inputs["Metallic"] if bsdf is not None else None
+    _metal_linked = bool(_metal_in is not None and _metal_in.is_linked)
+    _metal_val = _metal_in.default_value if (_metal_in is not None and not _metal_linked) else 0.0
+    # 烘焙只关心本材质的对象: 把其余件对象 hide_render, Cycles 同步就跳过
+    # 它们 (每 bake 少同步 ~200 个带倒角修饰器的对象, 实测不隐藏时单张
+    # 烘焙要数分钟), 烘焙完恢复可见。
+    _hidden = [ob for ob in piece_objs if ob not in mat_objs]
+    for ob in _hidden:
+        ob.hide_render = True
+    bpy.ops.object.select_all(action='DESELECT')
+    for ob in mat_objs:
+        ob.select_set(True)
+    bpy.context.view_layer.objects.active = mat_objs[0]
+    _bake_scene = bpy.context.scene
+    _bake_scene.render.engine = 'CYCLES'
+    _bake_scene.cycles.device = 'CPU'
+    _bake_scene.cycles.samples = 4
+    bake = _bake_scene.render.bake
+    bake.use_selected_to_active = False
+    bake.margin = 16
+    for key, btype, size, cs in specs:
+        # 断点续烘: 图已存在且能正常读入就复用 (照抄 B 组 ov-gym.py 做法, +1024 尺寸核对);
+        # 读入失败/文件过小/尺寸不对则重新烘焙, 不硬复用错图。
+        _fpath = os.path.join(TEX_DIR, "%s_%s.png" % (mat.name, key))
+        if os.path.exists(_fpath) and os.path.getsize(_fpath) > 1000:
+            try:
+                _img = bpy.data.images.load(_fpath)
+                if _img.size[0] != 1024 or _img.size[1] != 1024:
+                    raise ValueError("wrong size %s, expect 1024x1024" % (_img.size,))
+                _img.colorspace_settings.name = cs
+                imgs[key] = _img
+                print("reuse:", mat.name, key, _fpath,
+                      os.path.getsize(_fpath))
+                continue
+            except Exception as _e:
+                print("reload failed, re-bake:", mat.name, key, _e)
+                try:
+                    if '_img' in locals() and _img is not None and _img.name in bpy.data.images:
+                        bpy.data.images.remove(_img)
+                except Exception:
+                    pass
+        img = bpy.data.images.new("%s_%s" % (mat.name, key),
+                                  width=size, height=size, alpha=False)
+        img.colorspace_settings.name = cs
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = img
+        nt.nodes.active = tex
+        if btype == 'DIFFUSE':
+            bake.use_pass_direct = False
+            bake.use_pass_indirect = False
+            bake.use_pass_color = True
+            if _metal_in is not None and not _metal_linked:
+                _metal_in.default_value = 0.0
+        elif btype == 'NORMAL':
+            bake.normal_space = 'TANGENT'
+        bpy.ops.object.bake(type=btype)
+        if btype == 'DIFFUSE' and _metal_in is not None and not _metal_linked:
+            _metal_in.default_value = _metal_val
+        img.filepath_raw = os.path.join(TEX_DIR, "%s_%s.png" % (mat.name, key))
+        img.file_format = 'PNG'
+        img.save()
+        imgs[key] = img
+        nt.nodes.remove(tex)
+        print("baked:", mat.name, key, img.filepath_raw,
+              os.path.getsize(img.filepath_raw))
+    _bake_scene.render.engine = 'BLENDER_EEVEE_NEXT'
+    for ob in _hidden:
+        ob.hide_render = False
+    return imgs
+
+
+def _rebuild_with_images(mat, imgs, metallic=0.0):
+    nt = mat.node_tree
+    for n in list(nt.nodes):
+        nt.nodes.remove(n)
+    bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    bsdf.inputs["Base Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+    bsdf.inputs["Roughness"].default_value = 1.0
+    bsdf.inputs["Metallic"].default_value = metallic
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    nt.links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
+    tex_c = nt.nodes.new("ShaderNodeTexImage")
+    tex_c.image = imgs["color"]
+    nt.links.new(tex_c.outputs["Color"], bsdf.inputs["Base Color"])
+    tex_r = nt.nodes.new("ShaderNodeTexImage")
+    tex_r.image = imgs["rough"]
+    nt.links.new(tex_r.outputs["Color"], bsdf.inputs["Roughness"])
+    tex_n = nt.nodes.new("ShaderNodeTexImage")
+    tex_n.image = imgs["normal"]
+    nmap = nt.nodes.new("ShaderNodeNormalMap")
+    nmap.space = 'TANGENT'
+    nt.links.new(tex_n.outputs["Color"], nmap.inputs["Color"])
+    nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+
+
+def bake_piece(piece_objs):
+    import time as _time
+    _t0 = _time.time()
+    os.makedirs(TEX_DIR, exist_ok=True)
+    _by_mat = {}
+    for _ob in piece_objs:
+        if not _ob.data or not _ob.data.materials:
+            continue
+        _m = _ob.data.materials[0]
+        if _m is None:
+            continue
+        if "glass" in _m.name.lower():
+            print("bake skip (glass, kept as-is):", _m.name)
+            continue
+        _by_mat.setdefault(_m, []).append(_ob)
+    for _m_objs in _by_mat.values():
+        for _ob in _m_objs:
+            _ensure_uv(_ob)
+    _baked = {}
+    _metallic = {}
+    for _mat in _by_mat:
+        _bsdf = _mat.node_tree.nodes.get("Principled BSDF")
+        _mi = _bsdf.inputs["Metallic"] if _bsdf is not None else None
+        _metallic[_mat.name] = _mi.default_value if (_mi is not None and not _mi.is_linked) else 0.0
+    for _mat, _m_objs in _by_mat.items():
+        _baked[_mat.name] = _bake_images(_mat, _m_objs, piece_objs)
+    for _mat in _by_mat:
+        _rebuild_with_images(_mat, _baked[_mat.name], _metallic[_mat.name])
+    print("bake done, materials rebuilt with image textures, mats:",
+          sorted(_baked.keys()), "elapsed: %.1fs" % (_time.time() - _t0))
+
+
+def _check_glb_images(imported):
+    for ob in imported:
+        for slot in ob.material_slots:
+            m = slot.material
+            if m is None or not m.use_nodes:
+                continue
+            imgs = [n.image.name for n in m.node_tree.nodes
+                    if n.type == 'TEX_IMAGE' and n.image is not None]
+            print("GLB reimport mat:", ob.name, m.name, "images:", imgs)
+            if "glass" in m.name.lower():
+                continue
+            assert len(imgs) >= 3, "glb material lost baked textures: %s" % m.name
+
+
+# ---------- 烘焙程序化纹理 (存盘/导出之前) ----------
+bake_piece(piece_objs)
+
 # ---------- 存 .blend ----------
 os.makedirs(os.path.dirname(BLEND_PATH), exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=BLEND_PATH)
@@ -451,10 +637,13 @@ before = set(bpy.data.objects)
 bpy.ops.import_scene.gltf(filepath=GLB_PATH)
 imported = [ob for ob in bpy.data.objects if ob not in before]
 print("gltf reimport objects:", len(imported))
+_check_glb_images(imported)
 for ob in imported:
     bpy.data.objects.remove(ob, do_unlink=True)
 
-# ---------- 渲染预览 ----------
-bpy.ops.render.render(write_still=True)
+# ---------- 渲染预览 (本地不渲染, 走 GitHub Actions;
+# 显式设 OV_RENDER_PREVIEW=1 才在本地渲染) ----------
+if os.environ.get("OV_RENDER_PREVIEW") == "1":
+    bpy.ops.render.render(write_still=True)
 
 print("DONE ov-windows-roofs")
