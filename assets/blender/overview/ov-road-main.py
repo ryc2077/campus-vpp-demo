@@ -305,6 +305,8 @@ bpy.context.scene.camera = cam
 # Cycles CPU (samples 4) 烘焙 color/rough/normal 三张 1024px 图
 # (diffuse 只取 color 通道, 不带光照; margin 16px), 再重建材质为图片纹理节点。
 # 立方体自带 UV (每面 0~1); from_pydata 的棱柱角块没有 UV, 先补 UV 再烘焙。
+# 同材质各对象先经 _pack_uvs 缩进 1024 图的不重叠瓦片再烘焙 (照抄 ov-road-walk),
+# 每纹素只烘焙一次, 否则各面重叠 UV 会让同一纹理区被反复烘焙。
 import time
 TEX_DIR = os.path.join(PY_DIR, "ov-road-main_textures")
 os.makedirs(TEX_DIR, exist_ok=True)
@@ -326,6 +328,30 @@ def _ensure_uv(ob):
     bpy.ops.object.mode_set(mode='OBJECT')
     bpy.ops.object.select_all(action='DESELECT')
     print("uv added:", ob.name)
+
+
+def _pack_uvs(mat_objs):
+    """把同材质各对象的 UV 分别缩放到一张 1024 图里的不重叠瓦片 (网格排布,
+    瓦片间留 32px 间隙, 容纳两侧各 16px 烘焙 margin)。立方体默认 UV 是每面
+    0~1 全图重叠, 不分瓦片时同一纹素会被每个对象反复烘焙, 对象越多越慢;
+    分瓦片后每纹素只烘焙一次。只改 UV, 不动几何/配色/位置; 导出 GLB 时
+    UV 随贴图一起走, Godot 采样正确。(照抄 ov-road-walk.py / ov-track.py)"""
+    n = len(mat_objs)
+    cols = int(math.ceil(math.sqrt(n)))
+    rows = int(math.ceil(n / cols))
+    gap = 32.0 / 1024.0  # 瓦片间隙 (UV 单位)
+    su = 1.0 / cols - gap
+    sv = 1.0 / rows - gap
+    for idx, ob in enumerate(mat_objs):
+        u_off = (idx % cols) / cols + gap / 2.0
+        v_off = (idx // cols) / rows + gap / 2.0
+        uv = ob.data.uv_layers.active
+        if uv is None:
+            continue
+        for luv in uv.data:
+            u, v = luv.uv
+            luv.uv = (u * su + u_off, v * sv + v_off)
+    print("uv packed:", len(mat_objs), "objects into", cols, "x", rows, "tiles")
 
 
 def _bake_images(mat, mat_objs, color_size=1024):
@@ -396,11 +422,11 @@ def _rebuild_with_images(mat, imgs):
 _by_mat = {}
 for _ob in roads:
     _by_mat.setdefault(_ob.data.materials[0], []).append(_ob)
-for _m_objs in _by_mat.values():
-    for _ob in _m_objs:
-        _ensure_uv(_ob)
 _baked = {}
 for _mat, _m_objs in _by_mat.items():
+    for _ob in _m_objs:
+        _ensure_uv(_ob)
+    _pack_uvs(_m_objs)
     _baked[_mat.name] = _bake_images(_mat, _m_objs)
 for _mat in _by_mat:
     _rebuild_with_images(_mat, _baked[_mat.name])
