@@ -233,8 +233,13 @@ add_bevel(chair_proto, width=0.008, segments=2)
 reset_origin_to_world(chair_proto)
 
 # ---------- 排布 (照旧版, 不改) ----------
+# v2.4 间隙修复 (2026-11-22): 整组沿 x 向黑板方向 (负 x) 平移 0.15m,
+#   只改本整体偏移常数, 不逐个改桌椅坐标. 移前最后一排椅背 x=4.748,
+#   离东墙内表面 x=4.765 仅 1.7cm; 移后约 4.598, 间隙约 16.7cm.
+#   移前最近桌沿离讲台桌前沿 (x=-3.695) 0.355m; 移后约 0.205m.
+GROUP_DX = -0.15
 COL_Y = [-2.8, -1.8, -0.8, 0.8, 1.8, 2.8]
-ROW_X = [-3.04 + i * 1.0 for i in range(8)]
+ROW_X = [-3.04 + GROUP_DX + i * 1.0 for i in range(8)]
 # 椅子在桌子 +x 一侧 (学生面向 -x): 桌后沿 +0.05 间隙 + 椅深/2
 CHAIR_DX = 0.3 + 0.05 + 0.2  # = 0.55
 
@@ -261,6 +266,7 @@ bpy.data.objects.remove(desk_proto, do_unlink=True)
 bpy.data.objects.remove(chair_proto, do_unlink=True)
 
 print("desks:", len(desks), "chairs:", len(chairs))
+print("GROUP_DX:", GROUP_DX)
 print("row_x:", ROW_X)
 print("col_y:", COL_Y)
 print("desk top z=0.75, legs 0~0.72; chair seat top z=0.45, legs 0~0.42, back top z=0.85 tilt 5deg")
