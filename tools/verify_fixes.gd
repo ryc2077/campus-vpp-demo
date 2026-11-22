@@ -9,6 +9,7 @@ var _main: Node = null
 var _frames := 0
 var _fails := 0
 var _passes := 0
+var _phase := 0
 
 
 func _chk(name: String, ok: bool, detail: String = "") -> void:
@@ -47,6 +48,13 @@ func _process(_delta: float) -> bool:
 		print("VERIFY-TIMEOUT: checks did not finish")
 		quit(2)
 		return true
+	if _phase == 1:
+		if _frames >= 10:
+			var panel2 = _main.get_node("UI/ScenePanel")
+			_chk("配电房面板宽 ≤372（不撑出屏）", panel2.size.x <= 372.0, str(panel2.size))
+			print("VERIFY-SUMMARY: PASS=", _passes, " FAIL=", _fails)
+			quit(1 if _fails > 0 else 0)
+		return false
 	var _panel = _main.get_node("UI/ScenePanel")
 	if not _panel.has_method("set_live"):
 		print("VERIFY-FAIL: ScenePanel script did not attach (class cache stale?)")
@@ -185,6 +193,9 @@ func _process(_delta: float) -> bool:
 	var main_src := FileAccess.get_file_as_string("res://scripts/main.gd")
 	_chk("界面文字无 DC→AC 箭头", main_src.find("DC→AC") < 0, "")
 	_chk("逆变器状态改文字 DC 转 AC", main_src.find("DC 转 AC") >= 0, "")
-	print("VERIFY-SUMMARY: PASS=", _passes, " FAIL=", _fails)
-	quit(1 if _fails > 0 else 0)
+	# ---- 场景面板不撑出屏（回归检查）：进配电房（修前最宽 511px），
+	# 等几帧让容器排完版再量宽。
+	_main.call("enter_scene", "dist")
+	_phase = 1
+	return false
 	return true

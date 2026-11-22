@@ -141,6 +141,9 @@ func set_live(rows: Array, bars: Array = []) -> void:
 		v.add_theme_font_size_override("font_size", 16)
 		v.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		# 面板定宽 360px：长数值（如“条件触发：充电全部由午间光伏富余承担时才放电”）
+		# 不换行会把面板撑到 511px、右缘出屏（Actions 截图实测）。允许换行，宁可多一行。
+		v.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		h.add_child(k)
 		h.add_child(v)
 		live_box.add_child(h)
@@ -173,6 +176,7 @@ func set_live(rows: Array, bars: Array = []) -> void:
 				resv.add_theme_font_override("font", font)
 			resv.add_theme_color_override("font_color", Color("#dc2626"))
 			resv.add_theme_font_size_override("font_size", 16)
+			resv.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			live_box.add_child(resv)
 
 func set_minimized(m: bool) -> void:
@@ -194,7 +198,9 @@ func apply_narrow_layout(w: float) -> void:
 	else:
 		offset_left = -372.0
 		custom_minimum_size = Vector2(330, 0)
-		chart.custom_minimum_size = Vector2(320, 200)
+		# 图表高 180（原 200）：长行换行后内容高 +20px，储能面板会长到 585、
+		# 底边 645 压到场景栏顶（636）上；降 20px 留出余量。
+		chart.custom_minimum_size = Vector2(320, 180)
 
 func _on_min_pressed() -> void:
 	set_minimized(not _minimized)
