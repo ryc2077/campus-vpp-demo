@@ -1,7 +1,8 @@
 # Max-quality Eevee render settings (Actions only; never render locally).
 # Usage: blender -b file.blend -E BLENDER_EEVEE_NEXT --python tools/render_max.py -o out/name_ -f 1
-# Only touches render settings and (if the file has no camera) adds a
-# framing camera; scene content, lights and world are left as built.
+# Only touches render settings and (if the file lacks them) adds a framing
+# camera, a default sun and a sky world background so the preview is
+# visible; scene content, lights and world are left as built when present.
 import math
 
 import bpy
@@ -69,8 +70,57 @@ def _ensure_camera(scene):
           f"looking at {tuple(round(v, 2) for v in center)} (radius {radius:.2f})")
 
 
+def _ensure_light(scene):
+    """Add a default sun if the file has no light at all.
+
+    Several .blend files were built from factory-empty scenes with no
+    lights, so EEVEE rendered a black frame. Energy 3.5 matches the sun
+    the good generator scripts use.
+    """
+    for ob in scene.objects:
+        if ob.type == 'LIGHT':
+            return
+    light_data = bpy.data.lights.new("PreviewSun", type='SUN')
+    light_data.energy = 3.5
+    sun = bpy.data.objects.new("PreviewSun", light_data)
+    scene.collection.objects.link(sun)
+    sun.rotation_euler = (math.radians(50.0), 0.0, math.radians(30.0))
+    print("render_max: added default sun (energy 3.5)")
+
+
+def _ensure_world(scene):
+    """Add a sky background if the file has no world or a black one.
+
+    Same black-frame cause as _ensure_light: factory-empty scenes have
+    no world, so the background renders pure black. Sky colour/strength
+    match what the good generator scripts use.
+    """
+    world = scene.world
+    if world is None:
+        world = bpy.data.worlds.new("PreviewWorld")
+        scene.world = world
+        print("render_max: created world")
+    world.use_nodes = True
+    nodes = world.node_tree.nodes
+    bg = nodes.get("Background")
+    if bg is None:
+        bg = nodes.new("ShaderNodeBackground")
+        out = nodes.get("World Output")
+        if out is not None:
+            world.node_tree.links.new(bg.outputs["Background"],
+                                      out.inputs["Surface"])
+    color = bg.inputs["Color"].default_value
+    lum = 0.2126 * color[0] + 0.7152 * color[1] + 0.0722 * color[2]
+    if lum < 0.02:
+        bg.inputs["Color"].default_value = (0.65, 0.78, 0.88, 1.0)
+        bg.inputs["Strength"].default_value = 1.0
+        print("render_max: set world background to sky (was near-black)")
+
+
 scene = bpy.context.scene
 _ensure_camera(scene)
+_ensure_light(scene)
+_ensure_world(scene)
 scene.render.engine = 'BLENDER_EEVEE_NEXT'
 scene.render.resolution_x = 1280
 scene.render.resolution_y = 720
