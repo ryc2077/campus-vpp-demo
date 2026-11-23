@@ -749,15 +749,42 @@ func _process(_delta: float) -> bool:
 						_posts_ok = false
 						_posts_bad += "Post%02d " % (_pi + 1)
 				_chk("T2：围栏 12 立柱全在场、可见、贴地（中心 y 0.6，底 y 0）", _posts_ok, _posts_bad)
-				var _rail_names: Array = ["TF_FenceRail_x_S_0.6", "TF_FenceRail_x_N_0.6", "TF_FenceRail_y_W_0.6", "TF_FenceRail_y_E_0.6", "TF_FenceRail_x_S_1.1", "TF_FenceRail_x_N_1.1", "TF_FenceRail_y_W_1.1", "TF_FenceRail_y_E_1.1"]
+				# 横杆不按名查找：GLB 里名含小数点（TF_FenceRail_x_S_0.6），Godot 导入
+				# 改名、find_child 找不到（CI run 45289609797：8 根全报缺失，而无点号
+				# 的立柱/箱体全找到；GLB 文件里 8 根都在）。改按位置 + 长边尺寸找：
+				# x 向横杆中心 (74, y, ±27.25/32.75)、长边 x>7m；y 向横杆中心
+				# (±70.25/77.75, y, -30)、长边 z>5m；立柱细（0.08）高（1.2），
+				# 尺寸上不会误认。detail 打印导入后的真名，供后人核对。
+				var _ov_all: Array[Node] = [_ov12]
+				var _ov_i := 0
+				while _ov_i < _ov_all.size():
+					for _ov_c in _ov_all[_ov_i].get_children():
+						_ov_all.append(_ov_c)
+					_ov_i += 1
+				var _rail_specs: Array = [[Vector3(74.0, 0.6, -27.25), "x"], [Vector3(74.0, 0.6, -32.75), "x"], [Vector3(70.25, 0.6, -30.0), "y"], [Vector3(77.75, 0.6, -30.0), "y"], [Vector3(74.0, 1.1, -27.25), "x"], [Vector3(74.0, 1.1, -32.75), "x"], [Vector3(70.25, 1.1, -30.0), "y"], [Vector3(77.75, 1.1, -30.0), "y"]]
 				var _rails_ok := true
 				var _rails_bad := ""
-				for _rn in _rail_names:
-					var _rl: Node3D = _ov12.find_child(String(_rn), true, false) as Node3D
-					if _rl == null or not _rl.visible:
+				var _rails_found := ""
+				for _rs in _rail_specs:
+					var _rc: Vector3 = _rs[0]
+					var _r_found := false
+					for _nd in _ov_all:
+						var _mi := _nd as MeshInstance3D
+						if _mi == null or not _mi.visible:
+							continue
+						if not _mi.global_position.is_equal_approx(_rc):
+							continue
+						var _sz: Vector3 = _mi.get_aabb().size
+						if String(_rs[1]) == "x" and _sz.x > 7.0 and _sz.y < 0.1:
+							_r_found = true
+							_rails_found += _mi.name + " "
+						elif String(_rs[1]) == "y" and _sz.z > 5.0 and _sz.y < 0.1:
+							_r_found = true
+							_rails_found += _mi.name + " "
+					if not _r_found:
 						_rails_ok = false
-						_rails_bad += String(_rn) + " "
-				_chk("T2：围栏 8 横杆全在场、可见（上下两道 y 0.6/1.1）", _rails_ok, _rails_bad)
+						_rails_bad += str(_rc) + " "
+				_chk("T2：围栏 8 横杆全在场、可见（上下两道 y 0.6/1.1）", _rails_ok, _rails_bad + "found=[" + _rails_found + "]")
 				var _body12: Node3D = _ov12.find_child("TF_Body", true, false) as Node3D
 				var _body_sp := Vector2(-1, -1)
 				if _body12 != null:
