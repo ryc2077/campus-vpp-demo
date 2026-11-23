@@ -490,16 +490,16 @@ CPU 与内存，负载一度 31，内存只剩约 300MB–1GB，期间还发生�
 - 验证（本地，Godot 4.4 `4.4.stable.official.4c311cbee`）：`--check-only` 对 main.gd / campus_builder.gd / verify_fixes.gd 三脚本零报错；`verify_fixes.gd` 无头跑 **PASS=84 FAIL=0**（回退分支；新加的回退检查已执行通过）。
   本地 GLB 分支未执行：本地 `.godot/imported/` 只有 14 个文件、0 个 .scn，6 个场景 GLB 均报 `No loader found for resource` 而回退（已知本地限制：全量 --import 在本机极慢且内存只剩约 450MB 可用；已在后台起一次 `--import` 尝试，若完成则重跑验证走 GLB 分支，否则以 Actions 为准）。
   Actions run [45216881747](https://github.com/ryc2077/campus-vpp-demo/actions/runs/45216881747) success，VERIFY-SUMMARY: **PASS=93 FAIL=0**（92 + 本次 GLB 新检查 1 项），新加的 GLB 模式检查在 Actions 日志里执行通过（`PASS: GLB 模式：_shell_mat 指 GLB 壳材质 [0]`）；本地 84/84 是回退分支。
-- 已知风险（已修，见下节 SOC 变色 lerp 推 alpha 修补，commit ed7c8479，Actions 结论待 run 45219977015 日志）：`_update_visuals()` 的 SOC 变色是整 `Color` lerp（含 alpha 通道，目标色 alpha=1.0），每帧把壳材质 alpha 向 1.0 推——GLB 壳的半透明（关 0.35 / 开 0.22）会被几秒内推回不透明，与 d8e87e56 的外壳开关效果冲突。
+- 已知风险（已修，见下节 SOC 变色 lerp 推 alpha 修补，commit ed7c8479，Actions run 45219977015 success，VERIFY-SUMMARY PASS=94 FAIL=0）：`_update_visuals()` 的 SOC 变色是整 `Color` lerp（含 alpha 通道，目标色 alpha=1.0），每帧把壳材质 alpha 向 1.0 推——GLB 壳的半透明（关 0.35 / 开 0.22）会被几秒内推回不透明，与 d8e87e56 的外壳开关效果冲突。
   这是程序化模式就已有的行为（同一行 lerp 一直作用于程序化壳材质，开壳半透明同样会被推回），本次只改指向、未动 lerp 行；根治需在 lerp 时保留原 alpha（`_update_visuals` 里一处改动），不在本次“只改指向”范围内。
 
 ### SOC 变色 lerp 推 alpha 修补（commit ed7c8479，2026-11-24 00:44 前后）
 - 改动（只改 `scripts/main.gd` 的 `_update_visuals()` 一处，1 行 → 3 行）：SOC 变色原先是整 `Color` lerp（含 alpha，目标色 alpha=1.0），每帧把壳材质 alpha 向 1.0 推；改后只 lerp RGB、alpha 原样写回（先 lerp 到临时变量 `c`，再 `c.a = _shell_mat.albedo_color.a` 写回）。全工程 grep 只有这一处 lerp，修一处 GLB 与回退两路都受益。
 - 验证（本地，Godot 4.4）：`--check-only` 零报错；无头 `verify_fixes.gd` **PASS=85 FAIL=0**（新增 1 项检查：开壳到 alpha 0.22 后连调 10 次 `_update_visuals`，断言 alpha 仍为 0.22，实测 0.22 -> 0.22 通过；修前 10 次会推到约 0.66）。
-- Actions run [45219977015](https://github.com/ryc2077/campus-vpp-demo/actions/runs/45219977015)（Godot verify + export，head_sha `ed7c8479eb7ff078ec89c69339c995e5a9711e1e`，父 commit eecac64）：2026-11-24 00:45 核对时 status=queued、conclusion=null，结论待 Actions 日志；预期 VERIFY-SUMMARY PASS=94 FAIL=0（93 + 本次新检查 1 项），以日志为准。
+- Actions run [45219977015](https://github.com/ryc2077/campus-vpp-demo/actions/runs/45219977015)（Godot verify + export，head_sha `ed7c8479eb7ff078ec89c69339c995e5a9711e1e`，父 commit eecac64）：**success**（2026-11-24 01:02 CST 完成，唯一 job verify-export 全绿）；VERIFY-SUMMARY **PASS=94 FAIL=0**，与预期一致（93 + 本次新检查 1 项）；新检查在 Actions 日志里执行通过（`PASS: SOC 变色：10 次 lerp 后壳 alpha 不变（仍 0.22） 0.21999999880791 -> 0.21999999880791`）。Web 导出 artifact `godot-web-export` 389,676,220 B，截图 artifact `godot-screenshots` 7,111,581 B（截图尚未目视验收）。
 
 ### 还剩的问题（截至 2026-11-24 00:23 刷新，20:45 清单已修项已删）
 - 已修（从 20:45 清单删掉）：储能外壳开关失效（d8e87e56）、储能机架 SOC 条随程序化组隐藏（d8e87e56）、储能内景风扇 y=3.4 偏高（31a52648）、雨天仍有阳光射线（31a52648）。
 - 未修：S2 PCS 柜埋入；S4 SOC 条悬空 0.06m；流光点与格栅条 ≤0.014m 微相交；SOC 条与流光点 Y 2.025–2.375 段短暂重叠。
 - 未修（20:45 清单保留）：GLB 材质丢色（需 Blender 返工，非 Godot 能修：教室与配电房关键材质无 baseColorFactor 且无贴图，教室偏蓝、黑板白色、配电房柜体/变压器白色，天花板发绿是天空材质 ground_bottom_color #4a6b38 照在白色天花板下表面所致）；总览仍偏淡（宽屏总览地面仍偏白）；缺 3 张单件预览图（di-cabinets、ov-flag-lamp、ov-trees）；诊断日志 `[labels]` 未出现在 Actions 日志里；04-charge 里“三号教学楼”标签一半被场景面板挡住；09-freeze 里“艺体馆 / 一号教学楼”轻微相邻；Assessment A 仍缺失；P3-2/P3-4/P3-6/P3-7 文档类小项仍记录在案未改。
-- 已修（commit ed7c8479，Actions 结论待 run 45219977015 日志）：_shell_mat 的 SOC lerp 推 alpha 回 1.0（见上节已知风险，现已修）；视觉验收待 Actions 截图（本次修补的 SOC 变色在 GLB 壳上是否可见，需看截图确认，本地无渲染）。
+- 已修（commit ed7c8479，Actions run 45219977015 success，VERIFY-SUMMARY PASS=94 FAIL=0；新检查“10 次 lerp 后壳 alpha 仍 0.22”在 Actions 日志里通过）：_shell_mat 的 SOC lerp 推 alpha 回 1.0（见上节已知风险，现已修）；视觉验收待 Actions 截图（本次修补的 SOC 变色在 GLB 壳上是否可见，需看截图确认，本地无渲染）。
