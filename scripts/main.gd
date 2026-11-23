@@ -276,6 +276,11 @@ func _apply_url_params() -> void:
 	if params.has("scene"):
 		var key := str(params["scene"])
 		call_deferred("_deferred_enter", key)
+	# ?abc=1：截图验收用，打开 ABC 对照面板（直接置 visible，不走进入动效，
+	# 拍终态 rect；_deferred_enter 之后执行，场景面板已建好，layout_panels
+	# 会把场景面板顶到 ABC 底边之下）。
+	if params.has("abc"):
+		call_deferred("_deferred_open_abc")
 
 ## 液态玻璃：窄屏（<760px）自动降质（5-tap + 4px）；?glass=0 关闭改实色 fallback。
 func _setup_glass() -> void:
@@ -315,6 +320,12 @@ func _deferred_enter(key: String) -> void:
 		_enter_instant(key)
 	else:
 		enter_scene(key)
+
+func _deferred_open_abc() -> void:
+	var abc_panel := get_node_or_null("UI/ABCPanel") as Control
+	if abc_panel != null:
+		abc_panel.visible = true
+		ui.layout_panels()
 
 ## 冻结帧：总览 → 目标机位的飞行在进度 u 处定格（内景取第一段：总览 → 楼前）。
 func _enter_frozen(key: String, u: float) -> void:

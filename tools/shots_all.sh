@@ -36,5 +36,8 @@ shot "scene=charge&shot=1&hour=12" 12-charge-sunny.png
 shot "scene=storage&shot=1&hour=12&fallback=1" 13-fallback-storage.png
 shot "scene=charge&shot=1&hour=12&fallback=1" 14-fallback-charge.png
 shot "shot=1&hour=9&fallback=1" 15-fallback-overview.png
+# 16：ABC 打开态（?abc=1 打开 ABC 对照面板；充电区 ABC 打开藏掉 5 条标签，
+#   是 ABC 遮挡最密的场景；与 04-charge 同机位同时刻，便于对照）
+shot "scene=charge&shot=1&hour=18&abc=1" 16-abc-open-charge.png
 if [ "$FAILED" -ne 0 ]; then echo "SHOTS FAILED"; exit 1; fi
 echo "ALL DONE"
