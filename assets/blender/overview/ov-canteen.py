@@ -600,7 +600,149 @@ def save_and_export(building):
 
 
 building = build()
+
+# ---------- 烘焙程序化纹理为图片 (glTF 无法导出 Noise/Brick/Voronoi) ----------
+# 照抄 di-walls 已验证做法: 每种不透明材质选其全部对象 -> Cycles CPU
+# samples 4 -> 烘焙 color/rough/normal 三张 1024px 图 (margin 16px) ->
+# 重建材质为图片纹理。玻璃材质 (Canteen_Glass_9FC3D8_tex) 不烘焙, 保持原样。
+# 烘焙图在 ov-canteen_textures/。
+# ---------- UV 展开 (烘焙前) ----------
+# 立方体默认 UV 每面都占满 0~1: 同材质多对象烘焙时, 每对象 6 个面在同一张
+# 图上反复覆盖, 烘焙量随对象数膨胀 (实测 ov-gym: 1 对象屋顶约 1 分钟/张,
+# 29 对象混凝土约 10 分钟/张, 122 对象金属 20 分钟仍未出图)。
+# 先对本件全部对象做 Smart UV Project (各面不重叠), 烘焙量回到约 1 张图;
+# 只改 UV, 不改几何/配色/位置。烘焙参数本身 (Cycles CPU/4 采样/
+# margin 16px/1024px/color+rough+normal) 与 di-walls 完全一致。
+for _ob in building:
+    if _ob.type != 'MESH':
+        continue
+    try:
+        if not _ob.data.uv_layers:
+            _ob.data.uv_layers.new()
+        bpy.ops.object.select_all(action='DESELECT')
+        _ob.select_set(True)
+        bpy.context.view_layer.objects.active = _ob
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.uv.smart_project(angle_limit=66.0, island_margin=0.001)
+        bpy.ops.object.mode_set(mode='OBJECT')
+    except Exception as _e:
+        print("smart uv skipped:", _ob.name, _e)
+        try:
+            bpy.ops.object.mode_set(mode='OBJECT')
+        except Exception:
+            pass
+bpy.ops.object.select_all(action='DESELECT')
+print("smart uv done")
+
+TEX_DIR = os.path.join(PY_DIR, "ov-canteen_textures")
+os.makedirs(TEX_DIR, exist_ok=True)
+_bake_scene = bpy.context.scene
+
+def _bake_images(mat, mat_objs):
+    nt = mat.node_tree
+    imgs = {}
+    specs = [("color", 'DIFFUSE', 1024, 'sRGB'),
+             ("rough", 'ROUGHNESS', 1024, 'Non-Color'),
+             ("normal", 'NORMAL', 1024, 'Non-Color')]
+    bpy.ops.object.select_all(action='DESELECT')
+    for ob in mat_objs:
+        ob.select_set(True)
+    bpy.context.view_layer.objects.active = mat_objs[0]
+    _bake_scene.render.engine = 'CYCLES'
+    _bake_scene.cycles.device = 'CPU'
+    _bake_scene.cycles.samples = 4
+    bake = _bake_scene.render.bake
+    bake.use_selected_to_active = False
+    bake.margin = 16
+    for key, btype, size, cs in specs:
+        # 断点续烘: 图已存在且能正常读入就复用 (虚拟机重启/中断后重跑不用重烘);
+        # 读入失败或文件为空则重新烘焙。
+        _fpath = os.path.join(TEX_DIR, "%s_%s.png" % (mat.name, key))
+        if os.path.exists(_fpath) and os.path.getsize(_fpath) > 1000:
+            try:
+                _img = bpy.data.images.load(_fpath)
+                _img.colorspace_settings.name = cs
+                imgs[key] = _img
+                print("reuse:", mat.name, key, _fpath,
+                      os.path.getsize(_fpath))
+                continue
+            except Exception as _e:
+                print("reload failed, re-bake:", mat.name, key, _e)
+        img = bpy.data.images.new("%s_%s" % (mat.name, key),
+                                  width=size, height=size, alpha=False)
+        img.colorspace_settings.name = cs
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = img
+        nt.nodes.active = tex
+        if btype == 'DIFFUSE':
+            bake.use_pass_direct = False
+            bake.use_pass_indirect = False
+            bake.use_pass_color = True
+        elif btype == 'NORMAL':
+            bake.normal_space = 'TANGENT'
+        bpy.ops.object.bake(type=btype)
+        img.filepath_raw = os.path.join(TEX_DIR, "%s_%s.png" % (mat.name, key))
+        img.file_format = 'PNG'
+        img.save()
+        imgs[key] = img
+        nt.nodes.remove(tex)
+        print("baked:", mat.name, key, img.filepath_raw,
+              os.path.getsize(img.filepath_raw))
+    _bake_scene.render.engine = 'BLENDER_EEVEE_NEXT'
+    return imgs
+
+def _rebuild_with_images(mat, imgs):
+    nt = mat.node_tree
+    for n in list(nt.nodes):
+        nt.nodes.remove(n)
+    bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    bsdf.inputs["Base Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+    bsdf.inputs["Roughness"].default_value = 1.0
+    bsdf.inputs["Metallic"].default_value = 0.0
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    nt.links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
+    tex_c = nt.nodes.new("ShaderNodeTexImage")
+    tex_c.image = imgs["color"]
+    nt.links.new(tex_c.outputs["Color"], bsdf.inputs["Base Color"])
+    tex_r = nt.nodes.new("ShaderNodeTexImage")
+    tex_r.image = imgs["rough"]
+    nt.links.new(tex_r.outputs["Color"], bsdf.inputs["Roughness"])
+    tex_n = nt.nodes.new("ShaderNodeTexImage")
+    tex_n.image = imgs["normal"]
+    nmap = nt.nodes.new("ShaderNodeNormalMap")
+    nmap.space = 'TANGENT'
+    nt.links.new(tex_n.outputs["Color"], nmap.inputs["Color"])
+    nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+
+_by_mat = {}
+for _ob in building:
+    if _ob.data and _ob.data.materials:
+        _by_mat.setdefault(_ob.data.materials[0], []).append(_ob)
+_baked = {}
+for _mat, _m_objs in _by_mat.items():
+    if "glass" in _mat.name.lower():
+        print("skip bake (glass):", _mat.name)
+        continue
+    _baked[_mat.name] = _bake_images(_mat, _m_objs)
+for _mat in _by_mat:
+    if _mat.name in _baked:
+        _rebuild_with_images(_mat, _baked[_mat.name])
+print("bake done, materials rebuilt with image textures")
+
 imported = save_and_export(building)
+for _ob in imported:
+    for _slot in _ob.material_slots:
+        _m = _slot.material
+        if _m and _m.use_nodes:
+            _imgs = [n.image.name for n in _m.node_tree.nodes
+                     if n.type == 'TEX_IMAGE' and n.image is not None]
+            print("GLB reimport mat:", _ob.name, _m.name, "images:", _imgs)
+            if "glass" in _m.name.lower():
+                print("  (glass, unbaked by design)")
+                continue
+            assert len(_imgs) >= 3, "glb material lost baked textures: %s" % _m.name
+assert len(imported) == len(building), "glb reimport failed: expected %d objects, got %d" % (len(building), len(imported))
 
 # 清理 .blend1 备份
 blend1 = BLEND_PATH + "1"
