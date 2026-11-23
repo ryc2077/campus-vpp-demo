@@ -348,6 +348,14 @@ func _process(_delta: float) -> bool:
 			if absf(bb2.position.x - pbx[k]) >= 0.001 or absf(bb2.position.z - (-0.2)) >= 0.001:
 				pb_ok = false
 		_chk("回退模式：SOC 条在程序化机架位置 X −2.6/0/2.6、Z −0.2", pb_ok, "")
+	# ---- SOC 变色 lerp 保留 alpha（回归）：先开壳到 0.22，再连调 10 次 _update_visuals，
+	# alpha 必须仍是 0.22（修前会被推向 1.0）；GLB 与回退两路共用 _shell_mat，同一处验证。
+	cb.call("set_shell_translucent", true)
+	var a0: float = _main._shell_mat.albedo_color.a
+	for k in range(10):
+		_main.call("_update_visuals", _main.sim.state_at(_main.hour), 0.016)
+	_chk("SOC 变色：10 次 lerp 后壳 alpha 不变（仍 0.22）", _main._shell_mat != null and absf(_main._shell_mat.albedo_color.a - a0) < 0.001 and absf(a0 - 0.22) < 0.001, str(a0) + " -> " + str(_main._shell_mat.albedo_color.a))
+	cb.call("set_shell_translucent", false)
 	# ---- 场景面板不撑出屏（回归检查）：进配电房（修前最宽 511px），
 	# 等几帧让容器排完版再量宽。
 	_main.call("enter_scene", "dist")

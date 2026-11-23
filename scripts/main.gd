@@ -497,7 +497,9 @@ func _update_visuals(st: Dictionary, delta: float) -> void:
 	# 储能柜颜色随 SOC（绿/黄/红）
 	if _shell_mat != null:
 		var target_col := Color("#1d9e63") if soc > 0.5 else (Color("#d9a514") if soc > 0.28 else Color("#c23b3b"))
-		_shell_mat.albedo_color = _shell_mat.albedo_color.lerp(target_col, 0.08)
+		var c := _shell_mat.albedo_color.lerp(target_col, 0.08)
+		c.a = _shell_mat.albedo_color.a
+		_shell_mat.albedo_color = c
 	# 机架 SOC 条
 	for i in range(campus.storage_rack_bars.size()):
 		var bar: MeshInstance3D = campus.storage_rack_bars[i]
