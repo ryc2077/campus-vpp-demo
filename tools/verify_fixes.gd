@@ -126,6 +126,69 @@ func _labels_band_detail(labels: Node) -> Array:
 	return [bad.is_empty(), "onscreen=" + str(n) + " bad=[" + ", ".join(bad) + "]"]
 
 
+func _labels_panel_detail(labels: Node) -> Array:
+	# [是否全部通过, 详情]：面板打开时，屏内可见标签的渲染字盒不得与场景面板实时 rect 相交；
+	# 面板隐藏时（总览）不审。口径与 labels.gd 的面板守卫一致（判定盒与面板 rect 相交即撞上）。
+	var panel: Control = _main.get_node("UI/ScenePanel")
+	if not panel.is_visible_in_tree():
+		return [true, "panel hidden"]
+	var pr: Rect2 = panel.get_global_rect()
+	var cam: Camera3D = labels.camera as Camera3D
+	var bad: Array[String] = []
+	var n := 0
+	for d in labels.defs:
+		var l: Label3D = d["label"]
+		if not l.visible:
+			continue
+		var sp: Vector2 = cam.unproject_position(l.position)
+		if sp.x < 0.0 or sp.x > 1280.0 or sp.y < 0.0 or sp.y > 720.0:
+			continue
+		n += 1
+		var r := _labels_rect(labels, d)
+		if r.intersects(pr):
+			bad.append(String(d["text"]) + " overlap=" + str(snappedf(r.intersection(pr).get_area() / r.get_area(), 0.01)))
+	return [bad.is_empty(), "panel=" + str(pr) + " onscreen=" + str(n) + " bad=[" + ", ".join(bad) + "]"]
+
+
+func _label_visible(labels: Node, text: String) -> bool:
+	for d in labels.defs:
+		if String(d["text"]) == text:
+			return bool((d["label"] as Label3D).visible)
+	return false
+
+
+func _label_onscreen_visible(labels: Node, text: String) -> bool:
+	var cam: Camera3D = labels.camera as Camera3D
+	for d in labels.defs:
+		if String(d["text"]) == text:
+			var l: Label3D = d["label"]
+			if not l.visible:
+				return false
+			var sp: Vector2 = cam.unproject_position(l.position)
+			return sp.x >= 0.0 and sp.x <= 1280.0 and sp.y >= 0.0 and sp.y <= 720.0
+	return false
+
+
+func _soc_visible(labels: Node) -> bool:
+	# SOC 标签是动态文本（l.text 随 SOC 变），按 dynamic=="soc" 找，不按文案找。
+	for d in labels.defs:
+		if String(d["dynamic"]) == "soc":
+			return bool((d["label"] as Label3D).visible)
+	return false
+
+
+func _soc_onscreen_visible(labels: Node) -> bool:
+	var cam: Camera3D = labels.camera as Camera3D
+	for d in labels.defs:
+		if String(d["dynamic"]) == "soc":
+			var l: Label3D = d["label"]
+			if not l.visible:
+				return false
+			var sp: Vector2 = cam.unproject_position(l.position)
+			return sp.x >= 0.0 and sp.x <= 1280.0 and sp.y >= 0.0 and sp.y <= 720.0
+	return false
+
+
 func _process(_delta: float) -> bool:
 	_frames += 1
 	if _frames < 5:
@@ -161,6 +224,14 @@ func _process(_delta: float) -> bool:
 			# 配电房 102，屏内标签应全在 90≤y≤642 内。
 			var _band_st: Array = _labels_band_detail(_labels_st)
 			_chk("储能场景：屏内标签渲染中心都不进顶栏/场景栏（90≤y≤642）", bool(_band_st[0]), String(_band_st[1]))
+			# ---- 场景面板遮挡（run 45247090332 的 02-storage 半截“餐厅”标签）：
+			# 面板 rect 作碰撞区，档位逃不出的标签整条藏掉。修前餐厅 overlap 0.69、
+			# 配电变压器 overlap 0.64，均在面板后；修后两者都应隐藏，SOC 标签仍在面板外可见。
+			var _panel_st: Array = _labels_panel_detail(_labels_st)
+			_chk("02-storage：屏内可见标签无一与场景面板相交", bool(_panel_st[0]), String(_panel_st[1]))
+			_chk("02-storage：餐厅标签藏掉（面板后半截标签不留）", not _label_visible(_labels_st, "餐厅 · 学术报告厅"), "visible=" + str(_label_visible(_labels_st, "餐厅 · 学术报告厅")))
+			_chk("02-storage：配电变压器标签藏掉（同在面板后）", not _label_visible(_labels_st, "配电变压器"), "visible=" + str(_label_visible(_labels_st, "配电变压器")))
+			_chk("02-storage：储能 SOC 标签仍屏内可见（在面板外，未被误藏）", _soc_onscreen_visible(_labels_st), "visible=" + str(_soc_visible(_labels_st)))
 			_main.call("enter_scene", "dist")
 			_phase = 1
 		return false
@@ -193,6 +264,9 @@ func _process(_delta: float) -> bool:
 			# 先 _restore_scene_state 解除 limits（_enter_frozen 内部就是这么做的）。
 			_main._close_cam = false
 			_main.call("_restore_scene_state")
+			# 总览无面板：exit_scene 会藏面板，_enter_instant("overview") 不动面板；
+			# 不藏会让总览标签误撞 stale 面板 rect（餐厅在总览本在面板外可见）。
+			(_main.get_node("UI/ScenePanel") as Control).visible = false
 			_main.call("_enter_instant", "overview")
 			_phase = 4
 		return false
@@ -239,6 +313,39 @@ func _process(_delta: float) -> bool:
 			_chk("冻结帧：屋顶光伏与艺体馆字盒不重叠（净空 ≥20px）", _labels_pair_clear(_labels_fz, 20.0) and absf(_main.rig.dist - 70.28) < 1.0, _labels_pair_detail(_labels_fz) + " dist=" + str(_main.rig.dist))
 			var _band_fz: Array = _labels_band_detail(_labels_fz)
 			_chk("冻结帧：屏内标签渲染中心都不进顶栏/场景栏（90≤y≤642）", bool(_band_fz[0]), String(_band_fz[1]))
+			# ---- 09-freeze 面板遮挡（同类旧局限）：修前二号 overlap 1.0、创造力中心 0.88，
+			# 整条在面板后；修后两者都应隐藏，一号教学楼仍在面板外可见。
+			var _panel_fz: Array = _labels_panel_detail(_labels_fz)
+			_chk("09-freeze：屏内可见标签无一与场景面板相交", bool(_panel_fz[0]), String(_panel_fz[1]))
+			_chk("09-freeze：二号教学楼标签藏掉（整条在面板后）", not _label_visible(_labels_fz, "二号教学楼"), "visible=" + str(_label_visible(_labels_fz, "二号教学楼")))
+			_chk("09-freeze：创造力中心标签藏掉（整条在面板后）", not _label_visible(_labels_fz, "创造力中心"), "visible=" + str(_label_visible(_labels_fz, "创造力中心")))
+			_chk("09-freeze：一号教学楼仍屏内可见（在面板外，未被误藏）", _label_onscreen_visible(_labels_fz, "一号教学楼"), "visible=" + str(_label_visible(_labels_fz, "一号教学楼")))
+			# 04-charge 放到新 phase 再量：切场景后等 4 帧再量（与储能标签同理），
+			# 04 用 shots_all.sh 的 hour=18。
+			_main.hour = 18.0
+			_main.call("_restore_scene_state")
+			_main.call("_enter_instant", "charge")
+			_phase = 6
+		return false
+	if _phase == 6:
+		if _frames >= 23:
+			# ---- 04-charge 面板遮挡（同类旧局限）：修前三号右缘约 16px 被面板切
+			# （overlap 0.20，档位上下逃不出纵贯面板）、配电房 / 配电变压器 /
+			# 储能 SOC 整条在面板后（overlap 1.0/0.97/1.0）；修后四者都应隐藏，
+			# 创造力中心与充电区 · V2G 在面板外仍可见（创造力因三号让位从 y168 上移到 y102，
+			# 仍在面板外、无新重叠，见探针逐项对照）。
+			var _labels_ch = _main.get_node("Labels")
+			_labels_ch.call("_update")
+			var _panel_ch: Array = _labels_panel_detail(_labels_ch)
+			_chk("04-charge：屏内可见标签无一与场景面板相交", bool(_panel_ch[0]), String(_panel_ch[1]))
+			_chk("04-charge：三号教学楼标签藏掉（右缘曾被面板切）", not _label_visible(_labels_ch, "三号教学楼"), "visible=" + str(_label_visible(_labels_ch, "三号教学楼")))
+			_chk("04-charge：配电房标签藏掉（整条在面板后）", not _label_visible(_labels_ch, "配电房"), "visible=" + str(_label_visible(_labels_ch, "配电房")))
+			_chk("04-charge：配电变压器标签藏掉（整条在面板后）", not _label_visible(_labels_ch, "配电变压器"), "visible=" + str(_label_visible(_labels_ch, "配电变压器")))
+			_chk("04-charge：储能 SOC 标签藏掉（整条在面板后）", not _soc_visible(_labels_ch), "visible=" + str(_soc_visible(_labels_ch)))
+			_chk("04-charge：创造力中心仍屏内可见（在面板外，未被误藏）", _label_onscreen_visible(_labels_ch, "创造力中心"), "visible=" + str(_label_visible(_labels_ch, "创造力中心")))
+			_chk("04-charge：充电区 · V2G 仍屏内可见（在面板外，未被误藏）", _label_onscreen_visible(_labels_ch, "充电区 · V2G"), "visible=" + str(_label_visible(_labels_ch, "充电区 · V2G")))
+			var _band_ch: Array = _labels_band_detail(_labels_ch)
+			_chk("04-charge：屏内标签渲染中心都不进顶栏/场景栏（90≤y≤642）", bool(_band_ch[0]), String(_band_ch[1]))
 			print("VERIFY-SUMMARY: PASS=", _passes, " FAIL=", _fails)
 			quit(1 if _fails > 0 else 0)
 		return false

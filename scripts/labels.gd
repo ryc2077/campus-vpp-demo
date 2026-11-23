@@ -23,6 +23,9 @@ var debug_shot := false # shot 模式才打印去重叠诊断（main.gd 据 _sho
 var _last_ms := 0
 var _bottom_reserve := 84.0 # 底部场景栏高度 + 边距
 var _top_reserve := 80.0 # 顶栏底 72px + 8px：标签不得躲进半透明顶栏后面
+var panel_control: Control = null # 场景面板（右侧固定 UI）：main.gd 把 $UI/ScenePanel 赋过来；
+# _update 里取其实时 get_global_rect() 作碰撞区，不硬编码像素 rect（面板宽随窗口变，
+# ABC 双开时还会下移）。为 null 或面板不可见时（总览）不碰撞。
 var _min_gap := 20.0 # 去重叠最小净空（屏上 px，720p 口径）：候选字盒与已放字盒之间
 # 至少留 20px 空隙才算排开，否则继续试下一档。只扩判定用的盒，不改 est_h。
 # （02-storage 实测：储能柜标签 y≈48 落在顶栏带内，隔着 93% 白面板只剩约 7% 可见度，白字压白底）
@@ -83,6 +86,12 @@ func _update() -> void:
 		return
 	var narrow: bool = vp.x < 760.0
 	var space := get_world_3d().direct_space_state
+	# 场景面板碰撞区：实时 rect（窗口缩放 / ABC 双开下移都跟得上）；面板隐藏时（总览）不碰撞。
+	var panel_rect := Rect2()
+	var panel_on := false
+	if panel_control != null and panel_control.is_visible_in_tree():
+		panel_rect = panel_control.get_global_rect()
+		panel_on = true
 	# Screen size correction (fixed_size normalises distance to 1.0, so distance
 	# drops out; only viewport height and fov matter):
 	#   screen_px = font_size * pixel_size * vp_h / (2*tan(fov/2))
@@ -170,6 +179,13 @@ func _update() -> void:
 			# 都进场景栏则隐藏。口径与中心钳制一致：盒底 ≤ vp.y − 84 + est_h/2
 			#（720p 下为 651，场景栏顶 652 之上 1px）。
 			if r.end.y > vp.y - _bottom_reserve + est_h / 2.0:
+				continue
+			# 场景面板修复（run 45247090332 的 02-storage 半截“餐厅”标签）：
+			# 候选盒与实时面板 rect 相交按“撞上”处理，与顶栏/场景栏守卫同类，继续试下一档；
+			# dy 档只能上下移、面板纵贯 y60–620，档位逃不出的标签按现有机制隐藏（不新写隐藏逻辑）。
+			# 同类旧局限一并收敛：02-storage 配电变压器、04-charge 三号/配电房/配电变压器/
+			# 储能 SOC、09-freeze 二号/创造力中心在面板后的，整条藏掉而非半截。
+			if panel_on and r.intersects(panel_rect):
 				continue
 			# 净空规则：候选盒上下各扩 _min_gap 再判交——只“刚好不交”
 			#（总览屋顶光伏/艺体馆曾只差 6px、冻结帧只差 16px）也算撞上，
