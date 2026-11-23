@@ -209,6 +209,48 @@ func _process(_delta: float) -> bool:
 	var sto = _main.sto_interior
 	_chk("储能风扇中心 y=3.105（盘底 2.555=柜顶 2.55+0.005）", sto != null and absf(sto.fan.position.y - 3.105) < 0.001, str(sto.fan.position.y) if sto != null else "null")
 	_chk("储能风扇盘底 2.555m", sto != null and absf((sto.fan.position.y - 0.55) - 2.555) < 0.001, str(sto.fan.position.y - 0.55) if sto != null else "null")
+	# ---- GLB 对齐修补：风扇 X / 流光点 / 检修灯带（storage.glb 实测）----
+	var sto_hub: MeshInstance3D = null
+	var sto_strip: MeshInstance3D = null
+	if sto != null:
+		for ch in sto.get_children():
+			if ch is MeshInstance3D:
+				var mi := ch as MeshInstance3D
+				if mi.mesh is CylinderMesh and absf((mi.mesh as CylinderMesh).top_radius - 0.55) < 0.001:
+					sto_hub = mi
+				if mi.mesh is BoxMesh and (mi.mesh as BoxMesh).size.is_equal_approx(Vector3(8.0, 0.08, 0.3)):
+					sto_strip = mi
+	_chk("风扇盘中心 X=2.4（GLB PCS 柜中心）", sto_hub != null and absf(sto_hub.position.x - 2.4) < 0.001, str(sto_hub.position.x) if sto_hub != null else "null")
+	_chk("风扇盘东缘 2.95 在 GLB 壳东墙 4.3 内", sto_hub != null and sto_hub.position.x + 0.55 < 4.3, str(sto_hub.position.x + 0.55) if sto_hub != null else "null")
+	_chk("风扇盘 Z 0.26–0.38 与 GLB PCS_FanDisc（Z≤0.2）留隙", sto_hub != null and absf(sto_hub.position.z - 0.32) < 0.001, str(sto_hub.position.z) if sto_hub != null else "null")
+	_chk("风扇叶片 Z 0.31–0.49 在柜前脸 0.5 内", sto != null and absf(sto.fan.position.z - 0.40) < 0.001, str(sto.fan.position.z) if sto != null else "null")
+	var dot_xs := {}
+	var dot_ok: bool = sto != null and sto.flow_dots.size() == 9
+	if dot_ok:
+		for d in sto.flow_dots:
+			var dd := d as MeshInstance3D
+			dot_xs[snappedf(dd.position.x, 0.01)] = true
+			if absf(dd.position.z - 0.64) >= 0.001:
+				dot_ok = false
+	_chk("流光点 9 个、X 列 −2.4/−0.8/0.8（3 台电池柜中心）", dot_ok and dot_xs.has(-2.4) and dot_xs.has(-0.8) and dot_xs.has(0.8), str(dot_xs.keys()))
+	_chk("流光点 Z=0.64（球后缘恰贴柜前脸 0.5）", dot_ok, "")
+	var dot_ys := [0.3, 1.4, 2.5]
+	var dot_rows_ok: bool = sto != null and sto.flow_dots.size() == 9
+	if dot_rows_ok:
+		for k in range(9):
+			if absf((sto.flow_dots[k] as MeshInstance3D).position.y - dot_ys[k / 3]) >= 0.001:
+				dot_rows_ok = false
+	_chk("流光点静态行 Y 0.3/1.4/2.5", dot_rows_ok, "")
+	if sto != null:
+		sto.call("update_frame", 100.0, 5.0, 0.016)
+		var dot_range_ok := true
+		for d in sto.flow_dots:
+			var yy := (d as MeshInstance3D).position.y
+			if yy < 0.3 - 0.001 or yy > 2.5 + 0.001:
+				dot_range_ok = false
+		_chk("流光点动画行程 Y 0.3–2.5（柜面高度内）", dot_range_ok, "")
+	_chk("检修灯带中心 y=5.415（底面 5.375 恰贴 GLB 屋顶顶）", sto_strip != null and absf(sto_strip.position.y - 5.415) < 0.001, str(sto_strip.position.y) if sto_strip != null else "null")
+	_chk("检修灯带底面 5.375 不埋入屋顶", sto_strip != null and absf((sto_strip.position.y - 0.04) - 5.375) < 0.001, str(sto_strip.position.y - 0.04) if sto_strip != null else "null")
 	var pv = _main.pv_detail
 	pv.call("update_frame", 100.0, 0.30, 0.0)
 	_chk("雨天 pv_factor=0.30 阳光射线隐藏", not (pv.ray_planes[0] as MeshInstance3D).visible, str((pv.ray_planes[0] as MeshInstance3D).visible))

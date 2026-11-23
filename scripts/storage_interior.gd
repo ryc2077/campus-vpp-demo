@@ -33,6 +33,12 @@ func _build() -> void:
 	# 防 z-fighting）；Godot Y = Blender Z（同原点、1:1，储能内景置于 (64,0,-30)
 	# 与柜体同原点），盘半径 0.55m，故中心 y = 2.555 + 0.55 = 3.105m，盘底恰为 2.555m。
 	# （原 y=3.4 时盘底为 2.85m，盘底偏高 0.30m；3.4-2.55=0.85m 是中心到柜顶之差。）
+	# X 对齐 GLB（storage.glb 实测）：PCS 柜局部 X 1.75–3.05，中心 2.4（原 4.6 是按
+	# 程序化 PCS 标的，盘东缘 5.15 已穿出 GLB 壳东墙 4.3）。
+	# Z 避让 GLB 自带 PCS_FanDisc（局部 X 2.2–2.6、Y 2.555–2.585、Z ±0.2，水平小盘）：
+	# 本盘竖立、盘底 2.555 与小盘顶 2.585 在 Y 上重叠 0.03m，故把盘沿 Z 前移——hub z 0.32
+	#（盘厚 0.12，Z 0.26–0.38）与小盘 Z 上缘 0.2 留 0.06m 间隙，不再相交；叶片 z 0.40
+	#（Z 0.31–0.49）仍在柜前脸 0.5 以内，不穿墙。
 	var hub := MeshInstance3D.new()
 	var cm := CylinderMesh.new()
 	cm.top_radius = 0.55
@@ -40,7 +46,7 @@ func _build() -> void:
 	cm.height = 0.12
 	cm.radial_segments = 16
 	hub.mesh = cm
-	hub.position = Vector3(4.6, 3.105, 0.2)
+	hub.position = Vector3(2.4, 3.105, 0.32)
 	hub.rotation_degrees.x = 90
 	hub.material_override = _mat(Color("#37424c"), 0.4, 0.5)
 	add_child(hub)
@@ -48,10 +54,16 @@ func _build() -> void:
 	var fm := BoxMesh.new()
 	fm.size = Vector3(0.9, 0.12, 0.18)
 	fan.mesh = fm
-	fan.position = Vector3(4.6, 3.105, 0.28)
+	fan.position = Vector3(2.4, 3.105, 0.40)
 	fan.material_override = _mat(Color("#d7dde3"), 0.4, 0.5)
 	add_child(fan)
 	# 能量流光点：沿机架竖向 3 条
+	# 对齐 GLB（storage.glb 实测）：3 台电池柜局部中心 X −2.4/−0.8/0.8（柜体 X 依次
+	# −3.05–−1.75、−1.45–−0.15、0.15–1.45；GLB 只有 3 台电池柜，另 1 台是 PCS 柜，
+	# 中心 2.4，不放流光点），柜前脸局部 Z 0.5，柜顶 Y 2.55。
+	# 球 r0.14，z=0.64 时球后缘恰贴前脸 0.5（格栅条最凸 0.514，球面仅在 y 1.71–2.10
+	# 段与格栅平面相交 ≤0.014m，可忽略）；y 行程 0.3–2.5，球体基本贴在柜面高度内
+	#（下缘 0.16 略高于踢脚顶 0.15，上缘 2.64 仅在行程顶端越过柜顶 0.09m）。
 	var i := 0
 	while i < 9:
 		var m := StandardMaterial3D.new()
@@ -65,18 +77,21 @@ func _build() -> void:
 		sm.height = 0.28
 		dot.mesh = sm
 		dot.material_override = m
-		dot.position = Vector3(-2.6 + (i % 3) * 2.6, 1.0 + (i / 3) * 1.4, 0.4)
+		dot.position = Vector3(-2.4 + (i % 3) * 1.6, 0.3 + (i / 3) * 1.1, 0.64)
 		add_child(dot)
 		flow_dots.append(dot)
 		flow_mats.append(m)
 		i += 1
 	# 检修灯带（柜顶）
+	# 对齐 GLB（storage.glb 实测）：屋顶板顶 Y 5.375（板 Y 5.025–5.375）。灯带厚 0.08，
+	# 中心 y=5.415 时底面 5.375 恰贴屋顶顶面（原 5.35 时 81% 埋没，仅露 0.015m）；
+	# 底面与屋顶顶面法向相反（下 vs 上），共面不产生可见 z-fighting，故不另留间隙。
 	var strip_mat := StandardMaterial3D.new()
 	strip_mat.albedo_color = Color("#fff3d6")
 	strip_mat.emission_enabled = true
 	strip_mat.emission = Color("#fff3d6")
 	strip_mat.emission_energy_multiplier = 1.0
-	_box(Vector3(0, 5.35, 0), Vector3(8.0, 0.08, 0.3), strip_mat)
+	_box(Vector3(0, 5.415, 0), Vector3(8.0, 0.08, 0.3), strip_mat)
 
 func update_frame(batt_kw: float, t: float, delta: float) -> void:
 	if fan != null:
@@ -93,4 +108,4 @@ func update_frame(batt_kw: float, t: float, delta: float) -> void:
 			var u := fmod(t * (0.12 + absf(batt_kw) / 300.0) + float(i) / 9.0, 1.0)
 			if batt_kw < -1.0:
 				u = 1.0 - u
-			d.position.y = 1.0 + u * 3.2
+			d.position.y = 0.3 + u * 2.2
