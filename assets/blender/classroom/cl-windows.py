@@ -1,3 +1,7 @@
+# 注意（2026-11-23 纹理升级）：本件 .blend 已挂外部 PBR 贴图
+# （染色贴图 assets/blender/tex/ + 原图 assets/external/，材质节点直连
+# Base Color/Roughness/Normal）。重跑本脚本会从零重建、丢失全部贴图，
+# 重跑前须先把纹理步骤补进脚本再跑；不要只重跑本脚本就推。
 # cl-windows v2: 教室内部·窗户窗帘（返工）
 # 规约: assets/blender/SPEC.md §6 教室局部坐标
 #   房间中心原点, x 长 9.68m (-4.84~+4.84), y 宽 7.26m (-3.63~+3.63), z 0-3.0m
