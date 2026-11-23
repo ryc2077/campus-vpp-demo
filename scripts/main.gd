@@ -258,11 +258,19 @@ func _setup_glass() -> void:
 	var vp_w := get_viewport().get_visible_rect().size.x
 	var low := vp_w < 760.0 or _glass_mode == "low"
 	var on := _glass_mode != "off"
+	# 池塘遮挡（run 45219977015 目视）：总览视角下池塘水面（overview.glb 的
+	# OV_ASSEMBLY_pond；程序化池塘在 GLB 接管时已隐藏）投影落在底部场景栏上；
+	# BarGlass 是半透明液态玻璃（tint_alpha 0.42），亮蓝水面透进来压住了
+	# “教室舒适度”等导航文字。总览时场景栏改走实色 fallback（白 0.93，
+	# 已有降级件），文字底色不再透池塘；进其它场景恢复玻璃。WxPill 不受影响。
+	# 不移池塘/不改相机：池塘在 GLB 内、相机在 data/scenes.json（禁碰）；
+	# 只抬高导航栏也盖不住椭圆（720p 下椭圆约 y 615–710、栏 652–708）。
+	var bar_on := on and active_scene != ""
 	for path in ["UI/SceneBar/BarGlass", "UI/WxPill/WxGlass"]:
 		var g: GlassSurface = get_node_or_null(path)
 		if g != null:
 			g.set_quality(low)
-			g.set_glass_enabled(on)
+			g.set_glass_enabled(bar_on if path == "UI/SceneBar/BarGlass" else on)
 
 func _set_reduced_motion(on: bool) -> void:
 	_reduced = on
@@ -293,6 +301,7 @@ func _enter_frozen(key: String, u: float) -> void:
 	if scenes_data["scenes"][key].has("front"):
 		to_cam = scenes_data["scenes"][key]["front"]
 	rig.apply_eased_between(from_cam, to_cam, u)
+	_setup_glass() # 离开总览：场景栏玻璃恢复
 	_refresh_panel()
 
 func _snap_to(cam: Dictionary) -> void:
@@ -329,6 +338,7 @@ func _enter_instant(key: String) -> void:
 		rig.set_limits(sc["limits"])
 		rig.arm_limits(true)
 	ui.set_scene_active(key)
+	_setup_glass() # 离开总览：场景栏玻璃恢复
 	_refresh_panel()
 
 func set_weather(key: String) -> void:
@@ -402,6 +412,7 @@ func enter_scene(key: String) -> void:
 		rig.fly_to(sc["cam"], 1000, Callable(self, "_on_landed").bind(key))
 	else:
 		rig.fly_to(sc["cam"], 1000, Callable(self, "_on_landed").bind(key))
+	_setup_glass() # 离开总览：场景栏玻璃恢复
 	_refresh_panel()
 
 func _on_entry_phase2(key: String) -> void:
@@ -434,6 +445,7 @@ func exit_scene() -> void:
 	if active_scene == "" and not _pending_exit:
 		rig.fly_to(scenes_data["overview"]["cam"], 1000)
 		ui.set_scene_active("overview")
+		_setup_glass() # 回到总览：场景栏改实色底（池塘遮挡）
 		return
 	var key := active_scene
 	active_scene = ""
@@ -449,6 +461,7 @@ func exit_scene() -> void:
 	else:
 		_restore_scene_state()
 		rig.fly_to(scenes_data["overview"]["cam"], 1000)
+	_setup_glass() # 回到总览：场景栏改实色底（池塘遮挡）
 
 func _on_exit_phase2() -> void:
 	_pending_exit = false

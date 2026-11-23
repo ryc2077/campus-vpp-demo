@@ -356,6 +356,11 @@ func _process(_delta: float) -> bool:
 		_main.call("_update_visuals", _main.sim.state_at(_main.hour), 0.016)
 	_chk("SOC 变色：10 次 lerp 后壳 alpha 不变（仍 0.22）", _main._shell_mat != null and absf(_main._shell_mat.albedo_color.a - a0) < 0.001 and absf(a0 - 0.22) < 0.001, str(a0) + " -> " + str(_main._shell_mat.albedo_color.a))
 	cb.call("set_shell_translucent", false)
+	# ---- 池塘遮挡（run 45219977015）：总览时场景栏须走实色 fallback（白 0.93），
+	# 玻璃须关，否则亮蓝池塘水面透进导航栏压住“教室舒适度”等文字。
+	var _bar_glass = _main.get_node("UI/SceneBar/BarGlass")
+	var _bar_fb = _main.get_node("UI/SceneBar/BarGlassFallback")
+	_chk("总览：场景栏玻璃关、实色 fallback 开（池塘不透进导航文字）", not _bar_glass.visible and _bar_fb.visible, str(_bar_glass.visible) + "/" + str(_bar_fb.visible))
 	# ---- 场景面板不撑出屏（回归检查）：进配电房（修前最宽 511px），
 	# 等几帧让容器排完版再量宽。
 	_main.call("enter_scene", "dist")
