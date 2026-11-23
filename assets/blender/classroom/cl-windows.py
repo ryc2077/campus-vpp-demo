@@ -1,8 +1,8 @@
-# 注意（2026-11-23 纹理升级）：本件 .blend 已挂外部 PBR 贴图
-# （染色贴图 assets/blender/tex/ + 原图 assets/external/，材质节点直连
-# Base Color/Roughness/Normal）。重跑本脚本会从零重建、丢失全部贴图，
-# 重跑前须先把纹理步骤补进脚本再跑；不要只重跑本脚本就推。
 # cl-windows v2: 教室内部·窗户窗帘（返工）
+# 纹理已固化进脚本（见文件末尾 _apply_pbr_textures，2026-11-23）：
+# 染色贴图 assets/blender/tex/ + 原图 assets/external/，材质节点直连
+# Base Color/Roughness/Normal；重跑不再丢贴图。玻璃材质不挂贴图（保持
+# Transmission/Alpha 透明材质原样）。
 # 规约: assets/blender/SPEC.md §6 教室局部坐标
 #   房间中心原点, x 长 9.68m (-4.84~+4.84), y 宽 7.26m (-3.63~+3.63), z 0-3.0m
 #   黑板墙在 x=-4.84 一侧, 南侧窗户沿 y=-3.63 墙面, 北侧沿 y=+3.63 墙面
@@ -320,6 +320,112 @@ kinds = Counter(ob.name.split("_")[1] if "_" in ob.name else ob.name
 print("windows built: %d objects" % len(piece_objs))
 print("object kinds:", dict(kinds))
 # 预期: 每扇窗 11 件 x8 = 88; 南侧每扇杆 1 + 托架 2 + 端头 2 + 窗帘 2 = 7 x4 = 28; 合计 116
+
+# ---- PBR 贴图固化 (2026-11-23)：把上一轮挂在 .blend 上的外部贴图写进脚本 ----
+# color 图：assets/blender/tex/ 里的染色图（已按 SPEC §3 目标色染色）；
+# rough/normal 图：assets/external/ 原图（CC0）。
+# 节点只许 TexCoord→Mapping→Image Texture 直连 BSDF，不加 Hue/Sat/Mix，
+# 否则 glTF 导出器不认。Base Color 默认值须置白、Roughness 置 1.0（贴图
+# 本身带颜色与粗糙度），否则导出器会把旧纯色写成 baseColorFactor/
+# roughnessFactor 与贴图二次相乘；Metallic 保持脚本原值。玻璃材质跳过。
+# 没有 UV 的网格补 Smart UV Project（已有 UV 的不动，如窗帘自定义 UV）。
+TEX_DIR = os.path.join(BASE, "assets/blender/tex")
+EXT_DIR = os.path.join(BASE, "assets/external")
+# 材质名: (tex/ 染色 color 图, external rough 图, external normal 图, Mapping 缩放)
+PBR_TEXTURES = {
+    "cl-windows_frame_white": ("white_stucco__E8E8E8.jpg",
+        "polyhaven/white_stucco_rough_1k.jpg",
+        "polyhaven/white_stucco_nor_gl_1k.jpg", (2.0, 1.0)),
+    "cl-windows_rod_metal": ("corrugated_iron_02__8A8F94.jpg",
+        "polyhaven/corrugated_iron_02_rough_1k.jpg",
+        "polyhaven/corrugated_iron_02_nor_gl_1k.jpg", (1.0, 1.0)),
+    "cl-windows_curtain_cream": ("Plaster001__F3E9D2.jpg",
+        "ambientcg/Plaster001/Plaster001_1K-JPG_Roughness.jpg",
+        "ambientcg/Plaster001/Plaster001_1K-JPG_NormalGL.jpg", (2.0, 2.0)),
+}
+
+
+_IMG_CACHE = {}
+
+
+def _pbr_load_image(abs_path, colorspace):
+    # 同一文件只加载一次：filepath 改成相对路径后 check_existing 会按路径
+    # 字符串比对失效、重复建 .001 副本，故用自带缓存去重
+    img = _IMG_CACHE.get(abs_path)
+    if img is None:
+        img = bpy.data.images.load(abs_path, check_existing=True)
+        img.colorspace_settings.name = colorspace
+        # 存相对路径进 .blend（// 相对 .blend 所在目录），仓库检出后仍能找到
+        rel = os.path.relpath(abs_path, os.path.dirname(BLEND_PATH)).replace(os.sep, "/")
+        img.filepath = "//" + rel
+        _IMG_CACHE[abs_path] = img
+    return img
+
+
+def _apply_pbr_textures():
+    for mat_name, (color_f, rough_f, normal_f, scale) in PBR_TEXTURES.items():
+        mat = bpy.data.materials.get(mat_name)
+        if mat is None:
+            print("PBR SKIP missing material:", mat_name)
+            continue
+        nt = mat.node_tree
+        bsdf = nt.nodes["Principled BSDF"]
+        # 清掉旧程序化节点，只留 BSDF 与 Output
+        for node in list(nt.nodes):
+            if node.type not in ("BSDF_PRINCIPLED", "OUTPUT_MATERIAL"):
+                nt.nodes.remove(node)
+        bsdf.inputs["Base Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+        bsdf.inputs["Roughness"].default_value = 1.0
+        texcoord = nt.nodes.new("ShaderNodeTexCoord")
+        mapping = nt.nodes.new("ShaderNodeMapping")
+        mapping.inputs["Scale"].default_value = (scale[0], scale[1], 1.0)
+        nt.links.new(texcoord.outputs["UV"], mapping.inputs["Vector"])
+        tex_c = nt.nodes.new("ShaderNodeTexImage")
+        tex_c.image = _pbr_load_image(os.path.join(TEX_DIR, color_f), "sRGB")
+        nt.links.new(mapping.outputs["Vector"], tex_c.inputs["Vector"])
+        nt.links.new(tex_c.outputs["Color"], bsdf.inputs["Base Color"])
+        tex_r = nt.nodes.new("ShaderNodeTexImage")
+        tex_r.image = _pbr_load_image(os.path.join(EXT_DIR, rough_f), "Non-Color")
+        nt.links.new(mapping.outputs["Vector"], tex_r.inputs["Vector"])
+        nt.links.new(tex_r.outputs["Color"], bsdf.inputs["Roughness"])
+        tex_n = nt.nodes.new("ShaderNodeTexImage")
+        tex_n.image = _pbr_load_image(os.path.join(EXT_DIR, normal_f), "Non-Color")
+        nmap = nt.nodes.new("ShaderNodeNormalMap")
+        nt.links.new(mapping.outputs["Vector"], tex_n.inputs["Vector"])
+        nt.links.new(tex_n.outputs["Color"], nmap.inputs["Color"])
+        nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+        print("PBR textured:", mat_name, color_f, "scale", scale)
+
+
+def _ensure_uvs(objs):
+    """没有 UV 的网格补 Smart UV Project（已有 UV 的不动，如窗帘自定义 UV）。"""
+    todo = []
+    seen = set()
+    for ob in objs:
+        if ob.type != "MESH":
+            continue
+        if id(ob.data) in seen:
+            continue
+        seen.add(id(ob.data))
+        if len(ob.data.uv_layers) == 0:
+            todo.append(ob)
+    if not todo:
+        print("UV OK: all meshes have UVs")
+        return
+    bpy.ops.object.select_all(action="DESELECT")
+    for ob in todo:
+        ob.select_set(True)
+    bpy.context.view_layer.objects.active = todo[0]
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.uv.smart_project(angle_limit=math.radians(66.0), island_margin=0.02)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    bpy.ops.object.select_all(action="DESELECT")
+    print("UV smart-projected:", len(todo), [o.name for o in todo])
+
+
+_apply_pbr_textures()
+_ensure_uvs(piece_objs)
 
 # ---- 存 .blend (只含本件 + 探针) ----
 os.makedirs(os.path.dirname(BLEND_PATH), exist_ok=True)
