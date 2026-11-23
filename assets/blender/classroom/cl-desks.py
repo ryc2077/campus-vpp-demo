@@ -1,22 +1,44 @@
-# cl-desks v2: 教室内部 - 课桌椅 (6列 x 8排 = 48套)
-# 纹理已固化进脚本（见文件末尾 _apply_pbr_textures，2026-11-23）：
-# 染色贴图 assets/blender/tex/ + 原图 assets/external/，材质节点直连
-# Base Color/Roughness/Normal；重跑不再丢贴图。
-# 局部坐标: 房间中心原点, x=长 9.68m (-4.84~+4.84), y=宽 7.26m (-3.63~+3.63), z 0~3.0m
-# 黑板墙在 x=-4.84 一侧, 学生面向 -x 方向坐
-# v2 重做 (用户反馈: 旧版凳子像平板贴地): 按真实课桌椅结构
-# v2.2 相机: 前排左前方 3/4 侧视角、贴近第一组桌椅 (见相机段注释)
-# v2.3 原点修正 (实测发现): join 后原点留在首个零件处 (桌面 z=0.735 /
-#   椅面 z=0.435), 复制时 location z=0 会把整套压到地下 0.735/0.435m,
-#   桌腿椅腿全埋进地板、桌面椅面贴地; 必须把原点移回世界原点 (几何不动)
-# 课桌 0.6(x) x 0.45(y) x 0.75(高)m: 桌面木面 #C8A06A 厚 0.03 (顶面 z=0.75)
-#   + 4 条桌腿 #424A52 0.04x0.04, 从地面立到桌面底面 (z 0~0.72)
-#   + 桌腿间下部横撑 1 根 (前侧, z=0.15)
-# 椅子 0.4 x 0.4: 椅面木色 #7A4A2B 厚 0.03 (顶面 z=0.45)
-#   + 4 条椅腿 0.03x0.03, 从地面立到椅面底面 (z 0~0.42)
-#   + 靠背背板 0.4 宽 x 0.4 高 x 0.02 厚, 从椅面向上立起, 顶到 z=0.85, 向后 (+x) 微倾 5 度
-#   + 2 根背杆 (与靠背同倾 5 度, 椅面底到背顶)
-# 排布照旧版: 6 列 y 中心 -2.8/-1.8/-0.8/+0.8/+1.8/+2.8; 8 排 x 中心 -3.04 起间距 1.0m 至 +3.96
+# cl-desks v3: 教室内部 - 课桌椅 (6列 x 8排 = 48套)
+# 换件: 自建平板桌椅 -> tevy 教室模型 (CC0, tevy.dev/models/classroom)
+#   的桌椅拆件. 原模型 assets/external/buildings/classroom-tevy.glb
+#   (EXT_meshopt_compression + KHR_mesh_quantization + KHR_texture_basisu
+#   三重压缩, Blender 4.2 打不开) 已用 gltf-transform 去压缩, 并剥掉
+#   KTX2 贴图 (Blender 4.2 不认 KHR_texture_basisu; 贴图反正要按
+#   _apply_pbr_textures 重挂自家 CC0 染色贴图, 见下):
+#   assets/external/buildings/classroom-tevy-plain.glb (去压缩+去贴图,
+#   2.2MB; 复现脚本 assets/external/buildings/tevy-decompress.mjs)。
+# 实测结论 (2026-11-23, 见拆件分析):
+#   - loose-parts 拆分不可用: tevy 的 mesh 全是未焊接碎面 (desks
+#     2832 / chairs 3072 个 loose 碎片), 只能按空间 Voronoi 聚类拆件。
+#   - desks: 12 张双人桌 -> 24 张单人桌 (单桌 0.61(x)x0.61(y)x0.71(高)m,
+#     顶面 0.71 vs SPEC 0.75, 接受实测值不改比例); 双人桌中心
+#     x -2.39/-0.22/+2.02, y -2.48/-1.20/+0.10/+1.39, 单桌在中心 ±0.30。
+#   - chairs: 20 张正常单椅 (座高 ~0.45, 靠背顶 0.89, 约 0.48x0.59m),
+#     另有 2 个 1.02x0.62x1.16m 高柜混在 chairs mesh 里 (后排左右角,
+#     tevy x ±2.4 / y -2.41); 高柜面用两条规则剔除: 柜顶 z>0.95 的面,
+#     以及离单椅锚点向后 (tevy -y) 超过 0.50m 的面 (正常椅靠背最远
+#     只到锚点后 0.45m)。但高柜正面紧贴在第 2 排外侧 4 张椅的靠背后
+#     (共面, y 只差 0.02-0.04m), 切不干净: 拆出的 4 个单椅仍各带
+#     135-236 张柜面 (799-900 面 vs 正常 664 面, 其中 1 张还带 1.16m
+#     柜顶)。故这 4 张不进复用池, 48 套用其余 16 张干净单椅循环复用
+#     (共享网格数据; tevy 单椅本就几乎全同, 16 种已足够)。
+#   - 单件锚点取拆分后自身的顶点包围盒中心 (tevy 模型手摆有 ±0.2m
+#     抖动, Voronoi 中心不准); 拆分时保留原 custom split normals,
+#     座面曲面明暗不变。
+#   - teacher_desk (1.5x1.25x0.89, 进深 1.25m 是 SPEC 讲台 0.62m 的
+#     两倍, 会吃掉讲台前空地并顶住第一排桌) 与 shelves (4.48m 长柜,
+#     无 SPEC 位置, 放北墙会挡窗) 均未采用, cl-board.py 保持原样。
+#   - 椅子比 SPEC 自建椅深: 靠背顶离椅心 +0.34m (SPEC 自建约 +0.24m),
+#     故 CHAIR_DX 由 0.55 收至 0.44, GROUP_DX 由 -0.15 移至 -0.145,
+#     使两端间隙仍达标 (前 0.205m / 后 0.167m, 脚本末尾实测断言)。
+# 局部坐标: 房间中心原点, x=长 9.68m (-4.84~+4.84), y=宽 7.26m
+#   (-3.63~+3.63), z 0~3.0m; 黑板墙在 x=-4.84 一侧, 学生面向 -x 坐。
+# tevy 原朝向: 学生面向 +y (讲台在 +y 侧); 换件时整件绕 Z 转 +90 度
+#   (tevy (x,y) -> SPEC (-y,x)), 面向变为 -x, 与 SPEC 一致。
+# 材质: 桌面/椅面木色 + 腿深灰金属, 按面中心高度与法线分面指定,
+#   再走 _apply_pbr_textures 挂 tex/ 染色贴图 (与 v2 相同三件套)。
+# 本脚本不渲染 (渲染走 GitHub Actions), 只建模 + 存 .blend + 导出
+#   .glb + 回读校验 96 个对象。
 import bpy
 import math
 import os
@@ -25,16 +47,16 @@ from mathutils import Vector
 HOME = os.path.expanduser("~")
 BASE = os.path.join(HOME, "workspace/goals/campus-virtual-power-plant-competition/files/demo-godot")
 SCRIPT_DIR = os.path.join(BASE, "assets/blender/classroom")
+TEVY_PLAIN = os.path.join(BASE, "assets/external/buildings/classroom-tevy-plain.glb")
 MODEL_PATH = os.path.join(BASE, "assets/models/cl-desks.glb")
 BLEND_PATH = os.path.join(SCRIPT_DIR, "cl-desks.blend")
-PREVIEW_PATH = os.path.join(BASE, "screenshots/blender/cl-desks.png")
-for p in (SCRIPT_DIR, os.path.dirname(MODEL_PATH), os.path.dirname(PREVIEW_PATH)):
+for p in (SCRIPT_DIR, os.path.dirname(MODEL_PATH)):
     os.makedirs(p, exist_ok=True)
 
 # ---------- 场景清理 ----------
 bpy.ops.wm.read_factory_settings(use_empty=True)
 
-# ---------- sRGB 十六进制 -> 线性 (Principled Base Color 必须是线性值) ----------
+# ---------- sRGB 十六进制 -> 线性 ----------
 def srgb_to_linear(c):
     return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
 
@@ -45,249 +67,279 @@ def hex_to_linear(h):
     b = int(h[4:6], 16) / 255.0
     return (srgb_to_linear(r), srgb_to_linear(g), srgb_to_linear(b), 1.0)
 
-def make_material(name, hex_color, roughness=0.7):
+def make_material(name, hex_color, roughness=0.7, metallic=0.0):
     mat = bpy.data.materials.new(name)
     mat.use_nodes = True
     bsdf = mat.node_tree.nodes["Principled BSDF"]
     bsdf.inputs["Base Color"].default_value = hex_to_linear(hex_color)
     bsdf.inputs["Roughness"].default_value = roughness
+    bsdf.inputs["Metallic"].default_value = metallic
     return mat
 
-# ---------- 程序化材质 (全局新标准, 红线: 没有任何一个面是全平的) ----------
-# 木纹: 拉伸噪波模拟木纹 (纹理走向沿 X, 深浅不均 + 粗糙度变化 + 轻微凹凸)
-# 金属腿: 噪波拉丝, 粗糙度轻微变化; 只用程序化节点, 不用贴图
-def make_wood_material(name, base_hex, dark_hex, light_hex, roughness=0.55,
-                       grain_scale=(1.5, 6.0, 1.5)):
-    mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
-    nt = mat.node_tree
-    bsdf = nt.nodes["Principled BSDF"]
-    bsdf.inputs["Metallic"].default_value = 0.0
-    # 返工 2026-11-23: 木纹 Ramp 连进 Base Color 会导致 glTF 丢 baseColorFactor,
-    # Base Color 只留纯色默认值 (木纹深浅改走粗糙度/Bump)。
-    bsdf.inputs["Base Color"].default_value = hex_to_linear(base_hex)
-    texcoord = nt.nodes.new("ShaderNodeTexCoord")
-    mapping = nt.nodes.new("ShaderNodeMapping")
-    mapping.inputs["Scale"].default_value = grain_scale
-    noise = nt.nodes.new("ShaderNodeTexNoise")
-    noise.inputs["Scale"].default_value = 1.0
-    noise.inputs["Detail"].default_value = 4.0
-    noise.inputs["Roughness"].default_value = 0.7
-    noise.inputs["Distortion"].default_value = 0.4
-    # 颜色: 深 -> 本色 -> 浅, 三档木纹深浅
-    ramp = nt.nodes.new("ShaderNodeValToRGB")
-    ramp.color_ramp.elements[0].position = 0.30
-    ramp.color_ramp.elements[0].color = hex_to_linear(dark_hex)
-    ramp.color_ramp.elements[1].position = 0.72
-    ramp.color_ramp.elements[1].color = hex_to_linear(light_hex)
-    mid = ramp.color_ramp.elements.new(0.52)
-    mid.color = hex_to_linear(base_hex)
-    # 粗糙度: 同一噪波映射到灰度区间, 木面粗糙度不均
-    lo = max(0.05, roughness - 0.20)
-    hi = min(1.0, roughness + 0.15)
-    rramp = nt.nodes.new("ShaderNodeValToRGB")
-    rramp.color_ramp.elements[0].position = 0.0
-    rramp.color_ramp.elements[0].color = (lo, lo, lo, 1.0)
-    rramp.color_ramp.elements[1].position = 1.0
-    rramp.color_ramp.elements[1].color = (hi, hi, hi, 1.0)
-    bump = nt.nodes.new("ShaderNodeBump")
-    bump.inputs["Strength"].default_value = 0.05
-    bump.inputs["Distance"].default_value = 0.02
-    nt.links.new(texcoord.outputs["Generated"], mapping.inputs["Vector"])
-    nt.links.new(mapping.outputs["Vector"], noise.inputs["Vector"])
-    nt.links.new(noise.outputs["Fac"], ramp.inputs["Fac"])
-    nt.links.new(noise.outputs["Fac"], rramp.inputs["Fac"])
-    nt.links.new(noise.outputs["Fac"], bump.inputs["Height"])
-    nt.links.new(rramp.outputs["Color"], bsdf.inputs["Roughness"])
-    nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
-    return mat
+# 桌面木纹 #C8A06A, 椅面木纹 #7A4A2B, 桌腿/椅腿深灰金属 #424A52
+# (_apply_pbr_textures 会把 Base Color/Roughness/Normal 改挂贴图,
+#  这里只留底色与 Metallic; leg_metal 保持金属度 0.75)
+MAT_WOOD = make_material("desk_wood", "#C8A06A", 0.55)
+MAT_CHAIR = make_material("chair_wood", "#7A4A2B", 0.60)
+MAT_LEG = make_material("leg_metal", "#424A52", 0.45, metallic=0.75)
 
-def make_metal_material(name, base_hex, dark_hex, light_hex, roughness=0.45):
-    mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
-    nt = mat.node_tree
-    bsdf = nt.nodes["Principled BSDF"]
-    # 返工 2026-11-23: 同上, Base Color 只留纯色默认值, 不连程序化 Ramp。
-    bsdf.inputs["Base Color"].default_value = hex_to_linear(base_hex)
-    bsdf.inputs["Metallic"].default_value = 0.75
-    # 拉丝: 噪波沿腿长方向 (Z) 拉伸, 横向变化快、纵向变化慢
-    texcoord = nt.nodes.new("ShaderNodeTexCoord")
-    mapping = nt.nodes.new("ShaderNodeMapping")
-    mapping.inputs["Scale"].default_value = (12.0, 12.0, 1.5)
-    noise = nt.nodes.new("ShaderNodeTexNoise")
-    noise.inputs["Scale"].default_value = 1.0
-    noise.inputs["Detail"].default_value = 3.0
-    noise.inputs["Roughness"].default_value = 0.7
-    noise.inputs["Distortion"].default_value = 0.1
-    # 颜色只做轻微深浅变化 (金属腿不是均匀纯色)
-    ramp = nt.nodes.new("ShaderNodeValToRGB")
-    ramp.color_ramp.elements[0].position = 0.30
-    ramp.color_ramp.elements[0].color = hex_to_linear(dark_hex)
-    ramp.color_ramp.elements[1].position = 0.72
-    ramp.color_ramp.elements[1].color = hex_to_linear(light_hex)
-    mid = ramp.color_ramp.elements.new(0.52)
-    mid.color = hex_to_linear(base_hex)
-    lo = max(0.05, roughness - 0.10)
-    hi = min(1.0, roughness + 0.10)
-    rramp = nt.nodes.new("ShaderNodeValToRGB")
-    rramp.color_ramp.elements[0].position = 0.0
-    rramp.color_ramp.elements[0].color = (lo, lo, lo, 1.0)
-    rramp.color_ramp.elements[1].position = 1.0
-    rramp.color_ramp.elements[1].color = (hi, hi, hi, 1.0)
-    bump = nt.nodes.new("ShaderNodeBump")
-    bump.inputs["Strength"].default_value = 0.01
-    bump.inputs["Distance"].default_value = 0.01
-    nt.links.new(texcoord.outputs["Generated"], mapping.inputs["Vector"])
-    nt.links.new(mapping.outputs["Vector"], noise.inputs["Vector"])
-    nt.links.new(noise.outputs["Fac"], ramp.inputs["Fac"])
-    nt.links.new(noise.outputs["Fac"], rramp.inputs["Fac"])
-    nt.links.new(noise.outputs["Fac"], bump.inputs["Height"])
-    # 返工 2026-11-23: 金属拉丝 Ramp 不连 Base Color (否则 glTF 丢 baseColorFactor)。
-    nt.links.new(rramp.outputs["Color"], bsdf.inputs["Roughness"])
-    nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
-    return mat
-
-# 桌面木纹 #C8A06A (深 #8A5F33 / 浅 #DDB67F), 椅面木纹 #7A4A2B (深 #54301A / 浅 #96683F)
-MAT_WOOD = make_wood_material("desk_wood", "#C8A06A", "#8A5F33", "#DDB67F", 0.55)
-MAT_CHAIR = make_wood_material("chair_wood", "#7A4A2B", "#54301A", "#96683F", 0.60)
-# 桌腿/椅腿/横撑: 深灰金属 #424A52 (深 #363D44 / 浅 #565E66), 轻微拉丝粗糙度变化
-MAT_LEG = make_metal_material("leg_metal", "#424A52", "#363D44", "#565E66", 0.45)
-
-# ---------- 小工具 ----------
-def add_box(name, loc, dims, mat, rot_y_deg=0.0):
-    bpy.ops.mesh.primitive_cube_add(size=1.0, location=loc)
-    obj = bpy.context.active_object
-    obj.name = name
-    obj.dimensions = dims
-    if rot_y_deg:
-        # 绕自身中心转 Y 轴 (靠背/背杆向后 +x 微倾), 再烘进网格
-        obj.rotation_euler = (0.0, math.radians(rot_y_deg), 0.0)
-    bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-    if mat:
-        obj.data.materials.append(mat)
-    return obj
-
-def join_objects(objs, name):
+# ---------- 导入 tevy 去压缩版, 只留 desks / chairs ----------
+bpy.ops.import_scene.gltf(filepath=TEVY_PLAIN)
+imported = list(bpy.data.objects)
+print("tevy imported:", [(o.name, o.type) for o in imported])
+for o in imported:
+    if o.name not in ("desks", "chairs"):
+        bpy.data.objects.remove(o, do_unlink=True)
+for name in ("desks", "chairs"):
+    o = bpy.data.objects.get(name)
+    assert o is not None and o.type == "MESH", "missing tevy mesh: %s" % name
+    # 解除父级 (door empty 等), 烘进 glTF 节点变换 (location/scale)
     bpy.ops.object.select_all(action="DESELECT")
-    for o in objs:
-        o.select_set(True)
-    bpy.context.view_layer.objects.active = objs[0]
-    bpy.ops.object.join()
-    joined = bpy.context.active_object
-    joined.name = name
-    return joined
+    o.select_set(True)
+    bpy.context.view_layer.objects.active = o
+    bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    print("tevy mesh kept:", name, "verts:", len(o.data.vertices),
+          "faces:", len(o.data.polygons),
+          "has_custom_normals:", o.data.has_custom_normals)
 
-def add_bevel(obj, width=0.008, segments=2):
-    mod = obj.modifiers.new("bevel", "BEVEL")
-    mod.width = width
-    mod.segments = segments
-    mod.limit_method = "ANGLE"
-    bpy.context.view_layer.objects.active = obj
-    bpy.ops.object.modifier_apply(modifier=mod.name)
+DESKS_SRC = bpy.data.objects["desks"]
+CHAIRS_SRC = bpy.data.objects["chairs"]
 
-def reset_origin_to_world(obj):
-    # join 后原点在首个零件处; 移回世界原点, 几何在世界坐标里不动,
-    # 之后复制件 location=(x, y, 0) 才不会把整套压进地下
-    bpy.context.scene.cursor.location = (0, 0, 0)
-    bpy.ops.object.select_all(action="DESELECT")
-    obj.select_set(True)
-    bpy.context.view_layer.objects.active = obj
-    bpy.ops.object.origin_set(type="ORIGIN_CURSOR")
-    print(obj.name, "origin reset, location now:", tuple(obj.location))
+# ---------- 拆件: 面片按最近单件中心做 Voronoi 归属 (tevy 局部坐标) ----------
+# 双人桌中心 (实测, 见文件头); 单桌 = 双人桌中心 x ± 0.30
+DESK_DCX = [-2.39, -0.22, 2.02]
+DESK_DCY = [-2.48, -1.20, 0.10, 1.39]
+DESK_CENTRES = [(cx + dx, cy) for cy in DESK_DCY for cx in DESK_DCX
+                for dx in (-0.30, 0.30)]
+# 单椅中心: 10 对椅子座面聚类中心 (实测) x ± 0.255; 后排外侧两对是高柜,
+#   不在其中, 故只有 20 个单椅
+CHAIR_PAIRS = [(-0.23, -3.03), (-0.23, -1.86), (-2.44, -1.76),
+               (2.00, -1.78), (-2.37, -0.46), (2.05, -0.46),
+               (-0.21, -0.44), (-0.23, 0.78), (2.07, 0.80),
+               (-2.34, 0.92)]
+CHAIR_CENTRES = [(cx + dx, cy) for (cx, cy) in CHAIR_PAIRS
+                 for dx in (-0.255, 0.255)]
+# 高柜区 (tevy 坐标): 柜顶 z>0.95 的面直接剔除, 不进任何单椅
+CABINET_X = [(-3.05, -1.75), (1.85, 2.75)]
+CABINET_Y = (-2.85, -2.00)
 
-# ---------- 课桌原型 (中心在原点, 桌面顶 z=0.75) ----------
-desk_parts = []
-# 桌面: 0.6 x 0.45 x 0.03, 顶面 z=0.75 (中心 z=0.735)
-desk_parts.append(add_box("desk_top", (0, 0, 0.735), (0.6, 0.45, 0.03), MAT_WOOD))
-# 4 条桌腿: 0.04 x 0.04, 从地面立到桌面底面 z=0.72 (高 0.72, 中心 z=0.36)
-for sx in (-1, 1):
-    for sy in (-1, 1):
-        desk_parts.append(add_box(
-            "desk_leg",
-            (sx * 0.25, sy * 0.175, 0.36),
-            (0.04, 0.04, 0.72), MAT_LEG))
-# 下部横撑 1 根: 前侧 (-x, 黑板一侧) 两条桌腿之间, 沿 y 向,
-#   0.04 x 0.39 x 0.04, 中心 z=0.15 (离地 0.13~0.17, 两端搭在桌腿上)
-desk_parts.append(add_box("desk_brace", (-0.25, 0, 0.15), (0.04, 0.39, 0.04), MAT_LEG))
-desk_proto = join_objects(desk_parts, "desk_proto")
-add_bevel(desk_proto, width=0.008, segments=2)
-reset_origin_to_world(desk_proto)
+def _nearest_centre(x, y, centres):
+    best, bd = -1, 1e18
+    for i, (cx, cy) in enumerate(centres):
+        d = (x - cx) ** 2 + (y - cy) ** 2
+        if d < bd:
+            bd, best = d, i
+    return best
 
-# ---------- 椅子原型 (中心在原点, 椅背在 +x 一侧, 椅面顶 z=0.45, 背顶 z=0.85) ----------
-chair_parts = []
-# 椅面: 0.4 x 0.4 x 0.03, 顶面 z=0.45 (中心 z=0.435)
-chair_parts.append(add_box("chair_seat", (0, 0, 0.435), (0.4, 0.4, 0.03), MAT_CHAIR))
-# 4 条椅腿: 0.03 x 0.03, 从地面立到椅面底面 z=0.42 (高 0.42, 中心 z=0.21)
-for sx in (-1, 1):
-    for sy in (-1, 1):
-        chair_parts.append(add_box(
-            "chair_leg",
-            (sx * 0.165, sy * 0.165, 0.21),
-            (0.03, 0.03, 0.42), MAT_LEG))
-# 靠背背板: 0.02(x) x 0.4(y) x 0.40(z), 底 z=0.45 / 顶 z=0.85,
-#   中心 (0.19, 0, 0.65), 向后 (+x) 微倾 5 度 (顶端约 +0.017m)
-chair_parts.append(add_box("chair_back", (0.19, 0, 0.65), (0.02, 0.4, 0.40),
-                           MAT_CHAIR, rot_y_deg=5.0))
-# 2 根背杆: 0.03 x 0.03, 从椅面底 z=0.42 立到背顶 z=0.85 (高 0.43),
-#   位于背板后侧 (+x), y=+-0.15, 与靠背同倾 5 度
-for sy in (-1, 1):
-    chair_parts.append(add_box(
-        "chair_back_post",
-        (0.205, sy * 0.15, 0.635),
-        (0.03, 0.03, 0.43), MAT_CHAIR, rot_y_deg=5.0))
-chair_proto = join_objects(chair_parts, "chair_proto")
-add_bevel(chair_proto, width=0.008, segments=2)
-reset_origin_to_world(chair_proto)
+def _in_cabinet_zone(x, y, z):
+    if z <= 0.95:
+        return False
+    if not (CABINET_Y[0] <= y <= CABINET_Y[1]):
+        return False
+    return any(lo <= x <= hi for (lo, hi) in CABINET_X)
 
-# ---------- 排布 (照旧版, 不改) ----------
-# v2.4 间隙修复 (2026-11-22): 整组沿 x 向黑板方向 (负 x) 平移 0.15m,
-#   只改本整体偏移常数, 不逐个改桌椅坐标. 移前最后一排椅背 x=4.748,
-#   离东墙内表面 x=4.765 仅 1.7cm; 移后约 4.598, 间隙约 16.7cm.
-#   移前最近桌沿离讲台桌前沿 (x=-3.695) 0.355m; 移后约 0.205m.
-GROUP_DX = -0.15
+def split_mesh(src_obj, centres, name_prefix, drop_cabinet=False,
+               rear_cutoff=None):
+    """按面中心最近单件中心拆成多个新 mesh 对象 (tevy 坐标, 未旋转)。
+    drop_cabinet: 剔除高柜面 (柜顶 z>0.95 落在柜区)。
+    rear_cutoff: 椅子用, 剔除离单椅锚点向后 (tevy -y) 超过该距离的面
+      (正常椅靠背最远到锚点后 0.45m, 高柜面从 0.51m 起)。
+    返回 [(object, bbox_centre_anchor_xy)]。拆分时保留原 custom
+    split normals (座面曲面明暗不变)。"""
+    mesh = src_obj.data
+    # Blender 4.2 已无 calc_normals_split; loops[].normal 按需计算, 可直接读
+    n = len(centres)
+    buckets = [[] for _ in range(n)]
+    dropped = 0
+    for pi, poly in enumerate(mesh.polygons):
+        c = poly.center  # 变换已烘进网格, local == world
+        if drop_cabinet and _in_cabinet_zone(c.x, c.y, c.z):
+            dropped += 1
+            continue
+        ci = _nearest_centre(c.x, c.y, centres)
+        if rear_cutoff is not None and (centres[ci][1] - c.y) > rear_cutoff:
+            dropped += 1
+            continue
+        buckets[ci].append(pi)
+    print("%s split: dropped faces=%d" % (name_prefix, dropped))
+    out = []
+    for ci, faces in enumerate(buckets):
+        if not faces:
+            print("WARNING %s single %d got 0 faces, skipped" % (name_prefix, ci))
+            continue
+        vmap = {}
+        verts = []
+        new_faces = []
+        smooth = []
+        loop_normals = []
+        for pi in faces:
+            poly = mesh.polygons[pi]
+            idxs = []
+            for vi in poly.vertices:
+                if vi not in vmap:
+                    vmap[vi] = len(verts)
+                    verts.append(tuple(mesh.vertices[vi].co))
+                idxs.append(vmap[vi])
+            new_faces.append(tuple(idxs))
+            smooth.append(poly.use_smooth)
+            for li in poly.loop_indices:
+                loop_normals.append(tuple(mesh.loops[li].normal))
+        me = bpy.data.meshes.new("%s_%02d" % (name_prefix, ci))
+        me.from_pydata(verts, [], new_faces)
+        me.update()
+        for poly, sm in zip(me.polygons, smooth):
+            poly.use_smooth = sm
+        try:
+            me.normals_split_custom_set(loop_normals)
+            print("%s single %2d: custom normals kept (%d loops)" % (
+                name_prefix, ci, len(loop_normals)))
+        except Exception as e:
+            print("%s single %2d: custom normals SKIPPED (%s)" % (
+                name_prefix, ci, e))
+        ob = bpy.data.objects.new("%s_%02d" % (name_prefix, ci), me)
+        bpy.context.collection.objects.link(ob)
+        # 自检: 面数与包围盒 (tevy 坐标); 锚点取自身包围盒中心
+        xs = [v[0] for v in verts]; ys = [v[1] for v in verts]; zs = [v[2] for v in verts]
+        anchor = ((min(xs) + max(xs)) / 2.0, (min(ys) + max(ys)) / 2.0)
+        print("%s single %2d: faces=%4d bbox x[%.2f,%.2f] y[%.2f,%.2f] z[%.2f,%.2f] anchor=(%.2f,%.2f)" % (
+            name_prefix, ci, len(new_faces),
+            min(xs), max(xs), min(ys), max(ys), min(zs), max(zs),
+            anchor[0], anchor[1]))
+        out.append((ob, anchor, faces))
+    return out
+
+desk_singles = split_mesh(DESKS_SRC, DESK_CENTRES, "tevy_desk")
+chair_singles = split_mesh(CHAIRS_SRC, CHAIR_CENTRES, "tevy_chair",
+                           drop_cabinet=True, rear_cutoff=0.50)
+assert len(desk_singles) == 24, "expected 24 desk singles, got %d" % len(desk_singles)
+assert len(chair_singles) == 20, "expected 20 chair singles, got %d" % len(chair_singles)
+# 椅子复用池: 只留干净的单椅 (正常 664 面 / 靠背顶 0.89m)。
+# 第 2 排外侧 4 张带高柜正面碎面 (799-900 面, 其中 1 张高 1.16m),
+# 不进复用池 (见文件头)。
+chair_pool = []
+for ob, anchor, faces in chair_singles:
+    zs = [v.co.z for v in ob.data.vertices]
+    if 600 <= len(faces) <= 720 and max(zs) <= 0.90:
+        chair_pool.append((ob, anchor, faces))
+    else:
+        print("chair single EXCLUDED from pool: %s faces=%d zmax=%.2f" % (
+            ob.name, len(faces), max(zs)))
+        bpy.data.objects.remove(ob, do_unlink=True)
+print("chair reuse pool: %d clean singles" % len(chair_pool))
+assert len(chair_pool) >= 12, "too few clean chairs: %d" % len(chair_pool)
+# 删源 mesh 对象 (面已拆进单件)
+bpy.data.objects.remove(DESKS_SRC, do_unlink=True)
+bpy.data.objects.remove(CHAIRS_SRC, do_unlink=True)
+
+# ---------- 按面分材质 (单件内) ----------
+# 桌: 面中心 z>=0.58, 或水平面 z>=0.50 -> 桌面木; 其余 -> 腿金属
+# 椅: 面中心 z>=0.40 -> 椅面木 (座面+靠背); 其余 -> 腿金属
+def assign_materials(ob, kind):
+    me = ob.data
+    mats = [MAT_WOOD, MAT_LEG] if kind == "desk" else [MAT_CHAIR, MAT_LEG]
+    me.materials.clear()
+    for m in mats:
+        me.materials.append(m)
+    n_wood = 0
+    for poly in me.polygons:
+        c = poly.center
+        nz = abs(poly.normal.z)
+        if kind == "desk":
+            wood = (c.z >= 0.58) or (nz > 0.5 and c.z >= 0.50)
+        else:
+            wood = c.z >= 0.40
+        poly.material_index = 0 if wood else 1
+        n_wood += 1 if wood else 0
+    print("%s materials: wood faces=%d metal faces=%d" % (
+        ob.name, n_wood, len(me.polygons) - n_wood))
+
+for ob, _anchor, _faces in desk_singles:
+    assign_materials(ob, "desk")
+for ob, _anchor, _faces in chair_pool:
+    assign_materials(ob, "chair")
+
+# ---------- 旋转 +90 度进 SPEC 朝向, 再按 SPEC 排布 ----------
+# tevy (x,y) -> SPEC (-y,x): 学生由面向 +y 转为面向 -x (黑板在 -x)。
+# 单件锚点 = 拆分后自身的包围盒中心 (tevy 坐标), 旋转后锚点为 (-cy, cx);
+# 摆放到目标点时 object.location = 目标 - 旋转后锚点 (几何不动, 只移原点)。
+ROT_Z = math.radians(90.0)
+GROUP_DX = -0.14
 COL_Y = [-2.8, -1.8, -0.8, 0.8, 1.8, 2.8]
 ROW_X = [-3.04 + GROUP_DX + i * 1.0 for i in range(8)]
-# 椅子在桌子 +x 一侧 (学生面向 -x): 桌后沿 +0.05 间隙 + 椅深/2
-CHAIR_DX = 0.3 + 0.05 + 0.2  # = 0.55
+CHAIR_DX = 0.44  # 椅心离桌心 (tevy 椅靠背比 SPEC 自建椅深, 0.55 会顶东墙)
 
-desks = []
-chairs = []
-for r, x in enumerate(ROW_X):
-    for c, y in enumerate(COL_Y):
-        d = desk_proto.copy()
-        d.data = desk_proto.data  # 共享网格
-        d.name = "desk_r%d_c%d" % (r + 1, c + 1)
-        d.location = (x, y, 0)
-        bpy.context.collection.objects.link(d)
-        desks.append(d)
+def place_singles(singles, targets, prefix):
+    """singles: [(ob, tevy_anchor, faces)]; targets: [(r, c, x, y)] 48 个。
+    单件循环复用 (共享网格数据)。命名沿用旧版 desk_r1_c1 / chair_r8_c6,
+    scenes/classroom.py 的门洞检查 (chair_r8_ 前缀) 依赖它。返回实例列表。"""
+    placed = []
+    for ti, (r, c, tx, ty) in enumerate(targets):
+        src_ob, (ax, ay), _faces = singles[ti % len(singles)]
+        if ti < len(singles):
+            ob = src_ob
+        else:
+            ob = src_ob.copy()
+            ob.data = src_ob.data  # 共享网格
+            bpy.context.collection.objects.link(ob)
+        # 首次: 绕 Z 转 +90 度并烘进网格
+        if ti < len(singles):
+            ob.rotation_euler = (0.0, 0.0, ROT_Z)
+            bpy.context.view_layer.objects.active = ob
+            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+        # 旋转后锚点 (-ay, ax); 移到目标点
+        ob.location = (tx - (-ay), ty - ax, 0.0)
+        ob.name = "%s_r%d_c%d" % (prefix, r + 1, c + 1)
+        placed.append(ob)
+    return placed
 
-        ch = chair_proto.copy()
-        ch.data = chair_proto.data
-        ch.name = "chair_r%d_c%d" % (r + 1, c + 1)
-        ch.location = (x + CHAIR_DX, y, 0)
-        bpy.context.collection.objects.link(ch)
-        chairs.append(ch)
-
-# 删原型 (只留 48+48 个实例)
-bpy.data.objects.remove(desk_proto, do_unlink=True)
-bpy.data.objects.remove(chair_proto, do_unlink=True)
+desk_targets = [(r, c, x, y) for r, x in enumerate(ROW_X)
+                for c, y in enumerate(COL_Y)]
+desks = place_singles(desk_singles, desk_targets, "desk")
+chair_targets = [(r, c, x + CHAIR_DX, y) for (r, c, x, y) in desk_targets]
+chairs = place_singles(chair_pool, chair_targets, "chair")
 
 print("desks:", len(desks), "chairs:", len(chairs))
-print("GROUP_DX:", GROUP_DX)
+print("GROUP_DX:", GROUP_DX, "CHAIR_DX:", CHAIR_DX)
 print("row_x:", ROW_X)
 print("col_y:", COL_Y)
-print("desk top z=0.75, legs 0~0.72; chair seat top z=0.45, legs 0~0.42, back top z=0.85 tilt 5deg")
 
-# 几何自检 (v2.3 教训: 原点错会把桌腿埋进地下, 渲染图上桌面贴地):
-# 桌子世界 z 范围应为 0~0.75, 椅子 0~0.85, 否则直接报错停住
+# 几何自检: 桌子世界 z 应为 0~0.71, 椅子 0~0.89
+bpy.context.view_layer.update()
 def world_z_range(obj):
     zs = [(obj.matrix_world @ Vector(c)).z for c in obj.bound_box]
     return min(zs), max(zs)
 _dz = world_z_range(desks[0])
 _cz = world_z_range(chairs[0])
 print("desk world z range:", _dz, "chair world z range:", _cz)
-assert abs(_dz[0]) < 0.01 and abs(_dz[1] - 0.75) < 0.01, "desk z range wrong: %s" % (_dz,)
-assert abs(_cz[0]) < 0.01 and abs(_cz[1] - 0.85) < 0.02, "chair z range wrong: %s" % (_cz,)
+assert abs(_dz[0]) < 0.01 and abs(_dz[1] - 0.71) < 0.02, "desk z range wrong: %s" % (_dz,)
+assert abs(_cz[0]) < 0.01 and abs(_cz[1] - 0.89) < 0.02, "chair z range wrong: %s" % (_cz,)
+
+# 间隙实测 (与 classroom.py 同口径): 讲台桌前沿 x=-3.695, 东墙内面 x=4.765
+def world_bbox(objects):
+    mins = Vector((1e9, 1e9, 1e9))
+    maxs = Vector((-1e9, -1e9, -1e9))
+    for o in objects:
+        if o.type != "MESH":
+            continue
+        for v in o.bound_box:
+            w = o.matrix_world @ Vector(v)
+            for i in range(3):
+                mins[i] = min(mins[i], w[i])
+                maxs[i] = max(maxs[i], w[i])
+    return mins, maxs
+_dmn, _dmx = world_bbox(desks)
+_cmn, _cmx = world_bbox(chairs)
+_gap_front = _dmn.x - (-3.695)
+_gap_rear = 4.765 - _cmx.x
+print("desks bbox x[%.3f, %.3f] y[%.3f, %.3f] z[%.3f, %.3f]" % (
+    _dmn.x, _dmx.x, _dmn.y, _dmx.y, _dmn.z, _dmx.z))
+print("chairs bbox x[%.3f, %.3f] y[%.3f, %.3f] z[%.3f, %.3f]" % (
+    _cmn.x, _cmx.x, _cmn.y, _cmx.y, _cmn.z, _cmx.z))
+print("gap front (nearest desk edge to podium front -3.695): %.3f" % _gap_front)
+print("gap rear (last chair back to east wall 4.765): %.3f" % _gap_rear)
+assert _gap_front >= 0.19, "front gap too small: %.3f" % _gap_front
+assert _gap_rear >= 0.15, "rear gap too small: %.3f" % _gap_rear
 
 # ---- PBR 贴图固化 (2026-11-23)：把上一轮挂在 .blend 上的外部贴图写进脚本 ----
 # color 图：assets/blender/tex/ 里的染色图（已按 SPEC §3 目标色染色）；
@@ -296,7 +348,8 @@ assert abs(_cz[0]) < 0.01 and abs(_cz[1] - 0.85) < 0.02, "chair z range wrong: %
 # 否则 glTF 导出器不认。Base Color 默认值须置白、Roughness 置 1.0（贴图
 # 本身带颜色与粗糙度），否则导出器会把旧纯色写成 baseColorFactor/
 # roughnessFactor 与贴图二次相乘；Metallic 保持脚本原值。
-# 没有 UV 的网格补 Smart UV Project（已有 UV 的不动）。
+# tevy 单件未复用原 atlas UV（atlas 贴图已剥掉），这里补 Smart UV Project
+# （_ensure_uvs：已有 UV 的不动，没有 UV 的补），木纹方可正常平铺。
 TEX_DIR = os.path.join(BASE, "assets/blender/tex")
 EXT_DIR = os.path.join(BASE, "assets/external")
 # 材质名: (tex/ 染色 color 图, external rough 图, external normal 图, Mapping 缩放)
@@ -417,59 +470,10 @@ assert len(imported) == 96, "glTF reimport expected 96 objects, got %d" % len(im
 # 删回读的临时对象
 bpy.ops.object.delete()
 
-# ---------- 预览: 光照/世界/相机/示意地面墙面 (不导出) ----------
-# 拆分模式: 环境变量 CL_DESKS_NO_RENDER=1 时跳过渲染 (内存紧张时先导出、再单独渲染)
-NO_RENDER = os.environ.get("CL_DESKS_NO_RENDER") == "1"
-if not NO_RENDER:
-    # 太阳光: 能量 3.5, 从西南来, 仰角约 50 度, 开阴影
-    sun_data = bpy.data.lights.new("sun", type="SUN")
-    sun_data.energy = 3.5
-    sun_data.use_shadow = True
-    sun = bpy.data.objects.new("sun", sun_data)
-    bpy.context.collection.objects.link(sun)
-    sun.location = (-6.0, -6.0, 7.0)
-    sun.rotation_euler = (0.0, 0.0, 0.0)
-    direction = Vector((0, 0, 0.4)) - sun.location
-    sun.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
+# 删 Blender 备份
+blend1 = BLEND_PATH + "1"
+if os.path.exists(blend1):
+    os.remove(blend1)
+    print("REMOVED", blend1)
 
-    # 世界背景: 淡蓝 (0.65, 0.78, 0.88), 强度 1.0
-    world = bpy.data.worlds.new("world")
-    world.use_nodes = True
-    bg = world.node_tree.nodes["Background"]
-    bg.inputs["Color"].default_value = (0.65, 0.78, 0.88, 1.0)
-    bg.inputs["Strength"].default_value = 1.0
-    bpy.context.scene.world = world
-
-    # 示意地面 (浅色) 与示意墙面 (黑板墙), 仅预览用
-    floor = add_box("PREVIEW_floor", (0, 0, -0.01), (9.68, 7.26, 0.02),
-                    make_material("preview_floor", "#D8D2C4", 0.9))
-    wall_b = add_box("PREVIEW_wall_board", (-4.85, 0, 1.5), (0.02, 7.26, 3.0),
-                     make_material("preview_wall", "#F3E9D2", 0.9))
-    # 注: 后墙不放示意墙, 否则会挡住相机视线
-
-    # 相机 v2: 低机位近景, 从教室前侧 (黑板一侧) 约 1.1m 高平视/微俯看过去,
-    #   让桌腿/椅腿/离地高度/靠背立起一眼可见, 不再用高空俯视
-    #   v2.2: 改为前排左前方 3/4 侧视角、贴近第一组桌椅, 桌腿/椅腿不再被
-    #   成排遮挡、能直接看到桌面/椅面离地 (上一版沿排看去腿全被挡住)
-    cam_data = bpy.data.cameras.new("cam")
-    cam_data.lens = 32
-    cam = bpy.data.objects.new("cam", cam_data)
-    bpy.context.collection.objects.link(cam)
-    cam.location = (-4.6, -4.2, 1.1)
-    direction = Vector((-2.6, -2.6, 0.45)) - cam.location
-    cam.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
-    bpy.context.scene.camera = cam
-
-    # ---------- 渲染预览 ----------
-    scene = bpy.context.scene
-    scene.render.engine = "BLENDER_EEVEE_NEXT"
-    scene.render.resolution_x = 640
-    scene.render.resolution_y = 360
-    scene.render.resolution_percentage = 100
-    scene.eevee.taa_render_samples = 16
-    scene.render.filepath = PREVIEW_PATH
-    scene.render.image_settings.file_format = "PNG"
-    bpy.ops.render.render(write_still=True)
-
-    print("preview saved:", PREVIEW_PATH, os.path.exists(PREVIEW_PATH))
 print("DONE cl-desks")

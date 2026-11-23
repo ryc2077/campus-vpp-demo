@@ -16,12 +16,15 @@
 #   4. 材质分开: 框 (塑钢/金属噪波 Bump + 粗糙度变化) / 玻璃 (微噪波) /
 #      窗帘 (布纹噪波 Bump + 颜色微变化) / 杆 (金属), 不许全平
 #   5. 结构件倒角 (bevel)
-# 只做窗户/窗框/玻璃/窗帘杆/窗帘, 不做桌椅/黑板/空调/灯具/地面墙面。
+#   6. 门 (2026-11-23 tevy 换件): tevy 教室 door_geo (CC0, 开约 26°),
+#      绕 Z +90° 转进东墙门洞, 铰链在北 jamb; 门洞两侧 + 顶部缝用墙色盒填满
+# 只做窗户/窗框/玻璃/窗帘杆/窗帘/门, 不做桌椅/黑板/空调/灯具/地面墙面。
 # 新规矩: 渲染全部走 GitHub Actions, 本脚本不渲染、不出预览图。
 #   只交付: 脚本 + .blend + .glb, 导出后回读校验并做 GLB 节点坐标验证。
 
 import bpy
 import math
+import mathutils
 import os
 
 BASE = os.path.expanduser(
@@ -304,6 +307,103 @@ for i, xc in enumerate(COLS_X, start=1):
 for i, xc in enumerate(COLS_X, start=1):
     build_window("n%d" % i, xc, WALL_Y_N, -1)
 
+# ---- 门: tevy 教室 door_geo (CC0, assets/external/buildings/classroom-tevy-plain.glb,
+#   已去压缩版, 见 assets/external/buildings/tevy-decompress.mjs) ----
+# tevy 门: 0.82(x) x 0.44(y) x 2.09(z)m, 门扇开约 26°, 玻璃竖条 0.06x0.26m,
+# 铰链在 tevy +x 端。只取 door_geo, 其余导入对象 (含 door 空物体) 全删。
+# 旋转 +90° (tevy (x,y) -> SPEC (-y,x)): 门宽 0.82 落在 SPEC y 向, 门扇
+# 伸进室内方向落在 SPEC x 向, 铰链转到 SPEC +y 端 (北 jamb)。
+TEVY_PLAIN = os.path.join(BASE, "assets/external/buildings/classroom-tevy-plain.glb")
+
+# 门漆: 淡蓝灰 #9FB2C0, 金属度 0.3 (PBR 见下, 白 stucco 染色图)
+MAT_DOOR = principled("cl-windows_door_paint", "#9FB2C0",
+                      roughness=0.6, metallic=0.3)
+# 门洞填缝: 墙色 #F3E9D2 (PBR 见下, 白 stucco 染色图)
+MAT_JAMB = principled("cl-windows_door_jamb", "#F3E9D2", roughness=0.9)
+
+_before = set(bpy.data.objects)
+bpy.ops.import_scene.gltf(filepath=TEVY_PLAIN)
+_new = [ob for ob in bpy.data.objects if ob not in _before]
+door_ob = None
+for ob in _new:
+    if ob.name == "door_geo" and ob.type == "MESH":
+        door_ob = ob
+assert door_ob is not None, "tevy door_geo not imported"
+# 先解除父级 (door 空物体), 保持世界变换, 再烘变换
+bpy.ops.object.select_all(action="DESELECT")
+door_ob.select_set(True)
+bpy.context.view_layer.objects.active = door_ob
+bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
+# 删其余导入对象 (含 door 空物体与 bags_bin/ceiling/chairs/desks/shell/
+# shelves/teacher_desk/wall_front)
+for ob in list(_new):
+    if ob is not door_ob:
+        bpy.data.objects.remove(ob, do_unlink=True)
+# 材质槽重映射: classroom -> 门漆, classroom_glass -> 复用现有玻璃材质
+for i, slot in enumerate(door_ob.data.materials):
+    if slot is None:
+        continue
+    if slot.name == "classroom":
+        door_ob.data.materials[i] = MAT_DOOR
+    elif slot.name == "classroom_glass":
+        door_ob.data.materials[i] = MAT_GLASS
+# 清掉导入带来的无用材质 (classroom* 已无使用者) 与无主网格
+for mat in list(bpy.data.materials):
+    if mat.users == 0 and mat.name.startswith("classroom"):
+        bpy.data.materials.remove(mat)
+for me in list(bpy.data.meshes):
+    if me.users == 0:
+        bpy.data.meshes.remove(me)
+# 删原 atlas UV, 走 _ensure_uvs 补 Smart UV Project
+while len(door_ob.data.uv_layers) > 0:
+    door_ob.data.uv_layers.remove(door_ob.data.uv_layers[0])
+# 烘掉导入变换 (位置/缩放烘进网格)。注意: 实测 Blender 4.2 后台跑
+# transform_apply(location=False, rotation=True) 会把 rotation_euler
+# 清零却不转网格顶点 (静默失效, cl-desks 里同款调用也一样, 旋转是靠
+# 对象 transform 进 GLB 的)。门这里必须把旋转真正烘进网格, 改用
+# mesh.transform, 自定义法线会一并转 (已实测: 法线 (-0.874,0.486,0)
+# -> (-0.486,-0.874,0), 与旋转矩阵一致)。
+bpy.ops.object.select_all(action="DESELECT")
+door_ob.select_set(True)
+bpy.context.view_layer.objects.active = door_ob
+bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+door_ob.data.transform(mathutils.Matrix.Rotation(math.radians(90.0), 4, 'Z'))
+# 定位: 墙侧 x_max 对准 4.88 (东墙中心 4.84 + 墙厚 0.15/2 - 门扇伸进室内量),
+# y 中心对准 0。实测 tevy 门 z 0~2.09, 不用动 z。
+_dx = [v.co.x for v in door_ob.data.vertices]
+_dy = [v.co.y for v in door_ob.data.vertices]
+_dz = [v.co.z for v in door_ob.data.vertices]
+print("door bbox before place: x[%.3f, %.3f] y[%.3f, %.3f] z[%.3f, %.3f]"
+      % (min(_dx), max(_dx), min(_dy), max(_dy), min(_dz), max(_dz)))
+assert abs(min(_dz)) < 0.01, "door z_min not on floor: %f" % min(_dz)
+assert 2.0 < max(_dz) < 2.15, "door height wrong: %f" % max(_dz)
+# 旋转后核对: x 向应为门扇伸进室内量 ~0.44, y 向应为门宽 ~0.82
+# (转错会静默变成 x 0.82 / y 0.44, 门就横插进屋里)
+assert 0.40 < max(_dx) - min(_dx) < 0.48, "door rotated x extent wrong: %.3f" % (max(_dx) - min(_dx))
+assert 0.78 < max(_dy) - min(_dy) < 0.86, "door rotated y extent wrong: %.3f" % (max(_dy) - min(_dy))
+_door_dx = 4.88 - max(_dx)
+_door_dy = 0.0 - (min(_dy) + max(_dy)) / 2.0
+door_ob.location = (_door_dx, _door_dy, 0.0)
+print("door placed: translate (%.3f, %.3f), x_max -> 4.88, y center -> 0"
+      % (_door_dx, _door_dy))
+door_ob.name = "cl-windows_door"
+try:
+    coll.objects.link(door_ob)
+except RuntimeError:
+    pass
+if door_ob.name in bpy.context.scene.collection.objects:
+    bpy.context.scene.collection.objects.unlink(door_ob)
+piece_objs.append(door_ob)
+# 门洞填缝 (只读 cl-floor-walls.py 的门洞尺寸, 不改它): 东墙门洞 y[-0.5,0.5]
+# 高 2.2, 墙中心 x=4.84 厚 0.15; tevy 门宽 0.82, 两侧各留 0.09 缝,
+# 顶部留 0.11 缝, 用墙色盒子填满
+add_box("cl-windows_door_jamb_left", (4.84, -0.455, 1.1),
+        (0.15, 0.09, 2.2), MAT_JAMB, bevel=0.004)
+add_box("cl-windows_door_jamb_right", (4.84, 0.455, 1.1),
+        (0.15, 0.09, 2.2), MAT_JAMB, bevel=0.004)
+add_box("cl-windows_door_jamb_top", (4.84, 0.0, 2.145),
+        (0.15, 0.82, 0.11), MAT_JAMB, bevel=0.004)
+
 # ---- Reflection Cubemap 探针 (玻璃反光用, 不导出, 只进 .blend) ----
 bpy.ops.object.lightprobe_add(type='SPHERE', location=(0, 0, 1.6))
 probe = bpy.context.active_object
@@ -319,7 +419,7 @@ kinds = Counter(ob.name.split("_")[1] if "_" in ob.name else ob.name
                 for ob in piece_objs)
 print("windows built: %d objects" % len(piece_objs))
 print("object kinds:", dict(kinds))
-# 预期: 每扇窗 11 件 x8 = 88; 南侧每扇杆 1 + 托架 2 + 端头 2 + 窗帘 2 = 7 x4 = 28; 合计 116
+# 预期: 每扇窗 11 件 x8 = 88; 南侧每扇杆 1 + 托架 2 + 端头 2 + 窗帘 2 = 7 x4 = 28; 门 1 + 门洞填缝 3 = 4; 合计 120
 
 # ---- PBR 贴图固化 (2026-11-23)：把上一轮挂在 .blend 上的外部贴图写进脚本 ----
 # color 图：assets/blender/tex/ 里的染色图（已按 SPEC §3 目标色染色）；
@@ -342,6 +442,13 @@ PBR_TEXTURES = {
     "cl-windows_curtain_cream": ("Plaster001__F3E9D2.jpg",
         "ambientcg/Plaster001/Plaster001_1K-JPG_Roughness.jpg",
         "ambientcg/Plaster001/Plaster001_1K-JPG_NormalGL.jpg", (2.0, 2.0)),
+    # 门漆与门洞填缝 (2026-11-23 tevy 换件新增): 白 stucco 染色图 + 同款原图
+    "cl-windows_door_paint": ("white_stucco__B9C4CC.jpg",
+        "polyhaven/white_stucco_rough_1k.jpg",
+        "polyhaven/white_stucco_nor_gl_1k.jpg", (1.0, 1.0)),
+    "cl-windows_door_jamb": ("white_stucco__F3E9D2.jpg",
+        "polyhaven/white_stucco_rough_1k.jpg",
+        "polyhaven/white_stucco_nor_gl_1k.jpg", (1.0, 1.0)),
 }
 
 
@@ -460,14 +567,31 @@ glass_n = _count(imported, lambda o: "glass" in o.name and o.location.y > 0)
 curtain_s = _count(imported, lambda o: "curtain" in o.name)
 curtain_n = _count(imported, lambda o: "curtain" in o.name and o.location.y > 0)
 rod_s = _count(imported, lambda o: "rod" in o.name)
+door_n = _count(imported, lambda o: o.name.startswith("cl-windows_door")
+               and "jamb" not in o.name)
+jamb_n = _count(imported, lambda o: "door_jamb" in o.name)
 print("reimport south objects: %d, north objects: %d" % (len(south), len(north)))
 print("reimport glass south: %d, glass north: %d" % (glass_s, glass_n))
 print("reimport curtains south: %d, curtains north: %d" % (curtain_s, curtain_n))
-print("reimport rods: %d" % rod_s)
+print("reimport rods: %d, doors: %d, door jambs: %d" % (rod_s, door_n, jamb_n))
+print("reimport total: %d (expect 120)" % len(imported))
+assert len(imported) == 120, "total count wrong: %d" % len(imported)
 assert len(south) > 0 and len(north) > 0, "missing south or north windows"
 assert glass_s == 4 and glass_n == 4, "glass count wrong: S=%d N=%d" % (glass_s, glass_n)
 assert curtain_s == 8 and curtain_n == 0, "curtain layout wrong: S=%d N=%d" % (curtain_s, curtain_n)
 assert rod_s == 4, "rod count wrong: %d" % rod_s
+assert door_n == 1, "door count wrong: %d" % door_n
+assert jamb_n == 3, "door jamb count wrong: %d" % jamb_n
+# 门位置抽查: x_max 对准 4.88, y 中心对准 0, z 0~2.09
+_door = [o for o in imported if o.name.startswith("cl-windows_door")
+         and "jamb" not in o.name][0]
+_bb = [ _door.matrix_world @ mathutils.Vector(c) for c in _door.bound_box ]
+_bx = [v.x for v in _bb]; _by = [v.y for v in _bb]; _bz = [v.z for v in _bb]
+print("reimport door bbox: x[%.3f, %.3f] y[%.3f, %.3f] z[%.3f, %.3f]"
+      % (min(_bx), max(_bx), min(_by), max(_by), min(_bz), max(_bz)))
+assert abs(max(_bx) - 4.88) < 0.03, "door x_max wrong: %.3f" % max(_bx)
+assert abs((min(_by) + max(_by)) / 2.0) < 0.03, "door y center wrong"
+assert abs(min(_bz)) < 0.01 and 2.0 < max(_bz) < 2.15, "door z wrong"
 # 位置抽查: 南侧玻璃 y 应在 -3.6 附近 (内凹 -3.58), 北侧在 +3.58 附近
 ys = sorted(round(ob.location.y, 2) for ob in imported if "glass" in ob.name)
 print("reimport glass y values:", ys)
