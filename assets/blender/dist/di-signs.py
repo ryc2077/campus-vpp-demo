@@ -11,7 +11,9 @@
 # (bpy.data.curves.new type 'FONT'), 随牌导出进 GLB, 不再是占位色块
 # 字体: 工程 tools/fonts/NotoSansSC-static.ttf (全量, 10MB; 注意 assets/fonts/
 # NotoSansSC-Regular.ttf 是子集, 经 fontTools 核查缺 危/险/止/人 四字, 会出方框, 不能用)
-# 系统备用: /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
+# 该字体已推上仓库 (tools/fonts/NotoSansSC-static.ttf) 且打包进 .blend (双保险);
+# 缺字体时 Blender 静默用内置 Noto Sans CJK Regular 替代, 同 size 字形大 ~2.85 倍.
+# 系统备用: /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc (仅应急, 会打乱尺寸)
 # 只做标识牌: 不做配电柜/变压器/母线线缆/墙面地面
 # 材质只用 Principled BSDF
 # 渲染: 本地不渲染, 预览图走 GitHub Actions 出图; 本脚本只做建模→存盘→导出→回读验证
@@ -169,10 +171,11 @@ objs.append(add_text("Warn_Text", "高压危险", 0.105, (0.0, 4.7785, 2.4),
 objs.append(add_box("NoClose_Border", (0.015, 0.66, 0.46), (7.805, 0.0, 2.4), RED_MAT, bevel=0.003))
 # 牌面 (白): 0.02 x 0.6 x 0.4, x 7.78~7.80; 西面 x=7.78, 文字 origin x=7.7785
 objs.append(add_box("NoClose_Plate", (0.02, 0.6, 0.4), (7.79, 0.0, 2.4), WHITE_MAT, bevel=0.003))
-# 两行: "禁止合闸" / "有人工作", 每行宽 0.42m (占牌面长边 0.6m 的 70%),
-# 行距 0.8, 整块高约 0.34m, 在 0.4m 牌面内
+# 两行: "禁止合闸" / "有人工作", 每行宽≤0.42m (占牌面长边 0.6m 的 70%),
+# 行距 0.8, 整块高约 0.28m (占牌面高 0.4m 的 70%)
+# (2026-11-23 复核: 原 fit_height=0.34 占牌面高 85%, 超 70% 上限, 改 0.28)
 objs.append(add_text("NoClose_Text", "禁止合闸\n有人工作", 0.105, (7.7785, 0.0, 2.4),
-                     QUAT_WEST, RED_MAT, fit_width=0.42, fit_height=0.34,
+                     QUAT_WEST, RED_MAT, fit_width=0.42, fit_height=0.28,
                      space_line=0.8))
 
 # ---------- 设备编号牌 6 块: 柜门上, 蓝底白框, 贴门面南侧 ----------
@@ -187,6 +190,26 @@ for i, cx in enumerate((-6.0, -3.6, -1.2, 1.2, 3.6, 6.0)):
                          QUAT_SOUTH, WHITE_MAT, fit_height=0.075))
 
 print("di-signs objects:", len(objs), [o.name for o in objs])
+
+# ---------- 文字尺寸硬校验 (2026-11-23 第六轮复核教训) ----------
+# 上一版 .blend 在本地量着全对, 渲染机上却溢出约 2.85 倍: 原因是渲染机
+# 上 tools/fonts/NotoSansSC-static.ttf 缺失, Blender 用内置 Noto Sans CJK
+# Regular 替代, 同样 size 下字形大 ~2.85 倍. 尺寸必须在建完当场按实测
+# 包围盒校验, 且字体必须随 .blend 打包 + 推上仓库, 否则下次还会复发.
+bpy.context.view_layer.update()
+_TEXT_LIMITS = {"Warn_Text": (0.42, 0.20), "NoClose_Text": (0.42, 0.28)}
+for _ob in objs:
+    if not _ob.name.endswith("_Text"):
+        continue
+    _w, _h = _ob.dimensions.x, _ob.dimensions.y  # 局部 X=行向, Y=字高向
+    if _ob.name in _TEXT_LIMITS:
+        _mw, _mh = _TEXT_LIMITS[_ob.name]
+        assert _w <= _mw + 1e-6 and _h <= _mh + 1e-6, \
+            "text oversize: %s %.3fx%.3f > %.3fx%.3f" % (_ob.name, _w, _h, _mw, _mh)
+    else:  # Num*_Text: 字高 0.072~0.084m (牌面高 0.12m 的 60~70%), 宽 <=0.14m
+        assert 0.072 <= _h <= 0.084 and _w <= 0.14, \
+            "text oversize: %s %.3fx%.3f" % (_ob.name, _w, _h)
+    print("text check OK:", _ob.name, "%.3fx%.3f" % (_w, _h))
 
 # ---------- lighting (SPEC §2) ----------
 # 太阳光: 能量 3.5, 从西南来, 仰角约 50°, 开阴影
@@ -239,6 +262,15 @@ scene.render.resolution_x = 640
 scene.render.resolution_y = 360
 scene.render.resolution_percentage = 100
 
+# ---------- 字体打包进 .blend (双保险, 与推仓库并行) ----------
+# 渲染机只读 .blend 时若 tools/fonts/ 文件缺失, Blender 静默用内置
+# Noto Sans CJK Regular 替代, 同 size 字形大 ~2.85 倍 -> 全牌溢出.
+# 打包后 .blend 自带字体, 不依赖外部文件.
+for _f in bpy.data.fonts:
+    if _f.filepath and _f.filepath != '<builtin>' and _f.packed_file is None:
+        _f.pack()
+        print("font packed:", _f.name, "packed:", _f.packed_file is not None)
+
 # ---------- save .blend ----------
 os.makedirs(os.path.dirname(BLEND_PATH), exist_ok=True)
 os.makedirs(os.path.dirname(GLB_PATH), exist_ok=True)
@@ -268,7 +300,8 @@ for ob in imported:
                   "base:", tuple(round(v, 3) for v in
                                  m.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value[:3]))
 # 文字对象核查: 8 个文字对象 (Warn/NoClose/Num1-6) 必须随牌进 GLB,
-# 且字宽符合设计 (Warn/NoClose 每行宽 0.42m, 占 0.6m 牌面 70%; 数字高 0.075m)
+# 且尺寸符合设计 (Warn 宽 0.42m/高<=0.20m; NoClose 每行宽<=0.42m/总高 0.28m;
+# 数字高 0.075m, 占牌面高 62%)
 text_objs = [ob for ob in imported
              if ob.name.split(".")[0].endswith("_Text")]  # 回读名带 .001 后缀
 print("GLB text objects:", len(text_objs), [ob.name for ob in text_objs])
