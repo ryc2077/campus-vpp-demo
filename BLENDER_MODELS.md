@@ -368,7 +368,7 @@
   - **F4 根因（Godot 侧光照，非贴图）**：地面贴图实测均值正是 #69B45D（`GroundGrass_color`，UV 85×85 平铺、法线朝上均正确）；同 run 回退帧（程序化平色地面 #4F9D43、粗糙度 0.85、无任何 GLB）一样洗白成 (130,255,164)、G 截顶；跑道（采样实测 #B8543F）与楼体基本正确、暴雨帧地面色相正确只是偏暗。晴天总光照约 2.3×（太阳 1.38 + 天光 0.73，偏蓝的天光是主因），地面粗糙度 0.26 的镜面反射不是主因（洗白在近/远处均匀、与掠射角无关；暴雨天光一暗即正常）。地面基色不动。
   - **F4 修复（只改 Godot 侧）**：`scripts/weather_system.gd`：太阳 `(0.18+1.2*daylight)`→`(0.18+0.65*daylight)`（晴天 1.38→0.83）、天光 `0.28+0.45*daylight`→`0.12+0.16*daylight`（晴天 0.73→0.28）、雾密度 0.0005→0.0002（`scenes/main.tscn` 同步）；标定目标晴天总光照约 1.1×，预测草地约 (112,191,112)，待新 run 截图实测复核。
   - **总览重刷 + 瘦身**：重跑 `assets/blender/scenes/overview.py`，回读 13,036 对象、零 Error/Traceback；完整版 .glb 121,831,988 B / .blend 64,568,788 B 留本地；GLB JSON 实测 202 材质 / 434 贴图（+7 烘焙图）、树冠贴图已绿、地面仍 #69B45D。瘦身（§10 口径）：.glb **36,070,084 B**（<40MB）、.blend 8,978,835 B；`verify_slim.py` 全绿（瘦身 GLB 13,036 对象 / 0 无材质 primitive；瘦身 .blend 13,036 对象 / 472 贴图 / 缺失 0）；瘦身后树冠贴图仍绿（JPEG q80 均值漂移 ≤1）、地面 #68B45C（漂移 1）。
-  - **推送与验证待填**：本次随 Godot 侧改动一次推送，待 godot-verify 新 run 出图后像素复核晴天草地均值（目标 SPEC #69B45E ±15）与树冠绿色，见 `~/workspace/review-rework-r1/godot-acceptance/ACCEPTANCE.md` 新节。
+  - **推送与验证（已填，run 45279712436 success）**：主推 `39346cfb` + 跟进 `aec109a5`（雾基线）；godot-verify run #81 success，artifact 17 图。F5 通过：树冠绿像素 11,920→26,016，均值 (91,183,129)，放大目视均为绿锥。F4 部分通过：回退帧平色地面 (129,252,164) G 截顶 93%→(105,226,136) 截顶 1%（R 恰好等于 SPEC 105，光照洗白已除），但 GLB 草地 (152,249,194)→(128,248,168)，G 仍截顶 85%、未进 SPEC ±15。残留根因（Blender 侧）：地面粗糙度 0.26（GroundGrass_rough 灰度 67.1，glossy 镜面反射蓝天；metallicFactor=0 已排除金属）+ 亮黄绿草叶档（Lime #A8C25D、YellowGreen #89A749）。收尾待做：地面粗糙度→约 0.85 + 亮草叶压暗，重出总览/重瘦身/推仓/新 run 复核。见 `~/workspace/review-rework-r1/godot-acceptance/ACCEPTANCE.md` 新节。
 
 ## §10 总览大文件瘦身入仓（2026-11-23 11:39–12:00 CST，瘦身任务 8bb03134）
 
