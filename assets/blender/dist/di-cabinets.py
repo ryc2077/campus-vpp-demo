@@ -82,7 +82,8 @@ def add_procedural(mat, base_hex, noise_scale, rough_lo, rough_hi,
                             [(0.0, (0.15, 0.15, 0.15)),
                              (1.0, (0.85, 0.85, 0.85))])
         links.new(ramp_m.outputs["Color"], mix.inputs[0])
-        links.new(mix.outputs["Color"], bsdf.inputs["Base Color"])
+        # 返工 2026-11-23: 底色 Mix 不连 Base Color (否则 glTF 丢 baseColorFactor,
+        # 柜体/变压器在 Godot 里全白)。深浅不均改走粗糙度/Bump, Base Color 只留纯色默认值。
     # 微凸起
     if bump_strength > 0.0:
         bump = nodes.new("ShaderNodeBump")

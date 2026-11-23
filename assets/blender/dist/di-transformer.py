@@ -65,7 +65,8 @@ def add_paint_texture(mat, dark_hex, light_hex, noise_scale,
     ramp.color_ramp.elements[1].position = 1.0
     ramp.color_ramp.elements[1].color = (*hex_to_linear(light_hex), 1.0)
     nt.links.new(noise.outputs["Fac"], ramp.inputs["Fac"])
-    nt.links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
+    # 返工 2026-11-23: 漆面 Ramp 不连 Base Color (否则 glTF 丢 baseColorFactor,
+    # 变压器在 Godot 里全白)。深浅不均改走粗糙度/Bump, Base Color 只留纯色默认值。
     # 粗糙度: Fac -> Map Range, 在基值上下窄幅浮动
     mr = nodes.new("ShaderNodeMapRange")
     mr.inputs["From Min"].default_value = 0.0
@@ -235,9 +236,12 @@ for _mat in list(bpy.data.materials):
         bpy.data.materials.remove(_mat)
 print("orphan purge done, materials:", sorted(m.name for m in bpy.data.materials))
 
-# ---------- render preview ----------
-bpy.ops.render.render(write_still=True)
-print("Preview saved:", PNG_PATH, "exists:", os.path.exists(PNG_PATH),
-      "size:", os.path.getsize(PNG_PATH) if os.path.exists(PNG_PATH) else 0)
+# ---------- render preview (本地默认跳过, 走 GitHub Actions; 置 DI_TRANSFORMER_RENDER=1 才渲染) ----------
+if os.environ.get("DI_TRANSFORMER_RENDER") == "1":
+    bpy.ops.render.render(write_still=True)
+    print("Preview saved:", PNG_PATH, "exists:", os.path.exists(PNG_PATH),
+          "size:", os.path.getsize(PNG_PATH) if os.path.exists(PNG_PATH) else 0)
+else:
+    print("Render skipped locally (set DI_TRANSFORMER_RENDER=1 to render)")
 bpy.ops.wm.save_as_mainfile(filepath=BLEND_PATH)
 print("DONE di-transformer")

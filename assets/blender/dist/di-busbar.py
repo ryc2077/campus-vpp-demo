@@ -73,7 +73,8 @@ def add_noise(mat, dark_hex, mid_hex, light_hex, noise_scale, rough_lo, rough_hi
     ramp.color_ramp.elements[2].position = 1.0
     ramp.color_ramp.elements[2].color = (*hex_to_linear(light_hex), 1.0)
     links.new(noise.outputs["Fac"], ramp.inputs["Fac"])
-    links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
+    # 返工 2026-11-23: 底色 Ramp 不连 Base Color (否则 glTF 丢 baseColorFactor,
+    # 铜排/线缆/桥架在 Godot 里全白)。深浅不均改走粗糙度/Bump, Base Color 只留纯色默认值。
     # 粗糙度：Fac -> Map Range 窄幅/宽幅浮动
     mr = nodes.new("ShaderNodeMapRange")
     mr.inputs["From Min"].default_value = 0.0
