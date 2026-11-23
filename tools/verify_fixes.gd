@@ -48,6 +48,29 @@ func _process(_delta: float) -> bool:
 		print("VERIFY-TIMEOUT: checks did not finish")
 		quit(2)
 		return true
+	if _phase == 2:
+		if _frames >= 8:
+			# ---- 储能浮动标签不被顶栏遮（run 45226479162 回归）：锚点原投影 y≈48，
+			# 旧代码钳制只改判定 rect、不折回 3D 位置，渲染中心 ≈72 正好压顶栏底边、
+			# 上半截字被盖住；修后渲染中心应与 rect 一致（钳后 80 + 22 档 = 102），
+			# 字盒顶（中心 −15）≥ 80，完全在顶栏（底 72）之下。
+			var _labels_st = _main.get_node("Labels")
+			_labels_st.call("_update")
+			var _sto_lab: Label3D = null
+			for _d2 in _labels_st.defs:
+				if String(_d2["dynamic"]) == "soc":
+					_sto_lab = _d2["label"] as Label3D
+			var _sto_sp := Vector2.ZERO
+			var _sto_vis := false
+			if _sto_lab != null:
+				_sto_vis = _sto_lab.visible
+				if _sto_vis:
+					_sto_sp = (_labels_st.camera as Camera3D).unproject_position(_sto_lab.position)
+			var _vp := _labels_st.get_viewport().get_visible_rect().size
+			_chk("储能标签渲染中心 y≈102（字盒顶 ≥80，不进顶栏）", _sto_lab != null and _sto_vis and absf(_vp.y - 720.0) < 1.0 and _sto_sp.y >= 97.0 and _sto_sp.y <= 107.0, "vp=" + str(_vp) + " visible=" + str(_sto_vis) + " y=" + str(_sto_sp.y))
+			_main.call("enter_scene", "dist")
+			_phase = 1
+		return false
 	if _phase == 1:
 		if _frames >= 10:
 			# 场景页导航栏与总览同一口径：进配电房后玻璃仍关、实色 fallback 仍开
@@ -445,7 +468,13 @@ func _process(_delta: float) -> bool:
 	_chk("总览：场景栏玻璃关、实色 fallback 开（池塘不透进导航文字）", not _bar_glass.visible and _bar_fb.visible, str(_bar_glass.visible) + "/" + str(_bar_fb.visible))
 	# ---- 场景面板不撑出屏（回归检查）：进配电房（修前最宽 511px），
 	# 等几帧让容器排完版再量宽。
-	_main.call("enter_scene", "dist")
-	_phase = 1
+	# 储能标签放到下一 phase 再量：_enter_instant 只改轨道状态，相机位置由
+	# rig._process 逐帧算出，等几帧再量渲染位置才准（与进配电房量面板宽同理）。
+	# 另把视口改成 1280×720：无头默认视口是 720×1280（竖屏），储能锚点在那个
+	# 尺寸下投影 y≈85、根本不触发顶栏钳制，量不到本次修的钳制路径；
+	# 720p 下锚点投影 y≈48，钳制 80 + 22 档才是截图里的真机位。
+	root.size = Vector2(1280, 720)
+	_main.call("_enter_instant", "storage")
+	_phase = 2
 	return false
 	return true

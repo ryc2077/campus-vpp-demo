@@ -137,6 +137,10 @@ func _update() -> void:
 			est_w = minf(260.0, float(l.text.length()) * target_px * 1.25 + 20.0)
 		# 池塘修复：y 钳制在视口高 − 底部预留之上；x 钳制在屏内。
 		# 顶栏修复：y 下限 80px（顶栏底 72 + 8），不得躲进顶栏后面。
+		# 注意：下面的钳制只改了判定用的 rect（sp），没改锚点本身；
+		# 折回 3D 时必须把钳制量也算进去，否则渲染位置与 rect 脱节
+		# （储能标签就是这么被顶栏盖住一半的，见 dy 循环里的 soc 专修）。
+		var sp_orig_y := sp.y
 		sp.x = clampf(sp.x, est_w / 2.0 + 4.0, vp.x - est_w / 2.0 - 4.0)
 		sp.y = clampf(sp.y, _top_reserve, vp.y - _bottom_reserve)
 		var done := false
@@ -163,7 +167,19 @@ func _update() -> void:
 				# px_per_world = vp_h / (2*tan(fov/2))，world_dy = dy*dist/px_per_world。
 				var up: Vector3 = camera.global_transform.basis.y
 				var cam_dist := (anchor - camera.global_position).length()
-				var world_dy := dy * cam_dist / px_per_world
+				var world_dy: float
+				if String(d["dynamic"]) == "soc":
+					# 储能标签专修（run 45226479162）：锚点原投影 y≈48，rect 被钳到 80
+					# 再取 +22 档，但旧折回只用了 dy，丢了钳制的 32px，实际渲染中心
+					# ≈48+24=72，正好压在顶栏底边（72）上，上半截字被顶栏盖住。
+					# 这里把钳制量也折回去，并用视线深度（非相机距离）换算，使屏上
+					# 位移与 rect 一致（中心 80+22=102，字盒顶 87，完全在顶栏之下）。
+					# 只修 dynamic=="soc" 的储能标签，其他标签保持原行为。
+					var fwd: Vector3 = -camera.global_transform.basis.z
+					var depth: float = (anchor - camera.global_position).dot(fwd)
+					world_dy = (sp.y + dy - sp_orig_y) * depth / px_per_world
+				else:
+					world_dy = dy * cam_dist / px_per_world
 				l.position = anchor - up * world_dy
 				l.visible = true
 				n_visible += 1
