@@ -347,6 +347,15 @@
 
 - 2026-11-24 04:4x CST 返工 R2 推送（commit `717c7728`，6 文件）：ch-cars / ov-parking 的 .py/.blend/.glb——.blend 改留 Nishita 天空世界（仰角 50°）供 EEVEE 清漆反光，GLB 内容未变（ov-parking.glb blob 与 R1 相同）。触发新的 blender-previews run，车漆两件待新 run 出图再验。另：R1 run 45251171902 的 dist/charge/storage/pv/classroom 5 组已 success，仅 overview 组仍在跑；R1 目视验收：di-walls 通过（顶面云纹清晰、墙面加重）、st-fence 通过（地面混凝土纹理、柜体锈蚀纹理）、ch-cars 未通过（新旧图逐像素几乎相同，涂层不可见——R2 已修）。
 
+- 2026-11-24 05:4x CST 取景修补（验收 run 45227196322 / #72 非阻塞观察：cl-ac、ov-flag-lamp、pv-mount、ch-piles 取景过远/对比低，细节无法核验）：
+  - **根因**：`tools/render_max.py` 按整件包围盒定相机距离（`_fit_camera`，margin 1.10）；四件主体细小且分散在很大的包围盒里——cl-ac 两台空调分处教室对角（包围盒对角 11.72m）、ov-flag-lamp 375 杆件散布全校（对角 303.91m）、pv-mount 三屋顶支架阵（对角 89.6m）、ch-piles 4 台桩排成 11.4m 长行——整件取景下主体只占画面约 5% 以下。模型本身没问题，纯渲染脚本 framing 问题。
+  - **改动：只改 `tools/render_max.py` 一个文件**（commit `ceeb81df`，父 `89a06cf8`，仅该文件；改前本地与仓库 blob `64dbc665` 核对一致；`.py`/`.blend`/`.glb`、6 组 matrix、产物规格全不动）：新增白名单 `_DETAIL_FRAMING = {cl-ac, ov-flag-lamp, pv-mount, ch-piles}` + `_DETAIL_BRIGHT_BG = {pv-mount}`；`_ensure_camera` 对白名单件跳过内置相机保留检测、走新增 `_frame_detail_view`：取最大簇（扁长行先 `_subdivide_flat_row` 拆单件），主视图只拍该簇、**不增发分镜**；`_ensure_world` 仅对 pv-mount 把深灰世界（lum 0.0509）提亮为天蓝；cl-ac 不提亮（白空调在深灰底上对比更好）。其余 40 件走原逻辑，一字未动。
+  - **干跑验证**（本地 Blender 无头，只算相机参数、一张图未渲染；`/tmp/framing_probe*.py`）：cl-ac 相机 24.42→5.98m、框内占比 0.0458→0.2848；ov-flag-lamp 600.26→49.38m、0.0023→0.0454（最大簇即南门 3 根旗杆 + 附近路灯，42 对象）；pv-mount 170.95→69.33m（最大簇 LAB 屋顶阵列）、0.2153→0.4574，世界亮度 0.0509→0.7596；ch-piles 整件 19.47m→单桩取景（框内占比 0.131→0.243）。相机离模型最近距离均 ≥4.5m（cl-ac 5.32m、ov-flag-lamp 27.72m、pv-mount 29.3m、ch-piles 4.56m），未怼进模型。对照件干跑参数与改前完全一致（ov-bldA 内置相机占比 4.8559、pv-panels 整件 170.92m/0.2035、st-cabinet 15.61m/0.6359、di-cabinets 内置相机 0.2247）。
+  - **Actions**：run **#75 / 45259258530**（HEAD `ceeb81df`），6 组全部 success（pv/charge/classroom/storage 约 20:46Z、dist 约 21:1xZ、overview 约 21:39Z，全程约 74 分钟）；产物 **55 张、1280×720**，与旧版张数一致（overview 20 / pv 7 / storage 5 / classroom 6 / charge 4 / dist 13，含 di-signs 8 簇图 + pv-inverter 3 簇图）。
+  - **验收**（逐张目视，新图在 `~/workspace/review-rework-r1/framing-fix/`，旧图对照 `~/workspace/review-rework-r1/acceptance/`；非背景像素占比为角点背景色 ±40 阈值实测）：cl-ac 单台空调占满画面高度 77%（旧 26%）、非背景像素 1.2%→9.8%，前面板/显示屏/顶栅/铜管/底座均清晰，无过曝无裁切；ov-flag-lamp 3 根旗杆 + 红旗 + 2 根路灯占满画面高度 71%（旧 47%）、非背景像素 0.01%→1.65%，旗面纹理可读，无裁切；pv-mount LAB 阵列横梁/支腿/压块网格清晰可辨（旧图支架与背景灰度差 <40、基本融进背景）、非背景像素 ~0→2.1%，背景已提亮，无过曝、主体完整；ch-piles 单台桩占满画面高度 76%（旧 25%）、非背景像素 2.1%→4.4%，屏幕/绿灯/充电枪/枪线/顶盖/底座均清晰，无过曝无裁切。**4 件全部通过**。
+  - **取舍**：主视图只含一件主体——另一台空调、其余 3 台桩、其余两屋顶支架阵列、其余路灯不在主图内；数量与全校/全屋顶位置仍以旧整件图 + 模型文件为准，主图只负责细节核验。pv-mount 左下角有相邻屋顶阵列一角入画（被框边裁切），主体 LAB 阵列本身完整，未动——属构图小瑕，不返工。
+  - **回归抽查**：随机 4 件目视正常（pv-panels、cl-desks、ch-cars、st-cabinet）；另 ov-trees、ov-bldA 新旧图逐像素对比 mean|diff| = 0.00，pv-panels、cl-desks、st-cabinet 同为 0.00——其余件取景未被带坏。
+
 ## §10 总览大文件瘦身入仓（2026-11-23 11:39–12:00 CST，瘦身任务 8bb03134）
 
 - **根因**：Git Data API 建 blob 有实际大小上限，实测探针（孤 blob，不污染仓库）：40MB 原始文件 OK（base64 约 55.9MB），46MB 报 HTTP 422 "input too large"。阈值在 40–46MB 之间，**不是 100MB**；先前文档里写的"约 26MB 上限"是低估，实际可推到 40MB。另一次 37.8MB 推送曾遇 HTTP 502 "Server Error"，属 GitHub 侧临时错误，重试一次即成功（凡推必核 commit）。
