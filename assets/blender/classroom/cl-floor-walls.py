@@ -105,8 +105,10 @@ def plaster(name, color_hex, noise_scale=2.5, mottle_lo=0.80,
     nt.links.new(tc.outputs["Object"], nz.inputs["Vector"])
     ramp = _ramp_grey(nt, mottle_lo, 1.0)
     nt.links.new(nz.outputs["Fac"], ramp.inputs["Fac"])
-    mix = _multiply(nt, base, ramp.outputs["Color"])
-    nt.links.new(mix.outputs["Color"], bsdf.inputs["Base Color"])
+    # 返工 2026-11-23: 色斑 Mix 不连 Base Color (Blender 4.2 glTF 导出器:
+    # Base Color 已链接时不写 baseColorFactor, 墙/天花板在 Godot 里变白;
+    # 旧注释称“回落默认值”是错的, 实测 GLB 证实)。色斑只留粗糙度/Bump 变化,
+    # Base Color 用上面设好的纯色默认值。
     # 漆面微起伏
     bump = _bump(nt, nz.outputs["Fac"], bump_strength, 0.05)
     nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
@@ -147,7 +149,7 @@ def stone_tile(name, color_hex):
     mix2.inputs[0].default_value = 1.0
     nt.links.new(mix1.outputs["Color"], mix2.inputs[1])
     nt.links.new(ramp_n.outputs["Color"], mix2.inputs[2])
-    nt.links.new(mix2.outputs["Color"], bsdf.inputs["Base Color"])
+    # 返工 2026-11-23: 石材 Mix 不连 Base Color (同上, 否则 glTF 丢 factor 地面变白)。
     # 石材微起伏
     bump = _bump(nt, nz.outputs["Fac"], 0.25, 0.03)
     nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])

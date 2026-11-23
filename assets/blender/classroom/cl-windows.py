@@ -89,6 +89,9 @@ MAT_GLASS = principled("cl-windows_glass", "#9FC3D8",
 _bsdf_g = MAT_GLASS.node_tree.nodes["Principled BSDF"]
 _bsdf_g.inputs["Transmission Weight"].default_value = 0.9
 _bsdf_g.inputs["IOR"].default_value = 1.45
+# 返工 2026-11-23: 玻璃透明化, Alpha 0.65 + BLEND (之前 Alpha 默认 1.0,
+# GLB 里 alphaMode 缺失、整片不透明)。粗糙度仍 0.05 低粗糙反光。
+_bsdf_g.inputs["Alpha"].default_value = 0.65
 _bsdf_g.inputs["Specular IOR Level"].default_value = 1.0
 try:
     MAT_GLASS.surface_render_method = 'BLENDED'
@@ -106,7 +109,8 @@ _mix.blend_type = 'MIX'
 _mix.inputs[1].default_value = hex_linear("#F3E9D2")
 _mix.inputs[2].default_value = hex_linear("#E2D5B8")
 _nt_c.links.new(_tex_c.outputs["Fac"], _mix.inputs[0])
-_nt_c.links.new(_mix.outputs["Color"], _bsdf_c.inputs["Base Color"])
+# 返工 2026-11-23: 窗帘 Mix 不连 Base Color (否则 glTF 丢 baseColorFactor)。
+# 布纹深浅改走 Bump, Base Color 只留纯色 #F3E9D2。
 
 # 窗帘杆: 金属灰, 金属度 0.85, 细噪波 Bump
 MAT_ROD = principled("cl-windows_rod_metal", "#8A8F94",

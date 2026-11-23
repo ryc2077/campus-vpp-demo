@@ -60,6 +60,9 @@ def make_wood_material(name, base_hex, dark_hex, light_hex, roughness=0.55,
     nt = mat.node_tree
     bsdf = nt.nodes["Principled BSDF"]
     bsdf.inputs["Metallic"].default_value = 0.0
+    # 返工 2026-11-23: 木纹 Ramp 连进 Base Color 会导致 glTF 丢 baseColorFactor,
+    # Base Color 只留纯色默认值 (木纹深浅改走粗糙度/Bump)。
+    bsdf.inputs["Base Color"].default_value = hex_to_linear(base_hex)
     texcoord = nt.nodes.new("ShaderNodeTexCoord")
     mapping = nt.nodes.new("ShaderNodeMapping")
     mapping.inputs["Scale"].default_value = grain_scale
@@ -92,7 +95,6 @@ def make_wood_material(name, base_hex, dark_hex, light_hex, roughness=0.55,
     nt.links.new(noise.outputs["Fac"], ramp.inputs["Fac"])
     nt.links.new(noise.outputs["Fac"], rramp.inputs["Fac"])
     nt.links.new(noise.outputs["Fac"], bump.inputs["Height"])
-    nt.links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
     nt.links.new(rramp.outputs["Color"], bsdf.inputs["Roughness"])
     nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     return mat
@@ -102,6 +104,8 @@ def make_metal_material(name, base_hex, dark_hex, light_hex, roughness=0.45):
     mat.use_nodes = True
     nt = mat.node_tree
     bsdf = nt.nodes["Principled BSDF"]
+    # 返工 2026-11-23: 同上, Base Color 只留纯色默认值, 不连程序化 Ramp。
+    bsdf.inputs["Base Color"].default_value = hex_to_linear(base_hex)
     bsdf.inputs["Metallic"].default_value = 0.75
     # 拉丝: 噪波沿腿长方向 (Z) 拉伸, 横向变化快、纵向变化慢
     texcoord = nt.nodes.new("ShaderNodeTexCoord")
@@ -135,7 +139,7 @@ def make_metal_material(name, base_hex, dark_hex, light_hex, roughness=0.45):
     nt.links.new(noise.outputs["Fac"], ramp.inputs["Fac"])
     nt.links.new(noise.outputs["Fac"], rramp.inputs["Fac"])
     nt.links.new(noise.outputs["Fac"], bump.inputs["Height"])
-    nt.links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
+    # 返工 2026-11-23: 金属拉丝 Ramp 不连 Base Color (否则 glTF 丢 baseColorFactor)。
     nt.links.new(rramp.outputs["Color"], bsdf.inputs["Roughness"])
     nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     return mat

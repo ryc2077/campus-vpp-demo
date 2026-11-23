@@ -86,9 +86,11 @@ def add_noise_color_mix(mat, scale, dust_hex, fac_strength):
     return tex
 
 
-MAT_BOARD = make_mat("BoardGreen", "#2E4A3A", roughness=0.55)   # 黑板深绿
+MAT_BOARD = make_mat("BoardGreen", "#2F3A33", roughness=0.55)   # 黑板墨绿 (SPEC §3)
 add_noise_rough(MAT_BOARD, scale=18.0, r_min=0.35, r_max=0.85)
-add_noise_color_mix(MAT_BOARD, scale=6.0, dust_hex="#7A8A7E", fac_strength=0.35)
+# 返工 2026-11-23: 粉笔灰 MixRGB 连进 Base Color 会导致 glTF 导出丢 baseColorFactor
+# (Blender 4.2 导出器: Base Color 已链接时不写 factor, 黑板在 Godot 里变白)。
+# 粉笔灰斑驳改走粗糙度起伏表现, Base Color 只留纯色默认值 #2F3A33。
 MAT_FRAME = make_mat("FrameSilver", "#C0C5C9", roughness=0.35, metallic=0.6)
 add_noise_rough(MAT_FRAME, scale=30.0, r_min=0.30, r_max=0.45)
 MAT_WHITEBOARD = make_mat("WhiteBoard", "#DCDCDC", roughness=0.4)
@@ -115,8 +117,10 @@ _wramp.color_ramp.elements[1].color = (*hex_lin("#B98A54"), 1.0)
 # 中间再加一档中棕, 木纹层次更明显 (任务木色 #8B5A2B)
 _mid = _wramp.color_ramp.elements.new(0.55)
 _mid.color = (*hex_lin("#8B5A2B"), 1.0)
+# 返工 2026-11-23: 木纹 Ramp 连进 Base Color 会导致 glTF 丢 baseColorFactor
+# (导出器不写已链接 socket 的 factor, 讲台在 Godot 里变白)。木纹深浅改走
+# 粗糙度起伏表现, Base Color 只留 make_mat 设好的纯色 #8B5A2B。
 _links.new(_wave.outputs["Color"], _wramp.inputs["Fac"])
-_links.new(_wramp.outputs["Color"], _bsdf.inputs["Base Color"])
 add_noise_rough(MAT_WOOD, scale=25.0, r_min=0.45, r_max=0.75)
 add_noise_rough(MAT_WOOD, scale=60.0, r_min=0.40, r_max=0.80)  # 细划痕级粗糙度变化
 MAT_DARK = make_mat("DeskDark", "#3F4348", roughness=0.7)       # 深灰侧板
@@ -295,17 +299,20 @@ bpy.ops.export_scene.gltf(filepath=GLB_PATH, export_format="GLB",
                            use_selection=True, export_apply=True)
 print("EXPORTED", GLB_PATH, "objects:", len(PARTS))
 
-# ---------- 渲染预览 ----------
-scene = bpy.context.scene
-scene.render.engine = "BLENDER_EEVEE_NEXT"
-scene.render.resolution_x = 640
-scene.render.resolution_y = 360
-scene.render.resolution_percentage = 100
-scene.eevee.taa_render_samples = 16
-scene.render.filepath = PNG_PATH
-scene.render.image_settings.file_format = "PNG"
-bpy.ops.render.render(write_still=True)
-print("RENDERED", PNG_PATH)
+# ---------- 渲染预览 (本地默认跳过, 走 GitHub Actions; 置 CL_BOARD_RENDER=1 才渲染) ----------
+if os.environ.get("CL_BOARD_RENDER") == "1":
+    scene = bpy.context.scene
+    scene.render.engine = "BLENDER_EEVEE_NEXT"
+    scene.render.resolution_x = 640
+    scene.render.resolution_y = 360
+    scene.render.resolution_percentage = 100
+    scene.eevee.taa_render_samples = 16
+    scene.render.filepath = PNG_PATH
+    scene.render.image_settings.file_format = "PNG"
+    bpy.ops.render.render(write_still=True)
+    print("RENDERED", PNG_PATH)
+else:
+    print("Render skipped locally (set CL_BOARD_RENDER=1 to render)")
 
 # ---------- 回读 glb 验证 ----------
 before = set(bpy.data.objects.keys())
