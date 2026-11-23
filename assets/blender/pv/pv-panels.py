@@ -69,6 +69,56 @@ def srgb(hexstr):
         out.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
     return tuple(out)
 
+# ---------- PBR 贴图（2026-11-23 v3 返工：挂下载的 CC0 贴图，替代纯色） ----------
+# 底色图已用 PIL 按 SPEC 色调过（assets/blender/tint_textures.py），直接连
+# Base Color；rough/normal 用原图（Non-Color）。路径存 // 相对路径，随仓库推送。
+# 板面用 blue_metal_plate 三图；旧 Noise/Voronoi/Brick 程序化 Bump 已断开 Normal，
+# 由 normal 贴图替代。尺寸适配：板 mesh 的 UV 按米制盒式投影（每 1m 一 tile）。
+TEX_DIR = os.path.join(BASE, "assets/blender/pv/pv-panels_textures")
+
+def _load_tex(fname, colorspace):
+    path = os.path.join(TEX_DIR, fname)
+    img = bpy.data.images.load(path, check_existing=True)
+    img.colorspace_settings.name = colorspace
+    img.filepath = "//" + os.path.basename(TEX_DIR) + "/" + fname
+    return img
+
+def add_pbr(mat, color=None, rough=None, normal=None):
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    for sock in ("Base Color", "Roughness", "Normal"):
+        for link in list(bsdf.inputs[sock].links):
+            nt.links.remove(link)
+    if color:
+        bsdf.inputs["Base Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = _load_tex(color, "sRGB")
+        nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    if rough:
+        bsdf.inputs["Roughness"].default_value = 1.0
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = _load_tex(rough, "Non-Color")
+        nt.links.new(tex.outputs["Color"], bsdf.inputs["Roughness"])
+    if normal:
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = _load_tex(normal, "Non-Color")
+        nmap = nt.nodes.new("ShaderNodeNormalMap")
+        nmap.space = "TANGENT"
+        nt.links.new(tex.outputs["Color"], nmap.inputs["Color"])
+        nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+    return mat
+
+def _check_pbr(mat):
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    texs = [n for n in nt.nodes if n.type == "TEX_IMAGE"]
+    assert len(texs) >= 3, f"{mat.name}: expected 3 texture nodes, got {len(texs)}"
+    assert bsdf.inputs["Base Color"].is_linked, f"{mat.name}: Base Color not linked"
+    assert bsdf.inputs["Roughness"].is_linked, f"{mat.name}: Roughness not linked"
+    assert bsdf.inputs["Normal"].is_linked, f"{mat.name}: Normal not linked"
+    print(f"PBR CHECK PASS: {mat.name} color/rough/normal -> "
+          f"{[t.image.name if t.image else '?' for t in texs]}")
+
 # 板面: 深蓝灰 (比旧版 #1A2F4A 略亮, 配合玻璃盖板呈淡蓝灰反光), 低粗糙度+满高光=玻璃感
 MAT_PANEL = principled("PV_PanelBlue", srgb("2C4A68"), 0.15, 0.18, specular=1.0)
 MAT_FRAME = principled("PV_FrameSilver", srgb("C0C5C9"), 0.8, 0.30)
@@ -141,6 +191,9 @@ L(m_add2.outputs[0], bump.inputs["Height"])
 L(bump.outputs["Normal"], bsdf.inputs["Normal"])
 print("MATERIAL PV_PanelBlue: Bump chain = Noise + Voronoi cells + Brick gridlines; "
       "Base Color/Roughness unlinked (defaults kept for glTF)")
+# v3: 挂真实 PBR 贴图（blue_metal_plate 染 #2C4A68），normal 图替代程序化 Bump
+add_pbr(MAT_PANEL, "panel_color.jpg", "panel_rough.jpg", "panel_nor.jpg")
+_check_pbr(MAT_PANEL)
 
 # ---- 主板 mesh: 1.134 x 1.762 x 0.035, 银框 + 4 条横向汇流条
 #      + 玻璃盖板 + 背面接线盒 (同 mesh, 548 块实例共享, 不增对象数) ----
@@ -171,6 +224,16 @@ add_box(bm, 0, 0, 0.020, PW - 0.02, PL - 0.02, 0.006, 3)             # ② 玻�
 add_box(bm, 0, 0, -PT / 2 - 0.025, 0.20, 0.14, 0.05, 4)              # ③ 背面接线盒
 bm.to_mesh(mesh)
 bm.free()
+# UV：bmesh 建的 mesh 没有 UV 层；按米制盒式投影补一层（每 1m 一贴图 tile），
+# 供 PBR 贴图使用（板面 1.134x1.762m，顶面约 1.1x1.8 tile）。
+_uv = mesh.uv_layers.new(name="UVMap")
+for _poly in mesh.polygons:
+    _n = _poly.normal
+    _ax = max(range(3), key=lambda i: abs(_n[i]))
+    _ua, _va = [i for i in range(3) if i != _ax]
+    for _li in _poly.loop_indices:
+        _co = mesh.vertices[mesh.loops[_li].vertex_index].co
+        _uv.data[_li].uv = (_co[_ua], _co[_va])
 mesh.materials.append(MAT_PANEL)
 mesh.materials.append(MAT_FRAME)
 mesh.materials.append(MAT_BUS)

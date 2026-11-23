@@ -97,9 +97,69 @@ def principled(name, rgb, metallic, roughness, emission=None,
         nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     return mat
 
+# ---------- PBR 贴图（2026-11-23 v3 返工：挂下载的 CC0 贴图，替代纯色） ----------
+# 底色图已用 PIL 按 SPEC 色调过（assets/blender/tint_textures.py），直接连
+# Base Color；rough/normal 用原图（Non-Color）。路径存 // 相对路径，随仓库推送。
+# 箱体用 white_stucco 三图；旧拉丝 Bump 已断开 Normal，由 normal 图替代。
+# 尺寸适配：箱体 UV 按实尺缩放（tile 约 2m）。
+TEX_DIR = os.path.join(BASE, "assets/blender/pv/pv-inverter_textures")
+
+def _load_tex(fname, colorspace):
+    path = os.path.join(TEX_DIR, fname)
+    img = bpy.data.images.load(path, check_existing=True)
+    img.colorspace_settings.name = colorspace
+    img.filepath = "//" + os.path.basename(TEX_DIR) + "/" + fname
+    return img
+
+def add_pbr(mat, color=None, rough=None, normal=None):
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    for sock in ("Base Color", "Roughness", "Normal"):
+        for link in list(bsdf.inputs[sock].links):
+            nt.links.remove(link)
+    if color:
+        bsdf.inputs["Base Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = _load_tex(color, "sRGB")
+        nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    if rough:
+        bsdf.inputs["Roughness"].default_value = 1.0
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = _load_tex(rough, "Non-Color")
+        nt.links.new(tex.outputs["Color"], bsdf.inputs["Roughness"])
+    if normal:
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = _load_tex(normal, "Non-Color")
+        nmap = nt.nodes.new("ShaderNodeNormalMap")
+        nmap.space = "TANGENT"
+        nt.links.new(tex.outputs["Color"], nmap.inputs["Color"])
+        nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+    return mat
+
+def scale_uvs(obj, sx, sy):
+    """UV 整体缩放：贴图按实尺重复（tile 约 2m 时 sx=宽/2, sy=高/2）。"""
+    for layer in obj.data.uv_layers:
+        for loop in layer.data:
+            u, v = loop.uv
+            loop.uv = (u * sx, v * sy)
+
+def _check_pbr(mat):
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    texs = [n for n in nt.nodes if n.type == "TEX_IMAGE"]
+    assert len(texs) >= 3, f"{mat.name}: expected 3 texture nodes, got {len(texs)}"
+    assert bsdf.inputs["Base Color"].is_linked, f"{mat.name}: Base Color not linked"
+    assert bsdf.inputs["Roughness"].is_linked, f"{mat.name}: Roughness not linked"
+    assert bsdf.inputs["Normal"].is_linked, f"{mat.name}: Normal not linked"
+    print(f"PBR CHECK PASS: {mat.name} color/rough/normal -> "
+          f"{[t.image.name if t.image else '?' for t in texs]}")
+
 # 白色金属箱体: 拉丝纹理只走 Bump(细噪波, 弱强度)
 MAT_BODY = principled("INV_BodyWhite", srgb("EDEEF0"), 0.55, 0.38,
                       bump_scale=80.0, bump_strength=0.25)
+# v3: 挂真实 PBR 贴图（white_stucco 染 #EDEEF0）
+add_pbr(MAT_BODY, "body_color.jpg", "body_rough.jpg", "body_nor.jpg")
+_check_pbr(MAT_BODY)
 # 深色散热格栅/鳍片
 MAT_GRILLE = principled("INV_GrilleDark", srgb("2E3438"), 0.6, 0.50,
                         bump_scale=30.0, bump_strength=0.15)
@@ -123,7 +183,7 @@ MAT_CABLE = principled("INV_CableBlack", srgb("1F2224"), 0.0, 0.70)
 
 part_objs = []  # 本件对象(导出用)
 
-def add_box(name, loc, dims, mat, bevel=0.0):
+def add_box(name, loc, dims, mat, bevel=0.0, uv_scale=None):
     bpy.ops.mesh.primitive_cube_add(location=loc)
     o = bpy.context.active_object
     o.name = name
@@ -131,6 +191,8 @@ def add_box(name, loc, dims, mat, bevel=0.0):
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     if mat is not None:
         o.data.materials.append(mat)
+    if uv_scale is not None:
+        scale_uvs(o, uv_scale[0], uv_scale[1])
     if bevel > 0:
         mod = o.modifiers.new("Bevel", 'BEVEL')
         mod.width = bevel
@@ -168,11 +230,11 @@ def make_inverter(tag, cx, cy, roof_z):
     # --- 箱体: 白色金属, 小倒角; 顶盖 + 压边 + 4 颗盖螺钉 ---
     body_z = roof_z + 0.18 + 0.70
     add_box(f"INV_{tag}_Body", (cx, cy, body_z),
-            (1.00, 0.60, 1.40), MAT_BODY, bevel=0.02)
+            (1.00, 0.60, 1.40), MAT_BODY, bevel=0.02, uv_scale=(0.5, 0.7))
     add_box(f"INV_{tag}_CapRim", (cx, cy, roof_z + 0.18 + 1.40 + 0.015),
             (1.06, 0.66, 0.03), MAT_GRILLE)
     add_box(f"INV_{tag}_Cap", (cx, cy, roof_z + 0.18 + 1.40 + 0.06),
-            (1.04, 0.64, 0.06), MAT_BODY)
+            (1.04, 0.64, 0.06), MAT_BODY, uv_scale=(0.52, 0.32))
     for sx in (-0.46, 0.46):
         for sy in (-0.26, 0.26):
             add_cyl(f"INV_{tag}_CapScrew_{'W' if sx < 0 else 'E'}{'S' if sy < 0 else 'N'}",

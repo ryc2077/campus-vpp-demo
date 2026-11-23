@@ -57,14 +57,17 @@ def _noise_bump(ntree, bsdf, scale, strength):
 
 
 def make_paint(name, hexstr):
-    """Car paint: Principled, Noise roughness 0.35 +/- 0.08, light bump."""
+    """Car paint: Principled, Roughness 0.35 solid + light bump.
+    2026-11-23 返工：旧版 Roughness 连 Noise->MapRange（0.27~0.43），glTF 丢
+    roughnessFactor，Godot 里车漆粗糙度归 1（全哑光）；改回区间中值 0.35
+    固定值，只留 Bump。Base Color 本就未链接，不动。"""
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
     ntree = mat.node_tree
     bsdf = ntree.nodes["Principled BSDF"]
     bsdf.inputs["Base Color"].default_value = srgb_to_linear(hexstr)
     bsdf.inputs["Metallic"].default_value = 0.15
-    _noise_roughness(ntree, bsdf, scale=6.0, r_min=0.27, r_max=0.43)
+    bsdf.inputs["Roughness"].default_value = 0.35
     _noise_bump(ntree, bsdf, scale=18.0, strength=0.06)
     return mat
 
@@ -108,14 +111,16 @@ def make_tire(name):
 
 
 def make_hub(name):
-    """Metal hub: metallic ~0.8, roughness 0.35 +/- 0.08 via noise."""
+    """Metal hub: metallic ~0.8, roughness 0.35 solid.
+    2026-11-23 返工：旧版 Roughness 连 Noise->MapRange，glTF 丢 roughnessFactor；
+    改回 0.35 固定值。"""
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
     ntree = mat.node_tree
     bsdf = ntree.nodes["Principled BSDF"]
     bsdf.inputs["Base Color"].default_value = srgb_to_linear("#C0C5C9")
     bsdf.inputs["Metallic"].default_value = 0.8
-    _noise_roughness(ntree, bsdf, scale=6.0, r_min=0.27, r_max=0.43)
+    bsdf.inputs["Roughness"].default_value = 0.35
     return mat
 
 
@@ -267,6 +272,15 @@ make_car("white", "#D7DDE3", 48.5, -76, -90)
 car_objs = [o for o in bpy.data.objects
             if o.name.startswith("ch-cars_")]
 print("car objects:", len(car_objs))
+
+# ---- 材质校验（2026-11-23 返工防回归）：导出件的 Base Color/Roughness
+#   一律不链接程序化节点，否则 glTF 丢 baseColorFactor/roughnessFactor ----
+for _m in [m for m in bpy.data.materials
+           if m.name.startswith("ch-cars_body_") or m.name == "ch-cars_hub"]:
+    _bsdf = _m.node_tree.nodes["Principled BSDF"]
+    assert not _bsdf.inputs["Base Color"].is_linked, f"{_m.name}: Base Color linked!"
+    assert not _bsdf.inputs["Roughness"].is_linked, f"{_m.name}: Roughness linked!"
+print("MATERIAL CHECK PASS: car paint + hub have solid Base Color + Roughness")
 
 # ---- lighting / world (SPEC section 2) ----
 world = bpy.data.worlds.new("ch-cars_world")

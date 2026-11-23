@@ -14,6 +14,7 @@
 import bpy
 import math
 import os
+import sys
 from mathutils import Vector
 
 PIECE = "ch-marking"
@@ -83,33 +84,22 @@ def make_mat(name, hexcol, rough=0.8, metallic=0.0):
 
 def make_worn_mat(name, base_hex, worn_hex, rough_lo, rough_hi,
                   noise_scale, bump_strength):
-    """程序化磨损: Noise 斑驳调色 + 粗糙度不均 + 轻微凹凸。只改材质节点。"""
+    """程序化磨损：只留 Noise->Bump 轻微凹凸。
+    2026-11-23 返工：旧版把 MixRGB 连进 Base Color、Ramp 连进 Roughness，
+    glTF 导出器丢 baseColorFactor/roughnessFactor，绿块 #46A04E 与黄线
+    #E8B400 在 Godot 里全变纯白。底色/粗糙度改回纯色固定值（底色=base_hex，
+    粗糙度=区间中值），磨损变化只走 Bump。"""
     m = bpy.data.materials.new(name)
     m.use_nodes = True
     nt = m.node_tree
     bsdf = nt.nodes["Principled BSDF"]
+    bsdf.inputs["Base Color"].default_value = hex_rgb(base_hex)
+    bsdf.inputs["Roughness"].default_value = (rough_lo + rough_hi) / 2.0
     bsdf.inputs["Metallic"].default_value = 0.0
     coord = nt.nodes.new("ShaderNodeTexCoord")
     coord.name = "TexCoord_Generated"
     noise = _noise(nt, "Noise_Wear", noise_scale, detail=3, roughness=0.7)
     nt.links.new(coord.outputs["Generated"], noise.inputs["Vector"])
-    # 斑驳调色: 白/色块与磨损灰之间混合
-    ramp_c = _ramp(nt, "Ramp_WearColor",
-                   [(0.30, (0.0, 0.0, 0.0, 1.0)), (0.75, (1.0, 1.0, 1.0, 1.0))])
-    nt.links.new(noise.outputs["Fac"], ramp_c.inputs["Fac"])
-    mix = nt.nodes.new("ShaderNodeMixRGB")
-    mix.name = "Mix_WornColor"
-    mix.blend_type = "MIX"
-    mix.inputs[1].default_value = hex_rgb(base_hex)
-    mix.inputs[2].default_value = hex_rgb(worn_hex)
-    nt.links.new(ramp_c.outputs["Color"], mix.inputs[0])
-    nt.links.new(mix.outputs["Color"], bsdf.inputs["Base Color"])
-    # 粗糙度不均
-    ramp_r = _ramp(nt, "Ramp_WearRough",
-                   [(0.0, (rough_lo, rough_lo, rough_lo, 1.0)),
-                    (1.0, (rough_hi, rough_hi, rough_hi, 1.0))])
-    nt.links.new(noise.outputs["Fac"], ramp_r.inputs["Fac"])
-    nt.links.new(ramp_r.outputs["Color"], bsdf.inputs["Roughness"])
     # 轻微凹凸
     bump = nt.nodes.new("ShaderNodeBump")
     bump.name = "Bump_Wear"
@@ -179,6 +169,15 @@ MAT_YELLOW = make_worn_mat("Marking_Edge_Yellow_E8B400", "#E8B400", "#D2A300",
                            0.70, 0.90, 18.0, 0.10)
 MAT_ASPHALT = make_asphalt_mat("PreviewGround_Asphalt_424A52",
                                "#424A52", "#2E3338", "#5B6169")
+
+# ---- 材质校验（2026-11-23 返工防回归）：导出件的 Base Color/Roughness
+#   一律不链接程序化节点，否则 glTF 丢 baseColorFactor/roughnessFactor ----
+#   （MAT_ASPHALT 只用于预览地面、不导出，不校验）
+for _m in (MAT_WHITE, MAT_GREEN, MAT_YELLOW):
+    _bsdf = _m.node_tree.nodes["Principled BSDF"]
+    assert not _bsdf.inputs["Base Color"].is_linked, f"{_m.name}: Base Color linked!"
+    assert not _bsdf.inputs["Roughness"].is_linked, f"{_m.name}: Roughness linked!"
+print("MATERIAL CHECK PASS: 3/3 exported materials have solid Base Color + Roughness")
 
 # ---- clean scene ----
 bpy.ops.object.select_all(action="SELECT")
@@ -288,15 +287,18 @@ bpy.ops.object.delete(use_global=False)  # remove re-imported copies before rend
 print("re-imported copies deleted, scene objects:", len(bpy.context.scene.objects))
 
 # ---- render preview: Eevee, 640x360, 16 samples ----
-scene = bpy.context.scene
-scene.render.engine = "BLENDER_EEVEE_NEXT"
-scene.render.resolution_x = 640
-scene.render.resolution_y = 360
-scene.render.resolution_percentage = 100
-scene.eevee.taa_render_samples = 16
-scene.render.filepath = PNG_PATH
-scene.render.image_settings.file_format = "PNG"
-bpy.ops.render.render(write_still=True)
-print("rendered preview:", PNG_PATH)
+# 本地不渲染（2026-11-22 用户决定：预览全部走 GitHub Actions）；
+# 带 `-- export-only` 运行时跳过本段，只存 .blend + 出 .glb。
+if "export-only" not in sys.argv and "--export-only" not in sys.argv:
+    scene = bpy.context.scene
+    scene.render.engine = "BLENDER_EEVEE_NEXT"
+    scene.render.resolution_x = 640
+    scene.render.resolution_y = 360
+    scene.render.resolution_percentage = 100
+    scene.eevee.taa_render_samples = 16
+    scene.render.filepath = PNG_PATH
+    scene.render.image_settings.file_format = "PNG"
+    bpy.ops.render.render(write_still=True)
+    print("rendered preview:", PNG_PATH)
 
 print("DONE ch-marking")

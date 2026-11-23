@@ -33,7 +33,9 @@
 
 import bpy
 import hashlib
+import json
 import os
+import struct
 
 BASE = os.path.expanduser(
     "~/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot")
@@ -105,6 +107,32 @@ def main():
     assert len(bpy.data.objects) == 881, (
         f"scene has {len(bpy.data.objects)} objects, expected 881")
 
+    # ---- dedupe materials (2026-11-23): one bpy.ops.wm.append call per
+    #   object loads that object's materials as fresh data-blocks, so the
+    #   548 panels each got their own PV_PanelBlue copy and the scene GLB
+    #   ended up with 3094 materials (1 per primitive). Remap every
+    #   "Name.NNN" duplicate to the canonical "Name" material, then drop
+    #   the unused copies. Piece material base names are unique across
+    #   the 4 pieces (PV_*/INV_*/pv_roof_*), so base-name merge is safe;
+    #   same colour under different names (e.g. PV_BoltBright vs
+    #   PV_FrameSilver, both #C0C5C9) is NOT merged -- different params.
+    #   Expected unique: panels 5 + mount 4 + inverter 11 + roof 5 = 25. ----
+    n_mat_before = len(bpy.data.materials)
+    canon = {}
+    for mat in list(bpy.data.materials):
+        base = mat.name.split(".")[0]
+        if base in canon:
+            mat.user_remap(canon[base])
+        else:
+            canon[base] = mat
+    for mat in list(bpy.data.materials):
+        if mat.users == 0:
+            bpy.data.materials.remove(mat)
+    print(f"MATERIAL DEDUPE: {n_mat_before} -> {len(bpy.data.materials)} "
+          f"unique: {sorted(canon)}")
+    assert len(bpy.data.materials) == 25, (
+        f"expected 25 unique materials, got {len(bpy.data.materials)}")
+
     # ---- save .blend (no moves, no edits) ----
     bpy.ops.wm.save_as_mainfile(filepath=BLEND_PATH)
     print(f"SAVED {BLEND_PATH} size={os.path.getsize(BLEND_PATH)}")
@@ -118,6 +146,19 @@ def main():
         export_apply=True,
     )
     print(f"EXPORTED {GLB_PATH} size={os.path.getsize(GLB_PATH)}")
+
+    # ---- verify exported GLB material count directly from JSON ----
+    with open(GLB_PATH, "rb") as f:
+        _raw = f.read(20)
+        _jlen = struct.unpack("<I", _raw[12:16])[0]
+        f.seek(20)
+        _gltf = json.loads(f.read(_jlen))
+    print(f"GLB JSON materials: {len(_gltf.get('materials', []))} "
+          f"meshes: {len(_gltf.get('meshes', []))} "
+          f"nodes: {len(_gltf.get('nodes', []))} "
+          f"primitives: {sum(len(m.get('primitives', [])) for m in _gltf.get('meshes', []))}")
+    assert len(_gltf.get("materials", [])) == 25, (
+        f"GLB has {len(_gltf.get('materials', []))} materials, expected 25")
 
     # ---- confirm sources did not change mid-run (parallel fix task) ----
     for piece in PIECES:
@@ -133,9 +174,12 @@ def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.gltf(filepath=GLB_PATH)
     imported = [o for o in bpy.data.objects]
-    print(f"REIMPORT {GLB_PATH}: {len(imported)} objects")
+    print(f"REIMPORT {GLB_PATH}: {len(imported)} objects, "
+          f"{len(bpy.data.materials)} materials")
     assert len(imported) == 881, (
         f"reimported {len(imported)} objects, expected 881")
+    assert len(bpy.data.materials) == 25, (
+        f"reimported {len(bpy.data.materials)} materials, expected 25")
 
     print("DONE pv")
 

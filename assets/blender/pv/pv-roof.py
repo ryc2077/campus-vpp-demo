@@ -55,8 +55,66 @@ def add_bump(nt, bsdf, height_socket, strength=0.5, distance=0.05):
     nt.links.new(b.outputs["Normal"], bsdf.inputs["Normal"])
     return b
 
+# ---------- PBR 贴图（2026-11-23 v3 返工：挂下载的 CC0 贴图，替代纯色） ----------
+# 底色图已用 PIL 按 SPEC 色调过（assets/blender/tint_textures.py），直接连
+# Base Color；rough/normal 用原图（Non-Color）。路径存 // 相对路径，随仓库推送。
+# 贴图只替换“底色/粗糙度/法线”三路；旧程序化 Bump 节点留在树里但已断开 Normal。
+# 尺寸适配：UV 按实尺缩放（见 scale_uvs），tile 约 2m。
+TEX_DIR = os.path.join(os.path.dirname(BLEND), "pv-roof_textures")
+
+def _load_tex(fname, colorspace):
+    path = os.path.join(TEX_DIR, fname)
+    img = bpy.data.images.load(path, check_existing=True)
+    img.colorspace_settings.name = colorspace
+    img.filepath = "//" + os.path.basename(TEX_DIR) + "/" + fname
+    return img
+
+def add_pbr(mat, color=None, rough=None, normal=None):
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    for sock in ("Base Color", "Roughness", "Normal"):
+        for link in list(bsdf.inputs[sock].links):
+            nt.links.remove(link)
+    if color:
+        bsdf.inputs["Base Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = _load_tex(color, "sRGB")
+        nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    if rough:
+        bsdf.inputs["Roughness"].default_value = 1.0
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = _load_tex(rough, "Non-Color")
+        nt.links.new(tex.outputs["Color"], bsdf.inputs["Roughness"])
+    if normal:
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = _load_tex(normal, "Non-Color")
+        nmap = nt.nodes.new("ShaderNodeNormalMap")
+        nmap.space = "TANGENT"
+        nt.links.new(tex.outputs["Color"], nmap.inputs["Color"])
+        nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+    return mat
+
+def scale_uvs(obj, sx, sy):
+    """UV 整体缩放：贴图按实尺重复（tile 约 2m 时 sx=宽/2, sy=深/2）。"""
+    for layer in obj.data.uv_layers:
+        for loop in layer.data:
+            u, v = loop.uv
+            loop.uv = (u * sx, v * sy)
+
+def _check_pbr(mat):
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    texs = [n for n in nt.nodes if n.type == "TEX_IMAGE"]
+    assert len(texs) >= 3, f"{mat.name}: expected 3 texture nodes, got {len(texs)}"
+    assert bsdf.inputs["Base Color"].is_linked, f"{mat.name}: Base Color not linked"
+    assert bsdf.inputs["Roughness"].is_linked, f"{mat.name}: Roughness not linked"
+    assert bsdf.inputs["Normal"].is_linked, f"{mat.name}: Normal not linked"
+    print(f"PBR CHECK PASS: {mat.name} color/rough/normal -> "
+          f"{[t.image.name if t.image else '?' for t in texs]}")
+
 def membrane_mat():
-    """深灰防水卷材: 底色 #424A52 不链接; Brick 卷材缝 + Noise 颗粒只进 Bump。"""
+    """深灰防水卷材 #424A52：grey_roof_01 染色贴图（任务书指定染色代替卷材）
+    + roughness + normal 三图；旧 Brick 卷材缝/Noise 颗粒只走 Bump，已断开。"""
     m = make_mat("pv_roof_membrane_v2", "#424A52", rough=0.92)
     nt = m.node_tree
     bsdf = nt.nodes["Principled BSDF"]
@@ -87,10 +145,12 @@ def membrane_mat():
     nt.links.new(mul_b.outputs["Value"], add.inputs[0])
     nt.links.new(mul_n.outputs["Value"], add.inputs[1])
     add_bump(nt, bsdf, add.outputs["Value"], strength=0.5, distance=0.05)
+    # v3: 挂真实 PBR 贴图（normal 图替代程序化 Bump）
+    add_pbr(m, "membrane_color.jpg", "membrane_rough.jpg", "membrane_nor.jpg")
     return m
 
 def walkway_mat():
-    """检修步道: 浅色铺装 #D8D2C4, 轻微颗粒只进 Bump。"""
+    """检修步道: 浅色铺装 #D8D2C4，concrete_wall_007 染色贴图 + rough + normal。"""
     m = make_mat("pv_roof_walkway_v2", "#D8D2C4", rough=0.95)
     nt = m.node_tree
     bsdf = nt.nodes["Principled BSDF"]
@@ -101,6 +161,7 @@ def walkway_mat():
     noise.inputs["Roughness"].default_value = 0.8
     nt.links.new(tc.outputs["Object"], noise.inputs["Vector"])
     add_bump(nt, bsdf, noise.outputs["Fac"], strength=0.25, distance=0.04)
+    add_pbr(m, "walkway_color.jpg", "walkway_rough.jpg", "walkway_nor.jpg")
     return m
 
 MAT_MEMBRANE = membrane_mat()
@@ -109,15 +170,21 @@ MAT_EDGE     = make_mat("pv_roof_edge_trim", "#2B3138", rough=0.9)   # 收边压
 MAT_DRAINPIT = make_mat("pv_roof_drain_pit", "#22262B", rough=0.9)   # 集水坑暗色
 MAT_GRATE    = make_mat("pv_roof_grate", "#6B7280", rough=0.5, metallic=0.6)  # 格栅金属灰
 
+# 贴图自查：膜面/步道三路都连到贴图节点
+_check_pbr(MAT_MEMBRANE)
+_check_pbr(MAT_WALK)
+
 EXPORT_OBJS = []
 
-def box(name, loc, dims, mat, bevel=0.0):
+def box(name, loc, dims, mat, bevel=0.0, uv_scale=None):
     bpy.ops.mesh.primitive_cube_add(location=loc)
     o = bpy.context.active_object
     o.name = name
     o.dimensions = dims
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     o.data.materials.append(mat)
+    if uv_scale is not None:
+        scale_uvs(o, uv_scale[0], uv_scale[1])
     if bevel > 0:
         mod = o.modifiers.new("bevel", 'BEVEL')
         mod.width = bevel
@@ -180,7 +247,7 @@ for tag, cx, cy, L, W, ztop in ROOFS:
     mtop = ztop + MEMBRANE_T    # 膜顶: A/B 18.40, 实验楼 12.35
     # 1) 防水卷材面层
     box(f"pv-roof_membrane_{tag}", (cx, cy, mz), (ml, mw, MEMBRANE_T),
-        MAT_MEMBRANE, bevel=0.02)
+        MAT_MEMBRANE, bevel=0.02, uv_scale=(ml / 2.0, mw / 2.0))
     # 2) 收边压条: 沿膜面四边、贴女儿墙内侧的一圈深色压条
     ez = mtop + EDGE_T / 2
     box(f"pv-roof_edge_{tag}_N", (cx, cy + mw / 2 - EDGE_W / 2, ez),
@@ -197,7 +264,8 @@ for tag, cx, cy, L, W, ztop in ROOFS:
         wy = cy + side * (mw / 2 - PARAPET_T - WALK_W / 2)
         box(f"pv-roof_walkway_{tag}_{'N' if side > 0 else 'S'}",
             (cx, wy, mtop + WALK_T / 2),
-            (walk_len, WALK_W, WALK_T), MAT_WALK, bevel=0.01)
+            (walk_len, WALK_W, WALK_T), MAT_WALK, bevel=0.01,
+            uv_scale=(walk_len / 2.0, 0.4))
     # 4) 排水口立体格栅: 每屋顶 4 个, 靠角、避开步道带
     dx = ml / 2 - 1.5
     dy = mw / 2 - 1.6

@@ -5,6 +5,7 @@
 import bpy
 import math
 import os
+import sys
 from mathutils import Vector
 
 ROOT = os.path.expanduser(
@@ -67,10 +68,13 @@ def _bump(nt, height_out, strength, distance):
 
 def make_mat(name, hex_color, roughness=0.6, metallic=0.0, kind='flat'):
     """Principled BSDF + 程序化纹理(无贴图): 没有任何一个面是全平的.
-    roof: 拉丝波纹(Wave 沿 y 变化, 丝线沿长边 x 走向, 有方向感) + 双层噪波,
-          颜色深浅不均 + 粗糙度 0.30~0.48 变化 + 凹凸
-    steel: 轻微噪波, 颜色微差 + 粗糙度变化 + 轻微凹凸
-    concrete: 粗细双层噪波颗粒, 深浅斑驳 + 粗糙度变化 + 明显凹凸颗粒"""
+    2026-11-23 返工：旧版把 MixRGB 连进 Base Color、MapRange 连进 Roughness，
+    glTF 导出器丢 baseColorFactor/roughnessFactor，整件雨棚在 Godot 里变纯白。
+    底色/粗糙度改回纯色固定值（=hex_color/roughness 参数），程序化变化只走
+    Bump（拉丝波纹/噪波仍进 Normal）。等外部贴图到位再挂真实贴图。
+    roof: 拉丝波纹(Wave 沿 y 变化, 丝线沿长边 x 走向, 有方向感) + 双层噪波 + 凹凸
+    steel: 轻微噪波 + 轻微凹凸
+    concrete: 粗细双层噪波颗粒 + 明显凹凸颗粒"""
     mat = bpy.data.materials.new(name)
     mat.use_nodes = True
     nt = mat.node_tree
@@ -99,6 +103,8 @@ def make_mat(name, hex_color, roughness=0.6, metallic=0.0, kind='flat'):
         wave.inputs["Detail Scale"].default_value = 1.0
         nt.links.new(mapping.outputs["Vector"], wave.inputs["Vector"])
         # 颜色: 粗噪波深浅斑块 -> 拉丝波纹明暗条纹, 两级混合
+        #   （2026-11-23：混合结果不再连进 Base Color，只留 Bump；
+        #    底色保持上方的 solid default_value，glTF 才能带出 baseColorFactor）
         mix1 = nt.nodes.new('ShaderNodeMixRGB')
         mix1.blend_type = 'MIX'
         mix1.inputs[0].default_value = 0.35
@@ -113,11 +119,7 @@ def make_mat(name, hex_color, roughness=0.6, metallic=0.0, kind='flat'):
         ramp2 = _ramp(nt, _shade(hex_color, 0.85), _shade(hex_color, 1.10))
         nt.links.new(wave.outputs["Fac"], ramp2.inputs["Fac"])
         nt.links.new(ramp2.outputs["Color"], mix2.inputs[2])
-        nt.links.new(mix2.outputs["Color"], bsdf.inputs["Base Color"])
-        # 粗糙度: 粗噪波映射 0.30~0.48
-        nt.links.new(_rough_map(nt, n_coarse.outputs["Fac"], roughness - 0.08,
-                                roughness + 0.10).outputs["Result"],
-                     bsdf.inputs["Roughness"])
+        # 粗糙度: 保持 solid default_value（原 0.30~0.48 映射不再链接）
         # 凹凸: 细噪波 + 拉丝波纹 * 0.4
         mult = nt.nodes.new('ShaderNodeMath')
         mult.operation = 'MULTIPLY'
@@ -139,10 +141,7 @@ def make_mat(name, hex_color, roughness=0.6, metallic=0.0, kind='flat'):
         ramp1 = _ramp(nt, _shade(hex_color, 0.85), _shade(hex_color, 1.12))
         nt.links.new(n.outputs["Fac"], ramp1.inputs["Fac"])
         nt.links.new(ramp1.outputs["Color"], mix1.inputs[2])
-        nt.links.new(mix1.outputs["Color"], bsdf.inputs["Base Color"])
-        nt.links.new(_rough_map(nt, n.outputs["Fac"], roughness - 0.06,
-                                roughness + 0.08).outputs["Result"],
-                     bsdf.inputs["Roughness"])
+        # 底色/粗糙度保持 solid default_value（2026-11-23，见 make_mat 文档）
         nt.links.new(_bump(nt, n.outputs["Fac"], 0.12, 0.02).outputs["Normal"],
                      bsdf.inputs["Normal"])
     elif kind == 'concrete':
@@ -163,10 +162,7 @@ def make_mat(name, hex_color, roughness=0.6, metallic=0.0, kind='flat'):
         ramp2 = _ramp(nt, _shade(hex_color, 0.88), _shade(hex_color, 1.10))
         nt.links.new(n_fine.outputs["Fac"], ramp2.inputs["Fac"])
         nt.links.new(ramp2.outputs["Color"], mix2.inputs[2])
-        nt.links.new(mix2.outputs["Color"], bsdf.inputs["Base Color"])
-        nt.links.new(_rough_map(nt, n_fine.outputs["Fac"], roughness - 0.05,
-                                min(roughness + 0.05, 1.0)).outputs["Result"],
-                     bsdf.inputs["Roughness"])
+        # 底色/粗糙度保持 solid default_value（2026-11-23，见 make_mat 文档）
         mult = nt.nodes.new('ShaderNodeMath')
         mult.operation = 'MULTIPLY'
         mult.inputs[1].default_value = 0.5
@@ -191,7 +187,81 @@ MAT_BOLT = make_mat("CanopyBolt_Dark", "#33383D",
 MAT_CONC = make_mat("CanopyBase_Concrete", "#B9B3A8",
                     roughness=0.95, metallic=0.0, kind='concrete')
 
-def add_box(name, dims, loc, mat, rot_x=0.0, bevel=0.02):
+# ---------- PBR 贴图（2026-11-23 v3 返工：挂下载的 CC0 贴图，替代纯色） ----------
+# 底色图已用 PIL 按 SPEC 色调过（assets/blender/tint_textures.py），直接连
+# Base Color；rough/normal 用原图（Non-Color）。路径存 // 相对路径，随仓库推送。
+# 棚顶用 white_stucco 三图，钢柱/钢梁用 blue_metal_plate 三图；旧程序化 Bump
+# 已断开 Normal，由 normal 图替代。尺寸适配：棚顶 UV 按实尺缩放（tile 约 2m）。
+# 接缝/螺栓/柱脚混凝土保持纯色。
+TEX_DIR = os.path.join(os.path.dirname(BLEND), "ch-canopy_textures")
+
+def _load_tex(fname, colorspace):
+    path = os.path.join(TEX_DIR, fname)
+    img = bpy.data.images.load(path, check_existing=True)
+    img.colorspace_settings.name = colorspace
+    img.filepath = "//" + os.path.basename(TEX_DIR) + "/" + fname
+    return img
+
+def add_pbr(mat, color=None, rough=None, normal=None):
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    for sock in ("Base Color", "Roughness", "Normal"):
+        for link in list(bsdf.inputs[sock].links):
+            nt.links.remove(link)
+    if color:
+        bsdf.inputs["Base Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = _load_tex(color, "sRGB")
+        nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    if rough:
+        bsdf.inputs["Roughness"].default_value = 1.0
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = _load_tex(rough, "Non-Color")
+        nt.links.new(tex.outputs["Color"], bsdf.inputs["Roughness"])
+    if normal:
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = _load_tex(normal, "Non-Color")
+        nmap = nt.nodes.new("ShaderNodeNormalMap")
+        nmap.space = "TANGENT"
+        nt.links.new(tex.outputs["Color"], nmap.inputs["Color"])
+        nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+    return mat
+
+def scale_uvs(obj, sx, sy):
+    """UV 整体缩放：贴图按实尺重复（tile 约 2m 时 sx=长/2, sy=宽/2）。"""
+    for layer in obj.data.uv_layers:
+        for loop in layer.data:
+            u, v = loop.uv
+            loop.uv = (u * sx, v * sy)
+
+def _check_pbr(mat):
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    texs = [n for n in nt.nodes if n.type == "TEX_IMAGE"]
+    assert len(texs) >= 3, f"{mat.name}: expected 3 texture nodes, got {len(texs)}"
+    assert bsdf.inputs["Base Color"].is_linked, f"{mat.name}: Base Color not linked"
+    assert bsdf.inputs["Roughness"].is_linked, f"{mat.name}: Roughness not linked"
+    assert bsdf.inputs["Normal"].is_linked, f"{mat.name}: Normal not linked"
+    print(f"PBR CHECK PASS: {mat.name} color/rough/normal -> "
+          f"{[t.image.name if t.image else '?' for t in texs]}")
+
+# v3: 棚顶 + 钢柱挂真实 PBR 贴图
+add_pbr(MAT_ROOF, "roof_color.jpg", "roof_rough.jpg", "roof_nor.jpg")
+add_pbr(MAT_STEEL, "steel_color.jpg", "steel_rough.jpg", "steel_nor.jpg")
+_check_pbr(MAT_ROOF)
+_check_pbr(MAT_STEEL)
+
+# ---- 材质校验（2026-11-23 返工防回归）：纯色件的 Base Color/Roughness
+#   一律不链接程序化节点，否则 glTF 丢 baseColorFactor/roughnessFactor；
+#   贴图件（MAT_ROOF/MAT_STEEL）改由 _check_pbr 校验图片链接 ----
+for _m in (MAT_SEAM, MAT_BOLT, MAT_CONC):
+    _bsdf = _m.node_tree.nodes["Principled BSDF"]
+    assert not _bsdf.inputs["Base Color"].is_linked, f"{_m.name}: Base Color linked!"
+    assert not _bsdf.inputs["Roughness"].is_linked, f"{_m.name}: Roughness linked!"
+print("MATERIAL CHECK PASS: 3/3 solid materials keep Base Color + Roughness; "
+      "MAT_ROOF/MAT_STEEL verified by PBR CHECK")
+
+def add_box(name, dims, loc, mat, rot_x=0.0, bevel=0.02, uv_scale=None):
     bpy.ops.mesh.primitive_cube_add(size=1.0, location=loc)
     obj = bpy.context.active_object
     obj.name = name
@@ -204,6 +274,8 @@ def add_box(name, dims, loc, mat, rot_x=0.0, bevel=0.02):
         bev.width = bevel
         bev.segments = 2
     obj.data.materials.append(mat)
+    if uv_scale is not None:
+        scale_uvs(obj, uv_scale[0], uv_scale[1])
     return obj
 
 # ---------- 尺寸常量 (照旧版) ----------
@@ -219,7 +291,7 @@ CANOPY_OBJS = []
 
 # ---------- 顶板 (厚板, 不是纸片) ----------
 roof = add_box("CanopyRoof", (ROOF_L, ROOF_W, ROOF_T), ROOF_C, MAT_ROOF,
-               rot_x=TILT, bevel=0.02)
+               rot_x=TILT, bevel=0.02, uv_scale=(ROOF_L / 2.0, ROOF_W / 2.0))
 CANOPY_OBJS.append(roof)
 
 # ---------- 顶板分块接缝: 沿长边每 2m 一道, 薄板条, 略深一号金属 ----------
@@ -330,15 +402,18 @@ for o in imported:
     bpy.data.objects.remove(o, do_unlink=True)
 
 # ---------- 渲染预览 ----------
-scene = bpy.context.scene
-scene.render.engine = 'BLENDER_EEVEE_NEXT'
-scene.render.resolution_x = 640
-scene.render.resolution_y = 360
-scene.render.resolution_percentage = 100
-scene.eevee.taa_render_samples = 16
-scene.render.filepath = PNG
-scene.render.image_settings.file_format = 'PNG'
-bpy.ops.render.render(write_still=True)
+# 本地不渲染（2026-11-22 用户决定：预览全部走 GitHub Actions）；
+# 带 `-- export-only` 运行时跳过本段，只存 .blend + 出 .glb。
+if "export-only" not in sys.argv and "--export-only" not in sys.argv:
+    scene = bpy.context.scene
+    scene.render.engine = 'BLENDER_EEVEE_NEXT'
+    scene.render.resolution_x = 640
+    scene.render.resolution_y = 360
+    scene.render.resolution_percentage = 100
+    scene.eevee.taa_render_samples = 16
+    scene.render.filepath = PNG
+    scene.render.image_settings.file_format = 'PNG'
+    bpy.ops.render.render(write_still=True)
 
 blend1 = BLEND + "1"
 if os.path.exists(blend1):
