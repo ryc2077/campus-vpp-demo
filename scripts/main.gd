@@ -7,6 +7,7 @@ const DistInteriorScene := preload("res://scenes/dist_interior.tscn")
 const StorageInteriorScene := preload("res://scenes/storage_interior.tscn")
 const PvDetailScene := preload("res://scenes/pv_detail.tscn")
 const ChargeDetailScene := preload("res://scenes/charge_detail.tscn")
+const GlbLoader = preload("res://scripts/glb_loader.gd")
 
 var campus_data: Dictionary = {}
 var strat_data: Dictionary = {}
@@ -30,6 +31,8 @@ var _pending_exit := false
 var _panel_ms := 0
 var _t := 0.0
 var _shot_mode := false
+var _url_params := {} # ?scene=&wx=&hour=&fallback=&close=…：_ready 开头解析一次，build 前置开关用
+var _close_cam := false # ?close=1：储能场景改用柜面近拍机位（截图验收用）
 var _freeze_u := -1.0 # ?freeze=0..1：冻结在飞行进度 u 处（慢速/逐帧检查缓动与弧线）
 var _glass_mode := "auto" # ?glass=0 关闭 / low 低质量 / high 高质量 / auto（窄屏自动降质）
 var _reduced := false # 减弱动效：停闪电/云漂移/树摆（P3-4），由 _set_reduced_motion 设置
@@ -96,6 +99,14 @@ func _ready() -> void:
 	scenes_data = DataLoader.load_json("res://data/scenes.json")
 	# 当前天气：可变字典，仿真与教室模型共用同一份引用
 	current_wx = (weather_data["presets"]["sunny"] as Dictionary).duplicate()
+	# URL 参数必须在 campus.build() 之前解析：?fallback=1 要赶在 GLB 加载前
+	# 置起 GlbLoader.force_fallback，否则回退演练来不及生效；?close=1 只记
+	# 标志，机位在 _enter_instant 里用。天气/时刻等仍由 _apply_url_params
+	# 在后面按同一份 _url_params 应用，不重复解析。
+	_url_params = _parse_url_params()
+	if str(_url_params.get("fallback", "")) in ["1", "true", "on"]:
+		GlbLoader.force_fallback = true
+	_close_cam = _url_params.has("close")
 	_rebuild_sim()
 	cls_model = ClassroomModel.new(classroom_data, current_wx, sim.price_at, sim.sun_shape)
 	_rebuild_classroom()
@@ -204,24 +215,35 @@ func _setup_ui() -> void:
 	)
 	panel.back_pressed.connect(func() -> void: exit_scene())
 
+## URL 查询参数解析（web 才有；非 web 返回空字典）。_ready 开头调一次，
+## _apply_url_params 复用结果，不重复解析。
+func _parse_url_params() -> Dictionary:
+	var params := {}
+	if not OS.has_feature("web"):
+		return params
+	var search: String = str(JavaScriptBridge.eval("window.location.search"))
+	if search == "" or search == "null":
+		return params
+	for part in search.trim_prefix("?").split("&"):
+		var kv := part.split("=")
+		if kv.size() == 2:
+			params[kv[0]] = kv[1]
+	return params
+
 func _apply_url_params() -> void:
 	# 调试图：?scene=pv&wx=rain&hour=12&shot=1（shot=1 时直接落位、不飞行动画，供截图验收）
 	# ?freeze=0.5：冻结在飞行中段（慢速/逐帧检查）；?slowmo=3：飞行时长 ×3；
 	# ?reduced=1：减弱动效（等价于 prefers-reduced-motion）。
+	# ?fallback=1：全部 GLB 加载失败、走程序化回退（回退分支演练截图用）；
+	# ?close=1：储能场景改用柜面近拍机位（流光点验收用）。这两项在 _ready
+	# 开头已按 _url_params 生效，这里只应用天气/时刻/场景等常规参数。
 	if not OS.has_feature("web"):
 		return
 	# 系统减弱动效偏好：飞行改直接落位、面板只做透明度变化（review-animations 无障碍项）
 	var rm: Variant = JavaScriptBridge.eval("window.matchMedia('(prefers-reduced-motion: reduce)').matches")
 	if str(rm) == "true":
 		_set_reduced_motion(true)
-	var search: String = str(JavaScriptBridge.eval("window.location.search"))
-	if search == "" or search == "null":
-		return
-	var params := {}
-	for part in search.trim_prefix("?").split("&"):
-		var kv := part.split("=")
-		if kv.size() == 2:
-			params[kv[0]] = kv[1]
+	var params := _url_params
 	if params.has("reduced"):
 		_set_reduced_motion(true)
 	if params.has("slowmo"):
@@ -319,6 +341,12 @@ func _snap_to(cam: Dictionary) -> void:
 
 ## 测试模式：直接落位、不飞行动画。
 func _enter_instant(key: String) -> void:
+	# 直接落位 supersede 之前未完成的飞行入场：_snap_to 会 cancel_flight，
+	# 若不清空 _pending_entry，下一帧 _process 会把 _finish_entry 抢跑、
+	# 机位被抢回上一个场景（verify 里 enter_scene("dist") 后再
+	# _enter_instant("storage") 即复现：机位回到配电房）。
+	_pending_entry = ""
+	_pending_exit = false
 	if key == "overview":
 		_snap_to(scenes_data["overview"]["cam"])
 		return
@@ -339,10 +367,21 @@ func _enter_instant(key: String) -> void:
 		sto_interior.visible = true
 	elif key == "pv":
 		pv_detail.visible = true
-	_snap_to(sc["cam"])
-	if sc.has("limits"):
-		rig.set_limits(sc["limits"])
+	if key == "storage" and _close_cam:
+		# 柜面近拍：正对 3 台电池柜前脸（世界 x 61.6–64.8、前脸 z −29.5），
+		# 流光点 z −29.36 正贴柜面。dist 5m、目标柜面中心 (63.2, 1.4, −29.4)；
+		# limits 的 dist 下限 8m 会把机位钳回 8m，近拍改用放宽的副本
+		#（只改运行时 limits，不动 data/scenes.json）。
+		_snap_to({"az": 0.0, "el": 0.18, "dist": 5.0, "target": [63.2, 1.4, -29.4]})
+		var lim: Dictionary = (sc.get("limits", {}) as Dictionary).duplicate(true)
+		lim["dist"] = [3.0, 36.0]
+		rig.set_limits(lim)
 		rig.arm_limits(true)
+	else:
+		_snap_to(sc["cam"])
+		if sc.has("limits"):
+			rig.set_limits(sc["limits"])
+			rig.arm_limits(true)
 	ui.set_scene_active(key)
 	_setup_glass() # 场景栏仍走实色底（不恢复玻璃）
 	_refresh_panel()
@@ -573,7 +612,19 @@ func _update_visuals(st: Dictionary, delta: float) -> void:
 		sto_interior.update_frame(float(st["batt"]), _t, delta)
 	if pv_detail.visible:
 		pv_detail.update_frame(float(st["pv"]), float(current_wx.get("pv_factor", 1.0)), _t)
-	chg_detail.update_frame(float(st["ev"]), hour, _t, float(current_wx.get("pv_factor", 1.0)))
+	# V2G 弧线只在总览与充电区可见。弧线是充电区→储能站的跨场景能量流，
+	# 旧版 chg_detail 常驻可见、每帧都更新，进储能/光伏/教室/配电房内景
+	# 也照画——run 45232401156 的 02-storage.png 里斜穿柜体的那束橙色
+	# 细线 + 黄色球就是它（charge_detail.gd：0.12m 细基线 + r0.22 橙色
+	# #fb923c 流光点，从 (44,2,76) 贝塞尔到 (64,3,−30)，终点正在储能柜），
+	# 不是阳光射线：阳光射线只在 pv_detail 里（储能场景 pv_detail.visible
+	# = false，且射线是 2.2m 宽的半透明带，形态与 01-pv 里的四条宽带一致，
+	# 与储能图里的细线完全不同）。总览保留弧线（_setup_interiors 注释的
+	# 原设计意图：总览可见跨校园能量流），充电区保留，内景不再画。
+	var _arc_scene := active_scene == "" or active_scene == "charge"
+	chg_detail.visible = _arc_scene
+	if _arc_scene:
+		chg_detail.update_frame(float(st["ev"]), hour, _t, float(current_wx.get("pv_factor", 1.0)))
 	if dist_interior.visible:
 		dist_interior.set_load_rate(float(st["grid"]) / 3000.0)
 

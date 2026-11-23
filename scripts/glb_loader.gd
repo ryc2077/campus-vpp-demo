@@ -18,8 +18,17 @@ const SCENES := {
 }
 
 static var _results: Dictionary = {} # path -> bool（是否加载成功）
+## 回退演练开关：为真时 load_glb 一律返回 null（调用方走程序化回退），
+## 不读磁盘、不改名 GLB。由 main.gd 在 campus.build() 之前按 URL 参数
+## ?fallback=1 置起（web 截图用）；无头验证可直接赋值演练。
+## 正常截图不传该参数，开关默认关，GLB 正常加载。
+static var force_fallback := false
 
 static func load_glb(path: String) -> Node3D:
+	if force_fallback:
+		_results[path] = false
+		push_warning("[GlbLoader] 回退演练：force_fallback 开，跳过 %s，调用方将回退到程序化模型" % path)
+		return null
 	var packed := ResourceLoader.load(path, "PackedScene") as PackedScene
 	if packed == null:
 		_results[path] = false

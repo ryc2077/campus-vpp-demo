@@ -80,6 +80,18 @@ func _process(_delta: float) -> bool:
 			_chk("场景页（配电房）：场景栏玻璃关、实色 fallback 开", not _bar_glass2.visible and _bar_fb2.visible, str(_bar_glass2.visible) + "/" + str(_bar_fb2.visible))
 			var panel2 = _main.get_node("UI/ScenePanel")
 			_chk("配电房面板宽 ≤372（不撑出屏）", panel2.size.x <= 372.0, str(panel2.size))
+			# 储能近拍机位（?close=1）下一 phase 量：先置开关再 _enter_instant，
+			# 等几帧让 rig._process 按放宽的 limits 钳制定位后再量。
+			_main._close_cam = true
+			_main.call("_enter_instant", "storage")
+			_phase = 3
+		return false
+	if _phase == 3:
+		if _frames >= 13:
+			var _rig = _main.rig
+			_chk("储能近拍机位：dist 5m（不是默认 17m）", absf(_rig.dist - 5.0) < 0.01, str(_rig.dist))
+			_chk("储能近拍机位：目标柜面中心 (63.2, 1.4, −29.4)", _rig.target.is_equal_approx(Vector3(63.2, 1.4, -29.4)), str(_rig.target))
+			_chk("储能近拍机位：正对柜面 az=0", absf(_rig.az) < 0.01, str(_rig.az))
 			print("VERIFY-SUMMARY: PASS=", _passes, " FAIL=", _fails)
 			quit(1 if _fails > 0 else 0)
 		return false
@@ -295,6 +307,46 @@ func _process(_delta: float) -> bool:
 	_chk("阴天 V2G 弧线基线显示", (chg.arc_segs[0] as MeshInstance3D).visible, str((chg.arc_segs[0] as MeshInstance3D).visible))
 	chg.call("update_frame", 10.0, 12.0, 0.0, 0.15)
 	_chk("暴雨 V2G 弧线隐藏", not (chg.arc_dots[0] as MeshInstance3D).visible, str((chg.arc_dots[0] as MeshInstance3D).visible))
+	chg.call("update_frame", 10.0, 12.0, 0.0, 1.0)
+	_chk("晴天 12:00 V2G 弧线流光点显示（雨天对照的阳性对照）", (chg.arc_dots[0] as MeshInstance3D).visible, str((chg.arc_dots[0] as MeshInstance3D).visible))
+	_chk("晴天 12:00 V2G 弧线基线显示", (chg.arc_segs[0] as MeshInstance3D).visible, str((chg.arc_segs[0] as MeshInstance3D).visible))
+	# ---- 覆盖补拍：储能放电时段流光点（验收缺口 3）----
+	# 仿真：12:00 待机 batt=0（柜面无流光点，旧截图即此态）；10:00 峰段放电
+	# batt=+100kW（唯一放电窗口 10:00–10:30，SOC 0.90→0.556 触保留线停）；
+	# 23:00 谷段充电 −80kW 是夜里，不适合截图。故近拍取 hour=10 放电态。
+	var _batt10: float = float((_main.sim.state_at(10.0) as Dictionary)["batt"])
+	var _batt12: float = float((_main.sim.state_at(12.0) as Dictionary)["batt"])
+	_chk("10:00 储能放电 batt=+100kW（流光点近拍时刻）", _batt10 > 1.0, str(_batt10))
+	_chk("12:00 储能待机 batt=0（旧截图柜面无流光点的原因）", absf(_batt12) <= 1.0, str(_batt12))
+	if sto != null:
+		sto.call("update_frame", _batt10, 5.0, 0.016)
+		_chk("放电时流光点可见（贴柜面）", (sto.flow_dots[0] as MeshInstance3D).visible, str((sto.flow_dots[0] as MeshInstance3D).visible))
+		sto.call("update_frame", _batt12, 5.0, 0.016)
+		_chk("待机时流光点隐藏", not (sto.flow_dots[0] as MeshInstance3D).visible, str((sto.flow_dots[0] as MeshInstance3D).visible))
+	# ---- V2G 弧线场景门控（run 45232401156 的 02-storage 斜穿细线）----
+	# 那束橙色细线 + 黄球不是阳光射线：阳光射线在 pv_detail 里、储能场景
+	# pv_detail.visible=false，且射线是 2.2m 宽带（01-pv 的四条宽带）；
+	# 储能图里是 0.12m 细基线 + r0.22 #fb923c 流光点、从 (44,2,76) 到
+	# (64,3,−30)，正是 charge_detail 的弧线。弧线只留总览与充电区。
+	#（用 state_at(_main.hour) 调 _update_visuals：它会顺带按 SOC 重算机架条
+	# 位置，后面的 SOC 条检查按同一 hour 的 SOC 算期望值，用 12:00 会污染。）
+	_main.active_scene = "storage"
+	_main.call("_update_visuals", _main.sim.state_at(_main.hour), 0.016)
+	_chk("V2G 弧线：储能场景不画（不再斜穿柜体）", not _main.chg_detail.visible, str(_main.chg_detail.visible))
+	_main.active_scene = "charge"
+	_main.call("_update_visuals", _main.sim.state_at(_main.hour), 0.016)
+	_chk("V2G 弧线：充电区场景仍画", _main.chg_detail.visible, str(_main.chg_detail.visible))
+	_main.active_scene = ""
+	_main.call("_update_visuals", _main.sim.state_at(_main.hour), 0.016)
+	_chk("V2G 弧线：总览仍画（跨校园能量流的原设计意图）", _main.chg_detail.visible, str(_main.chg_detail.visible))
+	# ---- 回退演练开关 ?fallback=1（验收缺口 5：S1/S3/S5 演练截图用）----
+	# 开关在 GlbLoader.load_glb 入口，不改名/不移走 GLB 文件；main.gd 在
+	# campus.build() 之前按 URL 参数置起，正常截图默认关。
+	GlbLoader.force_fallback = true
+	_chk("回退演练开关：force_fallback 时 load_glb 返回 null", GlbLoader.load_glb("res://assets/models/scenes/storage.glb") == null, "")
+	_chk("回退演练开关：was_loaded 记 false（调用方走程序化回退）", not GlbLoader.was_loaded("storage"), str(GlbLoader.was_loaded("storage")))
+	GlbLoader.force_fallback = false
+	_chk("回退演练开关：main.gd 在 build 前解析 fallback（赶在 GLB 加载前）", main_src.find("force_fallback") >= 0 and main_src.find("_parse_url_params") >= 0, "")
 	# ---- 回退分支修补：S1 储能壳落底 / S3 车落底+车轮 / S5 顶层窗不埋屋顶 ----
 	var cb = _main.campus
 	_chk("S1 储能外壳底 0.40 落在基座顶", cb != null and absf((cb.storage_shell[0] as MeshInstance3D).position.y - 2.20 - 0.40) < 0.001, str((cb.storage_shell[0] as MeshInstance3D).position.y) if cb != null else "null")
