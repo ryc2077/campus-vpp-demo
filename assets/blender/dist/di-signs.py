@@ -7,7 +7,11 @@
 # 编号牌: 6 台配电柜门上各 1 块 0.2x0.12m 蓝底白框, 对齐 di-cabinets 柜子
 #         中心 x=-6/-3.6/-1.2/+1.2/+3.6/+6, 贴柜门南面 y~4.08, z=1.35
 #         (柜门面 y=4.085, 仪表窗 z 1.6~1.9, 把手 z 1.05~1.09, 编号牌放中间空位)
-# 牌面用薄板 + 彩色边框条做, 不用文字纹理, 文字用色块示意
+# 牌面用薄板 + 彩色边框条做, 不用文字纹理; 牌面文字是真实 Text 对象
+# (bpy.data.curves.new type 'FONT'), 随牌导出进 GLB, 不再是占位色块
+# 字体: 工程 tools/fonts/NotoSansSC-static.ttf (全量, 10MB; 注意 assets/fonts/
+# NotoSansSC-Regular.ttf 是子集, 经 fontTools 核查缺 危/险/止/人 四字, 会出方框, 不能用)
+# 系统备用: /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
 # 只做标识牌: 不做配电柜/变压器/母线线缆/墙面地面
 # 材质只用 Principled BSDF
 # 渲染: 本地不渲染, 预览图走 GitHub Actions 出图; 本脚本只做建模→存盘→导出→回读验证
@@ -95,35 +99,92 @@ def add_box(name, dims, loc, mat, bevel=0.0):
         bev.limit_method = 'ANGLE'
     return ob
 
+def add_text(name, body, size, loc, quat, mat, fit_width=None,
+             fit_height=None, space_line=1.0):
+    """真实文字: Font 曲线对象, 贴牌面表面 (origin 离牌面 0.0015m, 挤出
+    0.0005m, 最远 0.002m, 防 z-fighting); 字色与底色对比鲜明 (红牌/蓝标
+    白字, 白牌红字). quat 由 to_track_quat 给出: 局部 -Z 沿视线反方向,
+    局部 Y 尽量朝世界 +Z (字正, 阅读方向正确).
+    字号自校准: Blender 字号与字宽不是 1:1 (实测 size=1.0 时 4 字中文宽
+    仅 1.3725m, 约 0.343x), 所以建完按实测尺寸把 size 缩放到目标宽度
+    (约牌面宽度的 70%) / 高度, 不靠字号换算猜."""
+    cu = bpy.data.curves.new(name, type='FONT')
+    cu.body = body
+    cu.font = FONT
+    cu.size = size
+    cu.align_x = 'CENTER'
+    cu.align_y = 'CENTER'
+    cu.extrude = 0.0005
+    cu.space_line = space_line
+    ob = bpy.data.objects.new(name, cu)
+    bpy.context.collection.objects.link(ob)
+    ob.location = loc
+    ob.rotation_mode = 'QUATERNION'
+    ob.rotation_quaternion = quat
+    cu.materials.append(mat)
+    if fit_width or fit_height:
+        bpy.context.view_layer.update()
+        w, h = ob.dimensions.x, ob.dimensions.y  # 局部 X=行向, Y=字高向
+        s = cu.size
+        if fit_width and w > 1e-6:
+            # 以宽度为准缩放到目标宽; 高度只作上限 (超了再按高度往下压)
+            s = s * fit_width / w
+            if fit_height and h > 1e-6:
+                h_after_w = h * (s / cu.size)
+                if h_after_w > fit_height:
+                    s = s * fit_height / h_after_w
+        elif fit_height and h > 1e-6:
+            # 只给高度时以高度为准 (单个数字: 字高受牌面高度限制)
+            s = s * fit_height / h
+        cu.size = s
+        bpy.context.view_layer.update()
+        print("text fit:", name, "size", round(cu.size, 3),
+              "dims", tuple(round(v, 3) for v in ob.dimensions))
+    return ob
+
+# 字体: 全量思源黑体 (核查过: 高压危险/禁止合闸/有人工作/数字全覆盖)
+FONT_PATH = BASE + "/tools/fonts/NotoSansSC-static.ttf"
+if not os.path.exists(FONT_PATH):
+    FONT_PATH = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
+FONT = bpy.data.fonts.load(FONT_PATH)
+print("di-signs font:", FONT_PATH)
+
+# 朝南牌面 (北墙牌 / 编号牌): 字面法线 -Y, 字顶 +Z, 阅读方向 +X (向东)
+QUAT_SOUTH = Vector((0.0, 1.0, 0.0)).to_track_quat('-Z', 'Y')
+# 朝西牌面 (东墙牌): 字面法线 -X, 字顶 +Z, 阅读方向 -Y (向南, 观者右手向)
+QUAT_WEST = Vector((1.0, 0.0, 0.0)).to_track_quat('-Z', 'Y')
+
 objs = []
 
-# ---------- 墙面警示牌 1: 北墙 "高压危险", 红底 + 黄边 + 白字色块 ----------
+# ---------- 墙面警示牌 1: 北墙 "高压危险", 红底 + 黄边 + 白字 ----------
 # 边框底板 (黄, 稍大一圈, 贴墙): 0.66 x 0.015 x 0.46, y 4.798~4.813
 objs.append(add_box("Warn_Border", (0.66, 0.015, 0.46), (0.0, 4.805, 2.4), YELLOW_MAT, bevel=0.003))
-# 牌面 (红): 0.6 x 0.02 x 0.4, y 4.78~4.80
+# 牌面 (红): 0.6 x 0.02 x 0.4, y 4.78~4.80; 南面 y=4.78, 文字 origin y=4.7785
 objs.append(add_box("Warn_Plate", (0.6, 0.02, 0.4), (0.0, 4.79, 2.4), RED_MAT, bevel=0.003))
-# 白字色块示意: 上行宽条 + 下行两条短条, 贴牌面南侧 y~4.778
-objs.append(add_box("Warn_Text1", (0.46, 0.008, 0.11), (0.0, 4.778, 2.47), WHITE_MAT))
-objs.append(add_box("Warn_Text2", (0.30, 0.008, 0.04), (0.0, 4.778, 2.32), WHITE_MAT))
-objs.append(add_box("Warn_Text3", (0.30, 0.008, 0.04), (0.0, 4.778, 2.26), WHITE_MAT))
+objs.append(add_text("Warn_Text", "高压危险", 0.105, (0.0, 4.7785, 2.4),
+                     QUAT_SOUTH, WHITE_MAT, fit_width=0.42, fit_height=0.30))
 
-# ---------- 墙面警示牌 2: 东墙 "禁止合闸 有人工作", 白底 + 红边 + 红字色块 ----------
+# ---------- 墙面警示牌 2: 东墙 "禁止合闸 有人工作", 白底 + 红边 + 红字 ----------
 # 边框底板 (红, 稍大一圈, 贴墙): 0.015 x 0.66 x 0.46, x 7.798~7.813
 objs.append(add_box("NoClose_Border", (0.015, 0.66, 0.46), (7.805, 0.0, 2.4), RED_MAT, bevel=0.003))
-# 牌面 (白): 0.02 x 0.6 x 0.4, x 7.78~7.80
+# 牌面 (白): 0.02 x 0.6 x 0.4, x 7.78~7.80; 西面 x=7.78, 文字 origin x=7.7785
 objs.append(add_box("NoClose_Plate", (0.02, 0.6, 0.4), (7.79, 0.0, 2.4), WHITE_MAT, bevel=0.003))
-# 红字色块示意: 三行横条, 贴牌面西侧 x~7.778
-objs.append(add_box("NoClose_Text1", (0.008, 0.44, 0.07), (7.778, 0.0, 2.49), RED_MAT))
-objs.append(add_box("NoClose_Text2", (0.008, 0.44, 0.07), (7.778, 0.0, 2.38), RED_MAT))
-objs.append(add_box("NoClose_Text3", (0.008, 0.30, 0.07), (7.778, 0.0, 2.27), RED_MAT))
+# 两行: "禁止合闸" / "有人工作", 每行宽 0.42m (占牌面长边 0.6m 的 70%),
+# 行距 0.8, 整块高约 0.34m, 在 0.4m 牌面内
+objs.append(add_text("NoClose_Text", "禁止合闸\n有人工作", 0.105, (7.7785, 0.0, 2.4),
+                     QUAT_WEST, RED_MAT, fit_width=0.42, fit_height=0.34,
+                     space_line=0.8))
 
 # ---------- 设备编号牌 6 块: 柜门上, 蓝底白框, 贴门面南侧 ----------
-# 柜门面 y=4.085; 边框底板 y 4.080~4.092, 牌面 y 4.069~4.084, 白字条 y 4.066~4.070
+# 柜门面 y=4.085; 边框底板 y 4.080~4.092, 牌面 y 4.069~4.084, 南面 y=4.0695, 文字 origin y=4.068
+# 牌面 0.20x0.12m, 单个数字: 以高度为准 (字高约 0.075m, 占牌面高 62%),
+# 宽度由字形决定 (约 0.04m), 不硬撑 70% 宽度
 for i, cx in enumerate((-6.0, -3.6, -1.2, 1.2, 3.6, 6.0)):
     tag = "Num%d" % (i + 1)
     objs.append(add_box("%s_Border" % tag, (0.24, 0.012, 0.16), (cx, 4.082, 1.35), WHITE_MAT, bevel=0.002))
     objs.append(add_box("%s_Plate" % tag, (0.20, 0.015, 0.12), (cx, 4.077, 1.35), BLUE_MAT, bevel=0.002))
-    objs.append(add_box("%s_Text" % tag, (0.12, 0.006, 0.035), (cx, 4.068, 1.35), WHITE_MAT))
+    objs.append(add_text("%s_Text" % tag, "%d" % (i + 1), 0.10, (cx, 4.068, 1.35),
+                         QUAT_SOUTH, WHITE_MAT, fit_height=0.075))
 
 print("di-signs objects:", len(objs), [o.name for o in objs])
 
@@ -206,6 +267,15 @@ for ob in imported:
             print("GLB material:", m.name,
                   "base:", tuple(round(v, 3) for v in
                                  m.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value[:3]))
+# 文字对象核查: 8 个文字对象 (Warn/NoClose/Num1-6) 必须随牌进 GLB,
+# 且字宽符合设计 (Warn/NoClose 每行宽 0.42m, 占 0.6m 牌面 70%; 数字高 0.075m)
+text_objs = [ob for ob in imported
+             if ob.name.split(".")[0].endswith("_Text")]  # 回读名带 .001 后缀
+print("GLB text objects:", len(text_objs), [ob.name for ob in text_objs])
+assert len(text_objs) == 8, "glb text missing: expected 8, got %d" % len(text_objs)
+for ob in text_objs:
+    print("GLB text dims:", ob.name,
+          tuple(round(v, 3) for v in ob.dimensions))
 # 删掉回读的副本, 恢复干净场景
 bpy.ops.object.select_all(action='DESELECT')
 for ob in imported:

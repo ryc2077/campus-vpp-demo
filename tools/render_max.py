@@ -282,6 +282,50 @@ def _output_base(scene):
     return scene.render.filepath
 
 
+def _flat_direction(cluster, whole_centre):
+    """Viewing direction for a flat cluster: along its thin axis (the
+    dominant plane's normal), from the face side, slightly above.
+
+    Sign: toward the whole-piece centre projected on the thin axis.
+    When that projection is near zero (di-signs N row: cluster centre
+    and whole centre share y=4.44, so 'toward centre' is degenerate
+    and used to point along the wall instead of at the sign faces)
+    fall back to toward the scene origin, i.e. the room interior the
+    signs face (2026-11-23 N-cluster fix).
+    """
+    cmins, cmaxs = _objects_bbox(cluster)
+    csize = cmaxs - cmins
+    centre = (cmins + cmaxs) * 0.5
+    thin = min(range(3), key=lambda i: csize[i])
+    axis = Vector((0.0, 0.0, 0.0))
+    axis[thin] = 1.0
+    s = (whole_centre - centre)[thin]
+    if abs(s) < 0.1:
+        s = -centre[thin]  # toward the scene origin along the thin axis
+    if s < 0:
+        axis = -axis
+    return Vector((axis.x, axis.y, 0.35))
+
+
+def _subdivide_flat_row(cluster):
+    """Split a flat, essentially 1-D cluster (a row of wall signs) into
+    per-plate subclusters so each plate fills its own still instead of
+    the whole 12m row sharing one ~20m-away camera (di-signs N,
+    2026-11-23: blue plates ~15x8px, unreadable). Only when the longest
+    dimension is >4x the second-longest (a row, not a sheet) and
+    gap-grouping with a 0.5m gap yields 2..8 pieces; otherwise the
+    cluster is returned unchanged."""
+    cmins, cmaxs = _objects_bbox(cluster)
+    csize = cmaxs - cmins
+    dims = sorted(csize, reverse=True)
+    if dims[0] <= 4.0 * max(dims[1], 1e-6):
+        return [cluster]
+    subs = _clusters(cluster, gap=0.5)
+    if 2 <= len(subs) <= 8:
+        return subs
+    return [cluster]
+
+
 def _ensure_camera(scene):
     """Make sure the scene has an active camera that shows the piece.
 
@@ -298,9 +342,10 @@ def _ensure_camera(scene):
     is rendered as its own still (<name>-<cluster>.png) at max quality,
     and the main <name>.png keeps the largest cluster's view.
     Flat clusters (wall signs: one bbox dimension far smaller than the
-    others) are viewed from the room side -- from the cluster toward
-    the whole-piece centre -- so the camera sees the sign faces, not
-    their backs through the wall.
+    others) are viewed along their thin axis from the face side (see
+    _flat_direction); a flat cluster that is really one long row is
+    split into per-plate stills (see _subdivide_flat_row) so a 12m row
+    does not share one far-away camera.
     Otherwise a single automatic camera frames the whole piece.
     """
     objs = _subject_objects(scene)
@@ -323,37 +368,53 @@ def _ensure_camera(scene):
         # Sparse multi-cluster piece: one still per cluster.
         base = _output_base(scene)
         stem = base[:-1] if base.endswith("_") else base
-        labels = [_cluster_label(c, clusters) for c in clusters]
         whole_mins, whole_maxs = _objects_bbox(objs)
         whole_centre = (whole_mins + whole_maxs) * 0.5
+        # Flat rows split into per-plate stills (di-signs N: 1 cluster of
+        # 23 objects along 12m of wall -> Warn + Num1..Num6); each
+        # subcluster inherits its parent's face direction so all plates
+        # in one row are viewed from the same (room) side. Cap at 8
+        # stills total; more than that falls back to undivided clusters.
+        work = []  # (subcluster, parent cluster)
+        flat_dirs = {}  # id(parent cluster) -> viewing direction
+        for c in clusters:
+            cmins, cmaxs = _objects_bbox(c)
+            csize = cmaxs - cmins
+            if min(csize) < 0.25 * max(csize):
+                flat_dirs[id(c)] = _flat_direction(c, whole_centre)
+            work.extend((sub, c) for sub in _subdivide_flat_row(c))
+        if len(work) > 8:
+            work = [(c, c) for c in clusters]
+        labels = [_cluster_label(w[0], [x[0] for x in work])
+                  for w in work]
         order = sorted(
-            range(len(clusters)),
-            key=lambda i: -(_objects_bbox(clusters[i])[1]
-                            - _objects_bbox(clusters[i])[0]).length)
+            range(len(work)),
+            key=lambda i: -(_objects_bbox(work[i][0])[1]
+                            - _objects_bbox(work[i][0])[0]).length)
         main_cam = None
         for idx in order:
-            cmins, cmaxs = _objects_bbox(clusters[idx])
+            sub, parent = work[idx]
+            cmins, cmaxs = _objects_bbox(sub)
             csize = cmaxs - cmins
             direction = None
             if min(csize) < 0.25 * max(csize):
-                # flat cluster: face it from the piece-centre side
-                to_centre = whole_centre - (cmins + cmaxs) * 0.5
-                flat = Vector((to_centre.x, to_centre.y, 0.0))
-                if flat.length > 0.1:
-                    direction = Vector((flat.x, flat.y, 0.75))
-            ccam = _fit_camera(scene, clusters[idx],
+                # flat (sub)cluster: face it along its thin axis from the
+                # parent row's face side (see _flat_direction), not the
+                # 3/4 view and not from behind the wall
+                direction = flat_dirs.get(id(parent))
+            ccam = _fit_camera(scene, sub,
                                "PreviewCamera_" + labels[idx], direction)
             scene.camera = ccam
             if main_cam is None:
                 main_cam = ccam
             scene.render.filepath = stem + "-" + labels[idx]
             print(f"render_max: rendering cluster {labels[idx]} "
-                  f"({len(clusters[idx])} objects) -> "
+                  f"({len(sub)} objects) -> "
                   f"{scene.render.filepath}.png")
             bpy.ops.render.render(write_still=True)
         scene.camera = main_cam
         scene.render.filepath = base
-        print(f"render_max: sparse piece: {len(clusters)} cluster renders "
+        print(f"render_max: sparse piece: {len(work)} cluster renders "
               f"({', '.join(labels)}), main view = largest cluster")
         return
     print(f"render_max: whole-piece framing, frame share {whole_area:.3f}")
