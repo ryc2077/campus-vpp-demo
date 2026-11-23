@@ -214,18 +214,25 @@ ground.data.materials.append(ground_mat)
 print("ASSEMBLY ground 340x340 @z=-0.05 color=#69b45e")
 
 # 3b. 池塘水面椭圆盘：Godot [82,78] rx11 rz8 -> Blender (82,-78)，
-#     rx=11（x），ry=8（y）；圆柱顶面 z=0.10、底面 z=-0.02。
+#     rx=11（x），ry=8（y）；圆柱顶面 z=0.05、底面 z=-0.07。
 #     campus.json 无 pond 颜色，水面蓝 #2F7FC4 为拼装自选。
+#     2026-11-24 池塘压路修补：旧顶面 0.10 高出南环路路面顶 0.08，
+#     水面南半（y -84~-76 一段，约 161.8m²）盖住路面与路缘下部；
+#     只把水面下沉 0.05m（顶 0.05，低于路面 0.08 / 黄线 0.105 /
+#     路缘 0.12，高出地面 -0.05），椭圆形状/中心/尺寸一字未动，
+#     ov-road-main 未动，SPEC 尺寸未动。
 #     返工：水纹理（均值 #2F7FC4），2m 一重复。
 pond_mat = pbr_mat("OV_ASSEMBLY_pond_mat", "PondWater")
 bpy.ops.mesh.primitive_cylinder_add(vertices=48, radius=1.0, depth=0.12,
-                                    location=(82.0, -78.0, 0.04))
+                                    location=(82.0, -78.0, -0.01))
 pond = bpy.context.active_object
 pond.name = "OV_ASSEMBLY_pond"
 pond.scale = (11.0, 8.0, 1.0)
 bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
 pond.data.materials.append(pond_mat)
-print("ASSEMBLY pond ellipse center=(82,-78) rx=11 ry=8 top z=0.10 color=#2F7FC4")
+pond_top = pond.location.z + pond.dimensions.z / 2.0
+assert pond_top < 0.08, "pond top %.3f not below road top 0.08" % pond_top
+print("ASSEMBLY pond ellipse center=(82,-78) rx=11 ry=8 top z=%.2f color=#2F7FC4 (below road top 0.08)" % pond_top)
 
 # 池塘草坪不再下移：ov-lawn.py 撒点已排除水面椭圆（含 1m 边距），环形带
 # 上的草丛扎在草坪底板顶面 z=0.05、丛高 0.15-0.35m，不再穿出水面；
