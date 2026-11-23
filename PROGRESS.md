@@ -515,5 +515,5 @@ CPU 与内存，负载一度 31，内存只剩约 300MB–1GB，期间还发生�
   - `scene_panel.gd`：记 `_shell_btn`，新增 `set_shell_open()`（`set_pressed_no_signal` + 改文案，不触发 toggled、不重复调开关）。
   - `tools/verify_fixes.gd`：新增/改 9 项检查（GLB 关态 alpha 1.0 + 透明关 ×4、左锚定填充、底槽 GLB/回退两路、条色与壳同口径、面板文案同步 ×2；GLB 关态旧期望 0.35 已改）。
 - 验证（本地，Godot 4.4）：4 脚本 `--check-only` 零报错；`verify_fixes.gd` 无头跑 **PASS=89 FAIL=0**（回退分支；GLB 分支本地未执行，GLB 材质未导入，以 Actions 为准）。
-- 推送：commit `1ad9af7a`（5 文件，HEAD 已核对），触发 godot-verify（run 待父代理 watch）。
-- 还剩：视觉验收待下次 Actions 截图（开壳 0.22 下条子是否像条、56% 是否绿 + 56% 填充、关态盒子是否不透明、面板文案是否与壳态一致）；S2 PCS 柜埋入、S4 SOC 条悬空 0.06m、流光点与条子 Y 2.025–2.375 段重叠仍未修。
+- 推送：commit `1ad9af7a`（5 文件，HEAD 已核对），触发 godot-verify。Actions run [45226479162](https://github.com/ryc2077/campus-vpp-demo/actions/runs/45226479162)（Godot verify + export，head_sha `1ad9af7a`）：**success**（2026-11-24 01:37 CST 完成，唯一 job verify-export 全绿）；VERIFY-SUMMARY **PASS=103 FAIL=0**，与预期一致（94 + 本次新增 9 项）；新增 9 项检查在 Actions 日志里全部执行通过（GLB 关态 alpha 1.0 + 透明关、左锚定填充、底槽 GLB/回退两路、条色与壳同口径、面板文案同步 ×2）。Web 导出 artifact `godot-web-export` 389,680,438 B，截图 artifact `godot-screenshots` 7,069,030 B（截图尚未目视验收）。
+- 还剩：视觉验收待目视本次 run 的截图（开壳 0.22 下条子是否像条、56% 是否绿 + 56% 填充、关态盒子是否不透明、面板文案是否与壳态一致，截图 artifact `godot-screenshots` 7,069,030 B 已出）；S2 PCS 柜埋入、S4 SOC 条悬空 0.06m、流光点与条子 Y 2.025–2.375 段重叠仍未修。
