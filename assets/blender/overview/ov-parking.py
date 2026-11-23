@@ -134,7 +134,12 @@ def make_worn_white(name, hexstr="#F2F2F2"):
 
 
 def make_paint(name, hexstr):
-    """车漆：Principled，Noise 粗糙度 0.35 +/- 0.08，轻 Bump（同 ch-cars v2）。"""
+    """车漆：Principled，Noise 粗糙度 0.35 +/- 0.08，轻 Bump（同 ch-cars v2）。
+    2026-11-24 返工 R1（验收 run #72：本件车漆根本无 clearcoat——060877f4
+    只给 ch-cars 挂了清漆，ov-parking 的 make_paint 从没设 Coat，且
+    _apply_pbr 挂图时也不会补；GLB 实测无 KHR_materials_clearcoat）：
+    make_car 里挂图后补 Coat Weight 1.0 / Coat Roughness 0.05（与 ch-cars
+    同口径），底漆粗糙度仍由 Paint* rough 贴图驱动。"""
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
     ntree = mat.node_tree
@@ -149,16 +154,20 @@ def make_paint(name, hexstr):
 def make_glass(name):
     """车窗玻璃：透明材质（Alpha 0.65、粗糙度低），与 ov-gate 的
     Glass_Reflective 做法一致。v2 的 Transmission 0.9 + Glass BSDF
-    混合导出后是 OPAQUE（alpha 1.0），Godot 里不透明，改回 Alpha 混合。"""
+    混合导出后是 OPAQUE（alpha 1.0），Godot 里不透明，改回 Alpha 混合。
+    2026-11-24 返工 R1（验收 run #72：车窗纯色平板）：加细噪波 Bump
+    （scale 20、strength 0.10）给窗面纹理/反光变化，粗糙度 0.06→0.05；
+    Alpha 混合不动，Godot 里仍透明。"""
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
     ntree = mat.node_tree
     bsdf = ntree.nodes["Principled BSDF"]
     bsdf.inputs["Base Color"].default_value = srgb_to_linear("#9FC3D8")
-    bsdf.inputs["Roughness"].default_value = 0.06
+    bsdf.inputs["Roughness"].default_value = 0.05
     bsdf.inputs["Metallic"].default_value = 0.0
     bsdf.inputs["Alpha"].default_value = 0.65
     bsdf.inputs["Specular IOR Level"].default_value = 1.0
+    _noise_bump(ntree, bsdf, scale=20.0, strength=0.10)
     mat.surface_render_method = "DITHERED"
     return mat
 
@@ -422,6 +431,11 @@ def make_car(tag, color_hex, cx, cy, rot_z_deg):
     mat_body = make_paint("ov-parking_body_" + tag, color_hex)
     # 车漆挂图（返工）：细噪波车漆纹理，颜色即车身色
     _apply_pbr(mat_body, "Paint" + tag.capitalize())
+    # 返工 R1：挂图后补清漆（_apply_pbr 只动 Base Color/Roughness/Normal，
+    # Coat 默认值须另设；此前从未设过，GLB 里无 clearcoat）
+    _paint_bsdf = mat_body.node_tree.nodes["Principled BSDF"]
+    _paint_bsdf.inputs["Coat Weight"].default_value = 1.0
+    _paint_bsdf.inputs["Coat Roughness"].default_value = 0.05
     UV_TILE[mat_body] = 1.0
     parts = []
     # 车身 4.5 x 1.8 x 0.55，中心 z 0.60，倒角
@@ -504,6 +518,17 @@ for _o in objs:
     _ensure_uv(_o)
     _scale_uvs_to_meters(_o, _tile)
 print("UV scaled to meters for textured mats")
+
+# ---- 材质校验（返工 R1 防回归）：3 台车漆须带 clearcoat ----
+for _m in [m for m in bpy.data.materials
+           if m.name.startswith("ov-parking_body_")]:
+    _b = _m.node_tree.nodes["Principled BSDF"]
+    assert abs(_b.inputs["Coat Weight"].default_value - 1.0) < 1e-6, \
+        f"{_m.name}: Coat Weight != 1.0"
+    assert abs(_b.inputs["Coat Roughness"].default_value - 0.05) < 1e-6, \
+        f"{_m.name}: Coat Roughness != 0.05"
+print("MATERIAL CHECK PASS: car paint clearcoat Coat Weight 1.0 / "
+      "Coat Roughness 0.05")
 
 # ---- save .blend ----
 os.makedirs(PY_DIR, exist_ok=True)

@@ -64,16 +64,21 @@ def make_paint(name, hexstr):
     2026-11-24 返工：参数化车漆——Metallic 0.15 / Roughness 0.35 不变（仍不
     链接，保证 glTF factor 保留），加清漆层 Coat Weight 1.0 / Coat Roughness
     0.15（glTF KHR_materials_clearcoat），珠光片只走细颗粒 Bump（scale 40、
-    strength 0.10）。不贴平铺纹理：碎砖式平铺会毁车漆面。"""
+    strength 0.10）。不贴平铺纹理：碎砖式平铺会毁车漆面。
+    2026-11-24 返工 R1（验收 run #72：GLB 里 clearcoat 明明在，EEVEE 预览仍
+    全哑光——根因是预览只有单太阳+纯色平坦世界，清漆层无物可映、0.15 的
+    涂层高光又被 0.35 的底漆粗糙度冲淡，见汇报；Godot 04-charge 远景也看
+    不出光泽）：Coat Roughness 0.15→0.05、底漆 Roughness 0.35→0.25，
+    清漆高光更锐更亮，Godot 侧同向变亮，不改色、不改结构。"""
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
     ntree = mat.node_tree
     bsdf = ntree.nodes["Principled BSDF"]
     bsdf.inputs["Base Color"].default_value = srgb_to_linear(hexstr)
     bsdf.inputs["Metallic"].default_value = 0.15
-    bsdf.inputs["Roughness"].default_value = 0.35
+    bsdf.inputs["Roughness"].default_value = 0.25
     bsdf.inputs["Coat Weight"].default_value = 1.0
-    bsdf.inputs["Coat Roughness"].default_value = 0.15
+    bsdf.inputs["Coat Roughness"].default_value = 0.05
     _noise_bump(ntree, bsdf, scale=40.0, strength=0.10)
     return mat
 
@@ -289,10 +294,10 @@ for _m in [m for m in bpy.data.materials
     if _m.name.startswith("ch-cars_body_"):
         assert abs(_bsdf.inputs["Coat Weight"].default_value - 1.0) < 1e-6, \
             f"{_m.name}: Coat Weight != 1.0"
-        assert abs(_bsdf.inputs["Coat Roughness"].default_value - 0.15) < 1e-6, \
-            f"{_m.name}: Coat Roughness != 0.15"
+        assert abs(_bsdf.inputs["Coat Roughness"].default_value - 0.05) < 1e-6, \
+            f"{_m.name}: Coat Roughness != 0.05"
 print("MATERIAL CHECK PASS: car paint + hub have solid Base Color + Roughness; "
-      "car paint clearcoat Coat Weight 1.0 / Coat Roughness 0.15")
+      "car paint clearcoat Coat Weight 1.0 / Coat Roughness 0.05")
 
 # ---- lighting / world (SPEC section 2) ----
 world = bpy.data.worlds.new("ch-cars_world")

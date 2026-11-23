@@ -12,8 +12,11 @@
 #   墙面: Noise 涂料斑驳 + 近地面水渍深浅, 粗糙度/Bump 有变化
 #   地面: Noise 防滑颗粒 + Voronoi 细裂纹 + 大尺度磨损
 #   警戒黄线: 边缘斑驳磨损; 踢脚线: 轻微噪波; 天花板: 轻微噪波
-#   注意: 程序化 Noise/Voronoi 节点只保存在 .blend 里供渲染用,
-#   glTF 导出器不导出程序化纹理, GLB 里只保留底色/粗糙度默认值。
+#   注意: 程序化 Noise/Voronoi 节点是纹理的生成源, 只存在于脚本里;
+#   glTF 导出器不导出程序化纹理 (链上出现不支持节点就整条丢弃,
+#   底色/粗糙度回退成白/1.0, 实测如此), 所以建模后把五种材质
+#   烘焙成图片纹理 (color/rough/normal), .blend 与 .glb 里用图片
+#   纹理节点, Godot 才能看到纹理。烘焙图在 di-walls_textures/。
 # 渲染新规矩: 全部走 GitHub Actions, 本地不渲染、不出预览图。
 import bpy
 import math
@@ -122,15 +125,17 @@ def _finish(mat, color_node, rough_node, bump_node):
         _link(nt, bump_node, "Normal", bsdf, "Normal")
 
 # ---------- 墙面纹理: 涂料斑驳 + 近地面水渍 ----------
+# 2026-11-24 返工（验收 run #72：墙面云纹过淡）: 斑驳 Ramp 收窄、污渍色加深、
+#   水渍色加深、Bump 加倍，烘焙后墙面云纹在预览里清晰可见。
 def tex_wall(mat):
     nt = mat.node_tree
     tc, mp = _texcoord_mapped(nt, 3.0)
-    # 大尺度斑驳: Noise -> Ramp(0.45~0.75) -> 底色/污渍色混合
+    # 大尺度斑驳: Noise -> Ramp(0.30~0.60) -> 底色/污渍色混合
     n1 = _noise(nt, 3.0, 2.0, 0.7)
     _link(nt, mp, "Vector", n1, "Vector")
-    r1 = _ramp(nt, [(0.45, 0.0), (0.75, 1.0)])
+    r1 = _ramp(nt, [(0.30, 0.0), (0.60, 1.0)])
     _link(nt, n1, "Fac", r1, "Fac")
-    mix1 = _mix(nt, "#F3E9D2", "#DCCFA9", r1)
+    mix1 = _mix(nt, "#F3E9D2", "#C9B586", r1)
     # 近地面水渍: Z 越低越重 (0~0.25m 渐变) x 细 Noise
     sep = nt.nodes.new("ShaderNodeSeparateXYZ")
     _link(nt, tc, "Generated", sep, "Vector")
@@ -152,7 +157,7 @@ def tex_wall(mat):
     mix2 = nt.nodes.new("ShaderNodeMixRGB")
     mix2.blend_type = 'MIX'
     mix2.inputs[1].default_value = (*hex_to_linear("#F3E9D2"), 1.0)
-    mix2.inputs[2].default_value = (*hex_to_linear("#C4B48C"), 1.0)
+    mix2.inputs[2].default_value = (*hex_to_linear("#AF9C6B"), 1.0)
     _link(nt, mix1, "Color", mix2, 1)
     _link(nt, mult, "Value", mix2, 0)
     # 粗糙度 0.78~0.95, Bump 细颗粒
@@ -161,7 +166,7 @@ def tex_wall(mat):
     rough = _rough_map(nt, n3, 0.78, 0.95)
     n4 = _noise(nt, 14.0, 3.0, 0.6)
     _link(nt, mp, "Vector", n4, "Vector")
-    bump = _bump(nt, n4, 0.12, 0.03)
+    bump = _bump(nt, n4, 0.20, 0.03)
     _finish(mat, mix2, rough, bump)
 
 # ---------- 地面纹理: 防滑颗粒 + 细裂纹 + 磨损 ----------
@@ -232,21 +237,24 @@ def tex_skirt(mat):
     _finish(mat, mix1, rough, bump)
 
 # ---------- 天花板纹理: 轻微噪波 ----------
+# 2026-11-24 返工（验收 run #72：天花板顶面在预览里是大面积纯白平板）:
+#   顶面即预览所见“屋顶”，与墙面同级纹理：噪波混合强度 0.25→0.6、第二色
+#   加深到 #C6C6C6、Ramp 收窄、Bump 0.06→0.15，烘焙后顶面可见云纹。
 def tex_ceiling(mat):
     nt = mat.node_tree
     tc, mp = _texcoord_mapped(nt, 4.0)
     n1 = _noise(nt, 4.0, 2.0, 0.7)
     _link(nt, mp, "Vector", n1, "Vector")
-    r1 = _ramp(nt, [(0.40, 0.0), (0.70, 1.0)])
+    r1 = _ramp(nt, [(0.30, 0.0), (0.60, 1.0)])
     _link(nt, n1, "Fac", r1, "Fac")
-    fw = _scale_fac(nt, r1, "Color", 0.25)
-    mix1 = _mix(nt, "#E8E8E8", "#D8D8D8", fw, "Value")
+    fw = _scale_fac(nt, r1, "Color", 0.6)
+    mix1 = _mix(nt, "#E8E8E8", "#C6C6C6", fw, "Value")
     n3 = _noise(nt, 8.0, 2.0, 0.7)
     _link(nt, mp, "Vector", n3, "Vector")
     rough = _rough_map(nt, n3, 0.85, 0.95)
     n4 = _noise(nt, 8.0, 2.0, 0.6)
     _link(nt, mp, "Vector", n4, "Vector")
-    bump = _bump(nt, n4, 0.06, 0.02)
+    bump = _bump(nt, n4, 0.15, 0.02)
     _finish(mat, mix1, rough, bump)
 
 FLOOR_MAT = make_material("Floor_Epoxy", "#B9B3A8", 0.9, 0.0)
@@ -312,6 +320,88 @@ objs.append(add_box("Warning_Line_East", (0.1, 1.9, 0.01), (6.00, 0.5, 0.005), Y
 objs.append(add_box("Warning_Line_West", (0.1, 1.9, 0.01), (-6.00, 0.5, 0.005), YELLOW_MAT))
 
 print("di-walls objects:", len(objs), [o.name for o in objs])
+
+# ---------- 烘焙程序化纹理为图片 (glTF 无法导出 Noise/Voronoi) ----------
+# 流程: 每种材质选其全部对象 -> Cycles 烘焙 color/rough/normal 三张图
+# (diffuse 只取 color 通道, 不带光照) -> 重建材质为图片纹理节点。
+# 立方体自带 UV (每面 0~1), 噪波类纹理可直接烘焙, 无需重展 UV。
+TEX_DIR = BASE + "/assets/blender/dist/di-walls_textures"
+os.makedirs(TEX_DIR, exist_ok=True)
+_bake_scene = bpy.context.scene
+
+def _bake_images(mat, mat_objs, color_size):
+    nt = mat.node_tree
+    imgs = {}
+    specs = [("color", 'DIFFUSE', color_size, 'sRGB'),
+             ("rough", 'ROUGHNESS', 512, 'Non-Color'),
+             ("normal", 'NORMAL', 512, 'Non-Color')]
+    bpy.ops.object.select_all(action='DESELECT')
+    for ob in mat_objs:
+        ob.select_set(True)
+    bpy.context.view_layer.objects.active = mat_objs[0]
+    _bake_scene.render.engine = 'CYCLES'
+    _bake_scene.cycles.device = 'CPU'
+    _bake_scene.cycles.samples = 4
+    bake = _bake_scene.render.bake
+    bake.use_selected_to_active = False
+    bake.margin = 4
+    for key, btype, size, cs in specs:
+        img = bpy.data.images.new("%s_%s" % (mat.name, key),
+                                  width=size, height=size, alpha=False)
+        img.colorspace_settings.name = cs
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = img
+        nt.nodes.active = tex
+        if btype == 'DIFFUSE':
+            bake.use_pass_direct = False
+            bake.use_pass_indirect = False
+            bake.use_pass_color = True
+        elif btype == 'NORMAL':
+            bake.normal_space = 'TANGENT'
+        bpy.ops.object.bake(type=btype)
+        img.filepath_raw = os.path.join(TEX_DIR, "%s_%s.png" % (mat.name, key))
+        img.file_format = 'PNG'
+        img.save()
+        imgs[key] = img
+        nt.nodes.remove(tex)
+        print("baked:", mat.name, key, img.filepath_raw,
+              os.path.getsize(img.filepath_raw))
+    _bake_scene.render.engine = 'BLENDER_EEVEE_NEXT'
+    return imgs
+
+def _rebuild_with_images(mat, imgs):
+    nt = mat.node_tree
+    for n in list(nt.nodes):
+        nt.nodes.remove(n)
+    bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    bsdf.inputs["Base Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+    bsdf.inputs["Roughness"].default_value = 1.0
+    bsdf.inputs["Metallic"].default_value = 0.0
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    nt.links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
+    tex_c = nt.nodes.new("ShaderNodeTexImage")
+    tex_c.image = imgs["color"]
+    nt.links.new(tex_c.outputs["Color"], bsdf.inputs["Base Color"])
+    tex_r = nt.nodes.new("ShaderNodeTexImage")
+    tex_r.image = imgs["rough"]
+    nt.links.new(tex_r.outputs["Color"], bsdf.inputs["Roughness"])
+    tex_n = nt.nodes.new("ShaderNodeTexImage")
+    tex_n.image = imgs["normal"]
+    nmap = nt.nodes.new("ShaderNodeNormalMap")
+    nmap.space = 'TANGENT'
+    nt.links.new(tex_n.outputs["Color"], nmap.inputs["Color"])
+    nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+
+_by_mat = {}
+for _ob in objs:
+    _by_mat.setdefault(_ob.data.materials[0], []).append(_ob)
+_baked = {}
+for _mat, _m_objs in _by_mat.items():
+    _size = 1024 if _mat.name in ("Floor_Epoxy", "Wall_Cream") else 512
+    _baked[_mat.name] = _bake_images(_mat, _m_objs, _size)
+for _mat in _by_mat:
+    _rebuild_with_images(_mat, _baked[_mat.name])
+print("bake done, materials rebuilt with image textures")
 
 # ---------- lighting (SPEC §2; 仅供 GH Actions 渲染用, 本地不渲染) ----------
 # 太阳光: 能量 3.5, 从西南来, 仰角约 50°, 开阴影
@@ -386,11 +476,10 @@ for ob in imported:
     for slot in ob.material_slots:
         m = slot.material
         if m and m.use_nodes:
-            bsdf = m.node_tree.nodes.get("Principled BSDF")
-            if bsdf:
-                print("GLB reimport mat:", ob.name, m.name,
-                      "base_color=", tuple(round(v, 4) for v in bsdf.inputs["Base Color"].default_value),
-                      "roughness=", round(bsdf.inputs["Roughness"].default_value, 3))
+            imgs = [n.image.name for n in m.node_tree.nodes
+                    if n.type == 'TEX_IMAGE' and n.image is not None]
+            print("GLB reimport mat:", ob.name, m.name, "images:", imgs)
+            assert len(imgs) >= 3, "glb material lost baked textures: %s" % m.name
 assert len(imported) == len(objs), "glb reimport failed: expected %d objects, got %d" % (len(objs), len(imported))
 # 删掉回读的副本, 恢复干净场景
 bpy.ops.object.select_all(action='DESELECT')
