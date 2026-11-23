@@ -8,9 +8,12 @@
 #   ov-parking 的 3 个 EMPTY（ov-parking_blue/grey/red）是 3 辆车的父级，
 #   必须保留，否则车身子物体会丢变换。
 # 拼装补齐（场景内新建，名前缀 OV_ASSEMBLY_，不是单件）：
-#   地面 340x340 #69b45e（campus.json ground）；池塘水面椭圆盘
-#   （campus.json pond [82,78] rx11 rz8 -> Blender (82,-78)）；配电房外壳
-#   （campus.json buildings.dist [48,-30] 16x10 高 8m color #dfe9f2）。
+#   地面 340x340 草地纹理（Grass004 亮度映射到 SPEC 草地绿 #69b45e，
+#   均值即 #69B45E，不再是平色；campus.json ground）；池塘水面椭圆盘
+#   （campus.json pond [82,78] rx11 rz8 -> Blender (82,-78)，水纹理）；
+#   配电房外壳（campus.json buildings.dist [48,-30] 16x10 高 8m，
+#   Plaster001 映射到 #dfe9f2；屋顶 grey_roof_01 映射到深灰 #424A52）。
+#   拼装件贴图在 assets/blender/scenes/overview_textures/（返工挂图）。
 # 缺口：户外变压器（campus.json transformer [74,-30]）无 Blender 件，留空。
 # 绿地重叠：实测 ov-dorm 的 dorm_lawn_between 与 ov-lawn 在宿舍区无 XY
 #   重叠（见脚本内检查打印），不做高差调整，调整量 0。
@@ -20,6 +23,7 @@
 import bpy
 import os
 import datetime
+import numpy as _np
 from mathutils import Vector
 
 _d = os.path.abspath(__file__)
@@ -63,6 +67,79 @@ def hex_mat(name, hexcolor, rough=0.85):
     bsdf.inputs["Base Color"].default_value = (r, g, b, 1.0)
     bsdf.inputs["Roughness"].default_value = rough
     return mat
+
+
+TEX_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                       "overview_textures")
+
+
+def _load_img(path, colorspace):
+    img = bpy.data.images.load(path)
+    img.colorspace_settings.name = colorspace
+    return img
+
+
+def pbr_mat(name, set_name, rough_scalar=None):
+    """拼装件 PBR 材质（返工）：下载 CC0 贴图经亮度映射到 SPEC 色后挂图，
+    与各件的 _apply_pbr 同做法；颜色/粗糙/法线三图，贴图在
+    assets/blender/scenes/overview_textures/。"""
+    mat = bpy.data.materials.get(name)
+    if mat is None:
+        mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    bsdf = nt.nodes.get("Principled BSDF")
+    out = nt.nodes.get("Material Output")
+    for n in list(nt.nodes):
+        if n not in (bsdf, out):
+            nt.nodes.remove(n)
+    for link in list(nt.links):
+        if link.to_node is bsdf:
+            nt.links.remove(link)
+    bsdf.inputs["Base Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+    c = os.path.join(TEX_DIR, set_name + "_color.png")
+    if os.path.exists(c):
+        t = nt.nodes.new("ShaderNodeTexImage")
+        t.image = _load_img(c, "sRGB")
+        nt.links.new(t.outputs["Color"], bsdf.inputs["Base Color"])
+    r = os.path.join(TEX_DIR, set_name + "_rough.png")
+    if os.path.exists(r):
+        t = nt.nodes.new("ShaderNodeTexImage")
+        t.image = _load_img(r, "Non-Color")
+        nt.links.new(t.outputs["Color"], bsdf.inputs["Roughness"])
+        bsdf.inputs["Roughness"].default_value = 1.0
+    elif rough_scalar is not None:
+        bsdf.inputs["Roughness"].default_value = rough_scalar
+    n = os.path.join(TEX_DIR, set_name + "_normal.png")
+    if os.path.exists(n):
+        t = nt.nodes.new("ShaderNodeTexImage")
+        t.image = _load_img(n, "Non-Color")
+        nm = nt.nodes.new("ShaderNodeNormalMap")
+        nm.space = "TANGENT"
+        nt.links.new(t.outputs["Color"], nm.inputs["Color"])
+        nt.links.new(nm.outputs["Normal"], bsdf.inputs["Normal"])
+    return mat
+
+
+def _scale_uvs_to_meters(obj, tile):
+    """每面按世界尺寸把 UV 缩放到 tile 米一重复（REPEAT 平铺）。"""
+    me = obj.data
+    if me is None or len(me.uv_layers) == 0:
+        return
+    uv = me.uv_layers.active.data
+    mw = obj.matrix_world
+    for poly in me.polygons:
+        idx = list(poly.loop_indices)
+        P = _np.array([mw @ me.vertices[me.loops[i].vertex_index].co
+                       for i in idx], dtype=float)
+        U = _np.array([[uv[i].uv[0], uv[i].uv[1]] for i in idx], dtype=float)
+        A = _np.column_stack([_np.ones(len(idx)), U])
+        coef, *_ = _np.linalg.lstsq(A, P, rcond=None)
+        su = _np.linalg.norm(coef[1]) / tile
+        sv = _np.linalg.norm(coef[2]) / tile
+        for i in idx:
+            u, v = uv[i].uv
+            uv[i].uv = (u * su, v * sv)
 
 
 def world_bbox(obj):
@@ -126,7 +203,8 @@ else:
 # ---------- 3. 拼装补齐（场景内新建，OV_ASSEMBLY_ 前缀） ----------
 # 3a. 地面 340x340，campus.json ground color #69b45e；顶面 z=-0.05，
 #     避开各件 z=0 的底面共面（防 z-fighting），视觉上仍为地面。
-ground_mat = hex_mat("OV_ASSEMBLY_ground_mat", "#69b45e", 0.95)
+#     返工：Grass004 亮度映射到 #69B45E 的草地纹理，4m 一重复，不再平色。
+ground_mat = pbr_mat("OV_ASSEMBLY_ground_mat", "GroundGrass")
 bpy.ops.mesh.primitive_plane_add(size=340.0, location=(0.0, 0.0, -0.05))
 ground = bpy.context.active_object
 ground.name = "OV_ASSEMBLY_ground"
@@ -136,7 +214,8 @@ print("ASSEMBLY ground 340x340 @z=-0.05 color=#69b45e")
 # 3b. 池塘水面椭圆盘：Godot [82,78] rx11 rz8 -> Blender (82,-78)，
 #     rx=11（x），ry=8（y）；圆柱顶面 z=0.10、底面 z=-0.02。
 #     campus.json 无 pond 颜色，水面蓝 #2F7FC4 为拼装自选。
-pond_mat = hex_mat("OV_ASSEMBLY_pond_mat", "#2F7FC4", 0.25)
+#     返工：水纹理（均值 #2F7FC4），2m 一重复。
+pond_mat = pbr_mat("OV_ASSEMBLY_pond_mat", "PondWater")
 bpy.ops.mesh.primitive_cylinder_add(vertices=48, radius=1.0, depth=0.12,
                                     location=(82.0, -78.0, 0.04))
 pond = bpy.context.active_object
@@ -157,8 +236,10 @@ print("ASSEMBLY pond grass buried -0.5m: %s" % (buried,))
 
 # 3c. 配电房外壳：campus.json buildings.dist，Godot [48,-30] -> Blender
 #     (48,30)，16x10，高 8m，color #dfe9f2；屋顶板深灰 #424A52（SPEC §3）。
-dist_mat = hex_mat("OV_ASSEMBLY_dist_mat", "#dfe9f2", 0.85)
-roof_mat = hex_mat("OV_ASSEMBLY_dist_roof_mat", "#424A52", 0.8)
+#     返工：墙体 Plaster001 映射到 #dfe9f2、屋顶 grey_roof_01 映射到
+#     #424A52，均 2m 一重复。
+dist_mat = pbr_mat("OV_ASSEMBLY_dist_mat", "DistPlaster")
+roof_mat = pbr_mat("OV_ASSEMBLY_dist_roof_mat", "DistRoofDark")
 bpy.ops.mesh.primitive_cube_add(size=1.0, location=(48.0, 30.0, 4.0))
 dist = bpy.context.active_object
 dist.name = "OV_ASSEMBLY_dist_body"
@@ -170,6 +251,14 @@ dist_roof.name = "OV_ASSEMBLY_dist_roof"
 dist_roof.dimensions = (16.6, 10.6, 0.3)
 dist_roof.data.materials.append(roof_mat)
 print("ASSEMBLY dist body 16x10x8 @ (48,30) color=#dfe9f2 + roof slab 16.6x10.6x0.3")
+
+# 返工：拼装件 UV 按米缩放（贴图按 tile 米一重复平铺）。
+bpy.context.view_layer.update()
+_scale_uvs_to_meters(ground, 4.0)
+_scale_uvs_to_meters(pond, 2.0)
+_scale_uvs_to_meters(dist, 2.0)
+_scale_uvs_to_meters(dist_roof, 2.0)
+print("ASSEMBLY UV scaled to meters (ground 4m, pond/dist/roof 2m)")
 
 # 缺口：户外变压器 campus.json transformer Godot [74,-30] -> Blender
 # (74,30)，无 Blender 件，留空，不编造。
