@@ -318,26 +318,50 @@ _bg = world.node_tree.nodes["Background"]
 world.node_tree.links.new(_sky.outputs["Color"], _bg.inputs["Color"])
 _bg.inputs["Strength"].default_value = 1.0
 
-bpy.ops.object.light_add(type='SUN', location=(44 - 20, -76 - 20, 25))
+# ---- R3 preview studio (2026-11-24, root cause in BLENDER_MODELS.md §9) ----
+# R2 只留 Nishita 天空仍全哑光，本地最小复现（320x180 像素统计，未出预览图）证实：
+#   1. 世界接线正确（Nishita→Background→Output）、film_transparent=False——不是接法问题；
+#   2. 自动相机俯角约 28°、顶缘视线仍低于地平线约 16°，天空根本不在画面内；
+#   3. EEVEE 里世界直接进清漆环境反射（黑世界→车漆深饱和、白世界→洗白），
+#      反射探针（烘焙/不烘焙）像素变化仅 meanAbs 约 1.0——探针不是缺失环节；
+#   4. 平板车身 + 均匀淡天 → 各面只映出单一淡色，看起来全哑光；
+#   5. 方向太阳打进镜面角时蓝车顶 183→246（镜面路径是通的），但 Coat 0.05 的
+#      窄瓣一次只能亮一辆车。
+# 修法（只改预览环境，不动材质、不进 GLB）：留 Nishita 世界 + 暗色预览地面
+# （填黑洞背景）+ 东南太阳（与 render_max 默认同向，可见面光照不变）+
+# 西北高处一条 24x2m 亮条灯（车顶镜面方向的“摄影棚柔光条”，三车顶均被照亮、
+# 蓝车顶现 186→210 渐变光带）。地面/灯光/太阳均不进 GLB（导出只选 car_objs），
+# 场景拼装也排除（charge.py SKIP_NAMES/SKIP_TYPES）。
+# ---- preview sun: SE, same as render_max default (visible faces lit as R2) ----
+bpy.ops.object.light_add(type='SUN', location=(43, -76, 25))
 sun = bpy.context.active_object
 sun.name = "ch-cars_sun"
 sun.data.energy = 3.5
 sun.data.use_shadow = True
+sun.rotation_euler = (math.radians(50.0), 0.0, math.radians(30.0))
 target = Vector((45, -76, 0.5))
-direction = target - sun.location
-sun.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
 
-# ---- reflection cubemap (preview only, removed before save/export) ----
-bpy.ops.object.lightprobe_add(type='SPHERE', location=(45, -76, 2.5))
-probe = bpy.context.active_object
-probe.name = "ch-cars_probe_tmp"
-
-# ---- ground plane (preview only, removed before save/export) ----
-bpy.ops.mesh.primitive_plane_add(size=40, location=(45, -76, 0))
+# ---- preview ground: dark, fills the below-horizon black void ----
+# 名字 Ground_PreviewOnly：render_max 取景排除、charge.py 拼装排除。
+bpy.ops.mesh.primitive_plane_add(size=80, location=(43, -76, 0))
 ground = bpy.context.active_object
-ground.name = "ch-cars_ground_tmp"
-gmat = make_dark("ch-cars_ground_tmp", "#B9B3A8", roughness=0.95)
+ground.name = "Ground_PreviewOnly"
+gmat = bpy.data.materials.new("ch-cars_preview_ground")
+gmat.use_nodes = True
+_gbsdf = gmat.node_tree.nodes["Principled BSDF"]
+_gbsdf.inputs["Base Color"].default_value = (0.05, 0.05, 0.05, 1.0)
+_gbsdf.inputs["Roughness"].default_value = 0.95
 ground.data.materials.append(gmat)
+
+# ---- preview softbox strip: 24x2m area light, NW-high in the roofs' mirror direction ----
+bpy.ops.object.light_add(type='AREA', location=(20, -45, 18))
+strip = bpy.context.active_object
+strip.name = "ch-cars_softbox"
+strip.data.shape = 'RECTANGLE'
+strip.data.size = 24.0
+strip.data.size_y = 2.0
+strip.data.energy = 15000.0
+strip.rotation_euler = (Vector((43, -76, 1.0)) - strip.location).to_track_quat('-Z', 'Y').to_euler()
 
 # ---- camera: v1 position (all three cars in frame) ----
 bpy.ops.object.camera_add(location=(45 + 16, -76 - 20, 13))
@@ -360,9 +384,10 @@ os.makedirs(os.path.dirname(PNG_PATH), exist_ok=True)
 # bpy.ops.render.render(write_still=True)  # local render disabled, see above
 
 # ---- remove preview-only helpers, keep only the cars ----
-# 注意：world 不删——Nishita 天空是返工 R2 的清漆反光源（见上），须留在 .blend
-# 里供 Actions 预览渲染；render_max 对亮色世界原样保留。太阳/相机/探针仍删。
-for obj in (ground, sun, cam, probe):
+# 注意：world / 太阳 / 地面 / 柔光条都不删——R3 预览环境须留在 .blend 里供
+# Actions 预览渲染（render_max 见 .blend 已有灯光便不再补默认太阳；地面与灯光
+# 不进 GLB、场景拼装也排除）。只删相机（render_max 自动取景）。
+for obj in (cam,):
     bpy.data.objects.remove(obj, do_unlink=True)
 
 # ---- save .blend ----

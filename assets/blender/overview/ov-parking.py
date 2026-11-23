@@ -547,6 +547,45 @@ _bg = _world.node_tree.nodes["Background"]
 _world.node_tree.links.new(_sky.outputs["Color"], _bg.inputs["Color"])
 _bg.inputs["Strength"].default_value = 1.0
 
+# ---- R3 preview studio（2026-11-24，与 ch-cars 同根因同修法，见 BLENDER_MODELS.md §9）----
+# 根因（ch-cars 本地最小复现 320x180 像素统计）：世界接线正确、film_transparent=False；
+# 自动相机俯角约 28°、顶缘视线低于地平线约 16°，天空不在画面内；EEVEE 里世界直接进清漆
+# 环境反射，探针（烘焙/不烘焙）像素变化仅 meanAbs 约 1.0；平板车身 + 均匀淡天 → 各面只映
+# 单一淡色＝看起来全哑光；方向太阳进镜面角时车顶 183→246（镜面路径通），但 Coat 0.05
+# 窄瓣一次只能亮一辆车。修法只改预览环境：留 Nishita 世界 + 暗色预览地面（填黑洞背景，
+# 本件已有沥青 lot、地面只补 lot 外围，z=0 在 lot 顶 0.08 之下、无共面）+ 东南太阳
+# （与 render_max 默认同向）+ 西北高处 24x2m 亮条灯（车顶镜面方向的柔光条；与 ch-cars
+# 相同相对位置：中心 (-30,-90) 偏 NW (-23,+31,+17)）。地面/灯光/太阳不进 GLB（导出只选
+# objs），总览拼装也排除（overview.py 删 LIGHT/LIGHT_PROBE/含 preview 的名字）。
+# ---- preview ground: dark, fills the below-horizon black void outside the lot ----
+bpy.ops.mesh.primitive_plane_add(size=80, location=(LOT_CX, LOT_CY, 0))
+_ground = bpy.context.active_object
+_ground.name = "Ground_PreviewOnly"
+_gmat = bpy.data.materials.new("ov-parking_preview_ground")
+_gmat.use_nodes = True
+_gbsdf = _gmat.node_tree.nodes["Principled BSDF"]
+_gbsdf.inputs["Base Color"].default_value = (0.05, 0.05, 0.05, 1.0)
+_gbsdf.inputs["Roughness"].default_value = 0.95
+_ground.data.materials.append(_gmat)
+
+# ---- preview sun: SE, same as render_max default ----
+bpy.ops.object.light_add(type='SUN', location=(LOT_CX, LOT_CY, 25))
+_sun = bpy.context.active_object
+_sun.name = "ov-parking_sun"
+_sun.data.energy = 3.5
+_sun.data.use_shadow = True
+_sun.rotation_euler = (math.radians(50.0), 0.0, math.radians(30.0))
+
+# ---- preview softbox strip: 24x2m area light, NW-high in the roofs' mirror direction ----
+bpy.ops.object.light_add(type='AREA', location=(LOT_CX - 23, LOT_CY + 31, 18))
+_strip = bpy.context.active_object
+_strip.name = "ov-parking_softbox"
+_strip.data.shape = 'RECTANGLE'
+_strip.data.size = 24.0
+_strip.data.size_y = 2.0
+_strip.data.energy = 15000.0
+_strip.rotation_euler = (Vector((LOT_CX, LOT_CY, 1.0)) - _strip.location).to_track_quat('-Z', 'Y').to_euler()
+
 # ---- save .blend ----
 os.makedirs(PY_DIR, exist_ok=True)
 os.makedirs(os.path.dirname(GLB_PATH), exist_ok=True)
