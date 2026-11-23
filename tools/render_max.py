@@ -7,6 +7,7 @@
 # so only then does scene.render.filepath already hold the -o value
 # when this script runs (2026-11-23 cluster-path fix; see _output_base).
 import math
+import os
 import sys
 
 import bpy
@@ -20,6 +21,30 @@ _MESH_TYPES = {'MESH', 'CURVE', 'SURFACE', 'FONT', 'META',
 # would otherwise swallow the road net).
 _PREVIEW_PREFIXES = ('PREVIEW', 'Preview')
 _PREVIEW_NAMES = {'Ground_PreviewOnly'}
+
+# Detail (close-up) framing for the four pieces flagged in acceptance
+# run #72 / 45227196322 (2026-11-24, non-blocking observation): their
+# subjects are small/thin and spread over a large whole-piece bbox, so a
+# whole-bbox camera leaves them at <5% of the frame (cl-ac 0.046,
+# ov-flag-lamp 0.002, pv-mount 0.22 bbox share but hairline rails,
+# ch-piles 0.13 as a 11.4m row of 0.6m piles). For these pieces ONLY,
+# the main still frames the largest unit -- one AC / the south-gate
+# flag group / one roof's mount array / one pile -- instead of the whole
+# bbox. No extra stills are emitted, so the artifact count stays 55.
+# Everything else keeps the existing whole-piece / cluster behaviour.
+_DETAIL_FRAMING = {'cl-ac', 'ov-flag-lamp', 'pv-mount', 'ch-piles'}
+# Dark-grey worlds that a detail piece needs brightened to sky so a dark
+# subject reads: pv-mount's steel rails on its dark-grey world were
+# unreadable. cl-ac stays dark: its white ACs pop against dark grey.
+_DETAIL_BRIGHT_BG = {'pv-mount'}
+
+
+def _piece_name():
+    """Piece id from the opened .blend filename ('' when unknown)."""
+    path = bpy.data.filepath
+    if not path:
+        return ''
+    return os.path.splitext(os.path.basename(path))[0]
 
 
 def _set(obj, name, value):
@@ -326,6 +351,35 @@ def _subdivide_flat_row(cluster):
     return [cluster]
 
 
+def _frame_detail_view(scene):
+    """Close-up main view for a _DETAIL_FRAMING piece (2026-11-24).
+
+    Picks the largest unit: clusters as-is, except a flat row
+    (ch-piles: 4 piles in an 11.4m row) splits into per-unit
+    subclusters first. Only sets scene.camera; renders nothing, so the
+    piece still produces exactly one main still. Camera distance comes
+    from _fit_camera on the unit's own bbox, so the camera stays well
+    clear of the model (single AC ~6m, single pile ~5m, flag group
+    ~49m, one mount array ~69m -- all several unit-diagonals away).
+    """
+    objs = _subject_objects(scene)
+    work = []
+    for c in _clusters(objs):
+        work.extend(_subdivide_flat_row(c))
+    best, best_diag = None, -1.0
+    for sub in work:
+        bb = _objects_bbox(sub)
+        d = (bb[1] - bb[0]).length
+        if d > best_diag:
+            best, best_diag = sub, d
+    cam = _fit_camera(scene, best, "PreviewCamera")
+    scene.camera = cam
+    _, area, _ = _projected_stats(scene, cam, best)
+    print(f"render_max: detail framing for {_piece_name()}: "
+          f"{len(best)} objects, frame share {area:.3f}")
+    return cam
+
+
 def _ensure_camera(scene):
     """Make sure the scene has an active camera that shows the piece.
 
@@ -337,6 +391,9 @@ def _ensure_camera(scene):
     a few bbox corners at the frame edge (ov-track) is kept. A stale
     camera that fails the test is overridden by the automatic camera
     instead of being trusted.
+    (1b) Detail pieces (see _DETAIL_FRAMING) skip the keep-test: their
+    built-in / whole-bbox view is exactly what acceptance flagged as
+    too far, so they always get the close-up main view.
     (2) If the piece is sparse -- several well-separated clusters whose
     projected share under one whole-bbox camera is <2% -- each cluster
     is rendered as its own still (<name>-<cluster>.png) at max quality,
@@ -349,6 +406,9 @@ def _ensure_camera(scene):
     Otherwise a single automatic camera frames the whole piece.
     """
     objs = _subject_objects(scene)
+    if _piece_name() in _DETAIL_FRAMING:
+        _frame_detail_view(scene)
+        return
     cam = scene.camera
     if cam is not None and cam.type == 'CAMERA':
         frac, area, n_out = _projected_stats(scene, cam, objs)
@@ -461,7 +521,10 @@ def _ensure_world(scene):
                                       out.inputs["Surface"])
     color = bg.inputs["Color"].default_value
     lum = 0.2126 * color[0] + 0.7152 * color[1] + 0.0722 * color[2]
-    if lum < 0.02:
+    # Dark-grey worlds (lum ~0.05, e.g. the factory default) stay dark
+    # for every other piece; only a _DETAIL_BRIGHT_BG piece gets the
+    # sky so its dark subject reads (pv-mount rails, 2026-11-24).
+    if lum < 0.02 or (_piece_name() in _DETAIL_BRIGHT_BG and lum < 0.15):
         bg.inputs["Color"].default_value = (0.65, 0.78, 0.88, 1.0)
         bg.inputs["Strength"].default_value = 1.0
         print("render_max: set world background to sky (was near-black)")
