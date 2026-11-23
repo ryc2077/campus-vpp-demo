@@ -44,8 +44,10 @@ func setup(data: Dictionary, p_sun: DirectionalLight3D, p_env: WorldEnvironment)
 	env.environment.fog_light_color = Color("#cfe0ee")
 	# Fog 0.0009 -> 0.0005 (Round 2)：总览距离 235m 处透过率
 	# exp(-0.0005*235) = 0.89（之前 0.81），地面不再被雾洗白。
+	# F4 返工（2026-11-24）：雾再降到 0.0002——雾色偏蓝（#cfe0ee），
+	# 晴天总览实测 B 通道仍比 SPEC 高约 +40，雾是其中一份。
 	# 与 scenes/main.tscn 的 Environment_main 保持同步。
-	env.environment.fog_density = 0.0005
+	env.environment.fog_density = 0.0002
 	_build_clouds()
 	_build_rain()
 	_build_shadows()
@@ -151,7 +153,15 @@ func update_frame(hour: float, delta: float) -> void:
 	var daylight := clampf(sun_el * 1.7, 0.0, 1.0)
 	var wx_dim: float = 0.45 + 0.55 * float(current.get("pv_factor", 1.0))
 	var lf: float = current.get("light_factor", 1.0)
-	sun.light_energy = (0.18 + 1.2 * daylight) * wx_dim * lf
+	# F4 返工（2026-11-24）：晴天总览地面实测约 #9FFFCD、G 通道截顶，
+	# 远淡于 SPEC #69B45E。根因在 Godot 侧光照，不在贴图：
+	# 地面贴图均值实测正是 #69B45D、UV/法线正确；同 run 回退帧（程序化
+	# 平色地面 #4F9D43）一样洗白，而跑道（#B8543F 采样实测）与楼体
+	# 基本正确、暴雨帧地面色相正确只是偏暗——晴天总光强过高且天光
+	# 偏蓝。标定：晴天总光照约需从 2.3× 降到约 1.0×（SPEC 即反照率），
+	# 其中太阳 1.38→0.83、天光 0.73→0.28；其余天气按同一公式走，
+	# 暴雨会再暗一点（本就偏暗，属可接受的情景对比）。
+	sun.light_energy = (0.18 + 0.65 * daylight) * wx_dim * lf
 	var warm := Color("#ffb347")
 	var noon := Color("#fff3d6")
 	sun.light_color = warm.lerp(noon, daylight)
@@ -171,7 +181,11 @@ func update_frame(hour: float, delta: float) -> void:
 	# 地平线混白 0.35 -> 0.22（Round 2：总览偏淡，天空下半再压一点）；
 	# 雾色混白 0.15 -> 0.08，雾本身也随之少泛白。
 	sky_mat.sky_horizon_color = sky_col.lerp(Color.WHITE, 0.22)
-	env.environment.ambient_light_energy = 0.28 + 0.45 * daylight
+	# F4 返工（2026-11-24）：天光 0.28+0.45*daylight（晴天 0.73）→
+	# 0.12+0.16*daylight（晴天 0.28）。晴天总览地面偏淡的主因之一是
+	# 天光过强且偏蓝（程序化天空的环境光），与太阳 1.38→0.83 配合，
+	# 把晴天总光照从约 2.3× 压回约 1.1×（见上面太阳处的标定注释）。
+	env.environment.ambient_light_energy = 0.12 + 0.16 * daylight
 	env.environment.fog_light_color = sky_col.lerp(Color.WHITE, 0.08)
 	# 云漂移 + 云影（减弱动效时冻结，P3-4）
 	if not reduced_motion:

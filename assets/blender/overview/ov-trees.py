@@ -11,6 +11,12 @@
 #   ④ 所有面都有 Noise + Bump，不许全平
 # v2 新规矩：渲染走 GitHub Actions，本地不渲染、不出预览图
 #   （太阳/世界背景保留进 .blend，相机与渲染块已删）
+# F5 返工（2026-11-24）：ColorRamp 不能进 glTF——之前树冠/树干把灰色噪波图
+#   直接当 baseColorTexture 导出（无 baseColorFactor），Blender 预览里经
+#   ColorRamp 是绿的，Godot 里却是灰白锥体。改法：把每档 ColorRamp 烘成一张
+#   sRGB 彩色噪波贴图（ov-trees_textures/Crown_*_color.png、Trunk_Bark_color.png，
+#   烘焙脚本 assets/blender/overview/bake_trees.py：噪波 t→三档线性插值→线性转 sRGB，
+#   均值与各档 mid 色差 ≤1），Base Color 直连烘焙图；原灰噪波图只留给 Bump。
 # 注意：Principled Base Color / ColorRamp 停靠点全部用线性值，
 #   十六进制 sRGB 先转线性：c<=0.04045 时 c/12.92，否则 ((c+0.055)/1.055)^2.4
 import bpy
@@ -96,10 +102,20 @@ def make_noise_image(name, array):
     return img
 
 
-def make_crown_mat(name, dark_hex, mid_hex, light_hex, noise_img,
+def load_color_image(name):
+    """加载烘焙好的彩色贴图（sRGB，作 Base Color；不要改 Non-Color）。"""
+    path = os.path.join(os.path.dirname(BLEND_PATH), "ov-trees_textures",
+                        name + ".png")
+    img = bpy.data.images.load(path)
+    img.colorspace_settings.name = "sRGB"
+    return img
+
+
+def make_crown_mat(name, dark_hex, mid_hex, light_hex, noise_img, color_img,
                    map_scale=(1.6, 1.6, 1.6), bump_strength=0.5):
-    """树冠材质：噪波贴图 → ColorRamp 深/中/浅三档绿 → Base Color；
-    同贴图进 Bump 做叶簇起伏。Base Color 默认值填中绿，作 GLB 回退色。"""
+    """树冠材质：烘焙彩色噪波贴图直连 Base Color；同灰噪波进 Bump 做叶簇起伏。
+    Base Color 默认值填中绿，作 GLB 回退色。（F5：旧版噪波→ColorRamp→Base Color
+    的做法导出后只剩灰噪波，Godot 里树冠灰白，见文件头注释。）"""
     m = bpy.data.materials.new(name)
     m.use_nodes = True
     nt = m.node_tree
@@ -112,27 +128,24 @@ def make_crown_mat(name, dark_hex, mid_hex, light_hex, noise_img,
     tex = nt.nodes.new("ShaderNodeTexImage")
     tex.image = noise_img
     tex.extension = "REPEAT"
-    ramp = nt.nodes.new("ShaderNodeValToRGB")
-    ramp.color_ramp.elements[0].position = 0.0
-    ramp.color_ramp.elements[0].color = (*hex_to_linear(dark_hex), 1.0)
-    ramp.color_ramp.elements[1].position = 1.0
-    ramp.color_ramp.elements[1].color = (*hex_to_linear(light_hex), 1.0)
-    mid_el = ramp.color_ramp.elements.new(0.5)
-    mid_el.color = (*hex_to_linear(mid_hex), 1.0)
+    col = nt.nodes.new("ShaderNodeTexImage")
+    col.image = color_img
+    col.extension = "REPEAT"
     bump = nt.nodes.new("ShaderNodeBump")
     bump.inputs["Strength"].default_value = bump_strength
     bump.inputs["Distance"].default_value = 0.4
     nt.links.new(texcoord.outputs["Generated"], mapping.inputs["Vector"])
     nt.links.new(mapping.outputs["Vector"], tex.inputs["Vector"])
-    nt.links.new(tex.outputs["Color"], ramp.inputs["Fac"])
-    nt.links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
+    nt.links.new(mapping.outputs["Vector"], col.inputs["Vector"])
+    nt.links.new(col.outputs["Color"], bsdf.inputs["Base Color"])
     nt.links.new(tex.outputs["Color"], bump.inputs["Height"])
     nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     return m
 
 
-def make_trunk_mat(name, dark_hex, mid_hex, light_hex, bark_img):
-    """树干材质：纵纹树皮噪波 → ColorRamp 棕褐深浅 → Base Color + Bump 竖纹。"""
+def make_trunk_mat(name, dark_hex, mid_hex, light_hex, bark_img, color_img):
+    """树干材质：烘焙彩色树皮噪波直连 Base Color + Bump 竖纹。
+    （F5：旧版同树冠，ColorRamp 导出丢失，树干亦灰白。）"""
     m = bpy.data.materials.new(name)
     m.use_nodes = True
     nt = m.node_tree
@@ -145,20 +158,16 @@ def make_trunk_mat(name, dark_hex, mid_hex, light_hex, bark_img):
     tex = nt.nodes.new("ShaderNodeTexImage")
     tex.image = bark_img
     tex.extension = "REPEAT"
-    ramp = nt.nodes.new("ShaderNodeValToRGB")
-    ramp.color_ramp.elements[0].position = 0.0
-    ramp.color_ramp.elements[0].color = (*hex_to_linear(dark_hex), 1.0)
-    ramp.color_ramp.elements[1].position = 1.0
-    ramp.color_ramp.elements[1].color = (*hex_to_linear(light_hex), 1.0)
-    mid_el = ramp.color_ramp.elements.new(0.5)
-    mid_el.color = (*hex_to_linear(mid_hex), 1.0)
+    col = nt.nodes.new("ShaderNodeTexImage")
+    col.image = color_img
+    col.extension = "REPEAT"
     bump = nt.nodes.new("ShaderNodeBump")
     bump.inputs["Strength"].default_value = 0.8
     bump.inputs["Distance"].default_value = 0.15
     nt.links.new(texcoord.outputs["Generated"], mapping.inputs["Vector"])
     nt.links.new(mapping.outputs["Vector"], tex.inputs["Vector"])
-    nt.links.new(tex.outputs["Color"], ramp.inputs["Fac"])
-    nt.links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
+    nt.links.new(mapping.outputs["Vector"], col.inputs["Vector"])
+    nt.links.new(col.outputs["Color"], bsdf.inputs["Base Color"])
     nt.links.new(tex.outputs["Color"], bump.inputs["Height"])
     nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     return m
@@ -178,20 +187,28 @@ bark_img = make_noise_image("BarkNoise", make_bark_noise())
 
 # ---- 材质：树干 1 种；树冠 3 区 × 主/浅变体 = 6 种 ----
 # 绿按鸟瞰图拉开：密植带深绿 / 行道树中绿 / 楼间点缀浅黄绿
-mat_trunk = make_trunk_mat("Trunk_Bark", "#4A2F1C", "#6B4E2E", "#8A6B4A", bark_img)
+# F5：Base Color 用烘焙彩色贴图（load_color_image），灰噪波只进 Bump。
+mat_trunk = make_trunk_mat("Trunk_Bark", "#4A2F1C", "#6B4E2E", "#8A6B4A",
+                           bark_img, load_color_image("Trunk_Bark_color"))
 CROWN_MATS = {
     # (主, 浅变体)：深 / 中 / 浅 三档绿（sRGB 十六进制，转线性后进节点）
     "perimeter": (
-        make_crown_mat("Crown_Perimeter", "#2F6B2A", "#4E8A3F", "#6FA84E", leaf_img),
-        make_crown_mat("Crown_Perimeter_Light", "#3A7A33", "#5C9A48", "#82B85E", leaf_img),
+        make_crown_mat("Crown_Perimeter", "#2F6B2A", "#4E8A3F", "#6FA84E", leaf_img,
+                       load_color_image("Crown_Perimeter_color")),
+        make_crown_mat("Crown_Perimeter_Light", "#3A7A33", "#5C9A48", "#82B85E", leaf_img,
+                       load_color_image("Crown_Perimeter_Light_color")),
     ),
     "road": (
-        make_crown_mat("Crown_Roadside", "#3F7A32", "#5C9A44", "#8AB85C", leaf_img),
-        make_crown_mat("Crown_Roadside_Light", "#4A8540", "#6FAA50", "#9CC46A", leaf_img),
+        make_crown_mat("Crown_Roadside", "#3F7A32", "#5C9A44", "#8AB85C", leaf_img,
+                       load_color_image("Crown_Roadside_color")),
+        make_crown_mat("Crown_Roadside_Light", "#4A8540", "#6FAA50", "#9CC46A", leaf_img,
+                       load_color_image("Crown_Roadside_Light_color")),
     ),
     "scattered": (
-        make_crown_mat("Crown_Scattered", "#557F35", "#7AA84A", "#A8C46A", leaf_img),
-        make_crown_mat("Crown_Scattered_Light", "#648C40", "#8AB85A", "#B8D47A", leaf_img),
+        make_crown_mat("Crown_Scattered", "#557F35", "#7AA84A", "#A8C46A", leaf_img,
+                       load_color_image("Crown_Scattered_color")),
+        make_crown_mat("Crown_Scattered_Light", "#648C40", "#8AB85A", "#B8D47A", leaf_img,
+                       load_color_image("Crown_Scattered_Light_color")),
     ),
 }
 

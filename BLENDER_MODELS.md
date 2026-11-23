@@ -54,7 +54,7 @@
 | ov-lawn | 草坪花坛（大面积草地、门前花坛、灌木球；v3 加密版草） | `_build_ground` 草地部分 | overview | **烘焙完成**（2026-11-23 04:04 CST：Lawn_Green/边框/土面/3 色花/灌木各 3 张，16 分钟；回读 129/129，111,917 tris。6 种草叶程序化保留；烘焙范围含花坛边框等，见 §5.1 待确认项） |
 | ov-flag-lamp | 旗杆路灯（南门广场 3 根旗杆、沿路路灯杆） | `_build_flag_and_gate` | overview | Bump-only |
 | ov-gate | 校门（南门门楼 + 门柱 + 伸缩门示意 + 围墙一段） | `_build_flag_and_gate` | overview | Bump-only |
-| ov-parking | 停车区（南门广场旁停车位划线 + 3 辆简易小车） | Godot 无对应程序化模型（新增细节） | overview | **PBR 已挂**（Paint* 三件套）+ **返工 R1**（2026-11-24，验收 run #72：本件车漆从未挂清漆，GLB 实测无 KHR_materials_clearcoat——060877f4 只给 ch-cars 挂了；make_car 挂图后补 Coat Weight 1.0 / Coat Roughness 0.05，车窗加细噪波 Bump、粗糙度 0.06→0.05；回读 233，零 Error/Traceback）**返工 R2**（2026-11-24：与 ch-cars 同因同修，.blend 留 Nishita 天空世界；回读 233，零 Error/Traceback） |
+| ov-parking | 停车区（南门广场旁停车位划线 + 3 辆简易小车） | Godot 无对应程序化模型（新增细节） | overview | **PBR 已挂**（Paint* 三件套）+ **返工 R1**（2026-11-24，验收 run #72：本件车漆从未挂清漆，GLB 实测无 KHR_materials_clearcoat——060877f4 只给 ch-cars 挂了；make_car 挂图后补 Coat Weight 1.0 / Coat Roughness 0.05，车窗加细噪波 Bump、粗糙度 0.06→0.05；回读 233，零 Error/Traceback）**返工 R2**（2026-11-24：与 ch-cars 同因同修，.blend 留 Nishita 天空世界；回读 233，零 Error/Traceback）**返工 R3**（2026-11-24：与 ch-cars 同根因同修（见 §9），预览环境加暗色地面 Ground_PreviewOnly + 东南太阳 + 西北 24×2m 亮条灯（15000）；本地验证三车顶均有亮度起伏；GLB blob 与仓库相同未推。回读 236，零 Error/Traceback） |
 | ov-transformer | 户外变压器组（Blender 中心 (74,30)：基座 6.5×4.5×0.4m + 箱体 5.6×3.4×3.6m + 散热片南北各 9 片共 18 片 + 绝缘子 3 根 + 围栏 12 立柱 + 南侧警示黄牌；58 个对象，commit `7228f6b`） | `_build_transformer` | overview | 纯程序化（7 种材质全含 baseColorFactor，无贴图；审计确认 0 贴图、0 带贴图节点材质，无纹理风险） |
 
 ### 3.2 光伏屋顶（全局坐标，机位 A 栋屋顶）
@@ -94,7 +94,7 @@
 | 件 ID | 内容 | Godot 对应 | 场景 | 纹理管线 |
 |---|---|---|---|---|
 | ch-piles | 充电桩（4 台直流桩一字排开，白 + 充电枪线） | `campus_builder._build_charge` 充电桩 + `charge_detail.gd` | charge | Bump-only |
-| ch-cars | 车辆（3 辆简易小车，蓝/红/白，2 辆 V2G 在桩前） | `_build_charge` 车辆 + `charge_detail.gd` | charge | **PBR（参数化清漆）已挂**（commit `060877f`：3 台车共用参数化清漆，Metallic 0.15 / Roughness 0.35、Coat Weight 1.0 / Coat Roughness 0.15，GLB 带 KHR_materials_clearcoat；不贴平铺纹理）**返工 R1**（2026-11-24，验收 run #72：GLB 里 clearcoat 明明在，EEVEE 预览仍全哑光——根因是预览只有单太阳+纯色平坦世界，清漆层无物可映、涂层高光被底漆粗糙度冲淡；Godot 04-charge 远景也看不出光泽。Coat Roughness 0.15→0.05、底漆 Roughness 0.35→0.25，Godot 侧同向变亮；回读 198，零 Error/Traceback）**返工 R2**（2026-11-24：run 45251171902 新图与旧图逐像素几乎相同（平均差 0.02），涂层再锐也看不见——纯色平坦世界无物可映；.blend 改留 Nishita 天空世界（仰角 50°，render_max 对亮色世界原样保留），清漆映天空渐变+太阳盘；不进 GLB，Godot 不受影响。回读 198，零 Error/Traceback） |
+| ch-cars | 车辆（3 辆简易小车，蓝/红/白，2 辆 V2G 在桩前） | `_build_charge` 车辆 + `charge_detail.gd` | charge | **PBR（参数化清漆）已挂**（commit `060877f`：3 台车共用参数化清漆，Metallic 0.15 / Roughness 0.35、Coat Weight 1.0 / Coat Roughness 0.15，GLB 带 KHR_materials_clearcoat；不贴平铺纹理）**返工 R1**（2026-11-24，验收 run #72：GLB 里 clearcoat 明明在，EEVEE 预览仍全哑光——根因是预览只有单太阳+纯色平坦世界，清漆层无物可映、涂层高光被底漆粗糙度冲淡；Godot 04-charge 远景也看不出光泽。Coat Roughness 0.15→0.05、底漆 Roughness 0.35→0.25，Godot 侧同向变亮；回读 198，零 Error/Traceback）**返工 R2**（2026-11-24：run 45251171902 新图与旧图逐像素几乎相同（平均差 0.02），涂层再锐也看不见——纯色平坦世界无物可映；.blend 改留 Nishita 天空世界（仰角 50°，render_max 对亮色世界原样保留），清漆映天空渐变+太阳盘；不进 GLB，Godot 不受影响。回读 198，零 Error/Traceback）**返工 R3**（2026-11-24：R2 仍全哑光，根因见 §9——天空不在画面内（相机俯角 28°、顶缘视线低于地平线 16°）、平板车身映均匀淡天、探针无用；修法只改预览环境：留 Nishita + 暗色地面 Ground_PreviewOnly + 东南太阳 + 西北 24×2m 亮条灯（15000），本地 320×180 验证蓝车顶现 184→209 渐变光带；GLB blob 与仓库相同未推。回读 201，零 Error/Traceback） |
 | ch-marking | 车位线与标识（4 个车位白线、地面标识线框） | `_build_charge` 车位线（新增细节为主） | charge | Bump-only |
 | ch-canopy | 雨棚（4 车位通长雨棚，钢柱 + 浅灰棚顶） | Godot 无雨棚（新增细节） | charge | Bump-only |
 
@@ -347,6 +347,12 @@
 
 - 2026-11-24 04:4x CST 返工 R2 推送（commit `717c7728`，6 文件）：ch-cars / ov-parking 的 .py/.blend/.glb——.blend 改留 Nishita 天空世界（仰角 50°）供 EEVEE 清漆反光，GLB 内容未变（ov-parking.glb blob 与 R1 相同）。触发新的 blender-previews run，车漆两件待新 run 出图再验。另：R1 run 45251171902 的 dist/charge/storage/pv/classroom 5 组已 success，仅 overview 组仍在跑；R1 目视验收：di-walls 通过（顶面云纹清晰、墙面加重）、st-fence 通过（地面混凝土纹理、柜体锈蚀纹理）、ch-cars 未通过（新旧图逐像素几乎相同，涂层不可见——R2 已修）。
 
+- 2026-11-24 06:0x CST 返工 R3 推送（commit `06a7631a`，4 文件：ch-cars / ov-parking 各 .py/.blend；两件 GLB blob 与仓库完全相同，未推）：
+  - **根因（先查后改，本地最小复现 320×180 像素统计，未出预览图；复现与 R2 图逐项吻合：整体均值 (33,32,33)、顶缘 (61,59,52)、底缘纯黑、纯黑像素 35.1%）**：①世界接线正确（Nishita→Background→Output，Strength 1.0）、render_max 设 film_transparent=False——不是接法问题，R2 的两个候选（film 透明/世界未接背景）均已证伪；②自动相机俯角约 28°、50mm 镜头垂直视场约 23°，顶缘视线仍低于地平线约 16°——天空根本不在画面内，背景下黑上淡暖（R2 图顶缘 69,67,59）只是近地平线辉光；③EEVEE 里世界直接进清漆环境反射（黑世界→车漆深饱和蓝 (27,95,139)/深红 (143,56,48)、白世界→洗白），反射探针（烘焙/不烘焙）像素变化仅 meanAbs 约 1.0——探针不是缺失环节，R2 的“天空没进镜面反射路径”实为“天空在镜面方向上是均匀淡色”；④平板车身 + 均匀淡天 → 各面只映出单一淡色，看起来全哑光；⑤方向太阳打进镜面角时蓝车顶 183→246（镜面路径是通的），但 Coat 0.05 的窄瓣一次只能亮一辆车（三车顶镜面方位角 123°/132°/143°）。R1 的“清漆无物可映”只对了一半：有物可映，但映的是无结构的均匀淡天。
+  - **修法（只改 .blend 预览环境，不动材质、不动 render_max、不进 GLB）**：留 Nishita 世界 + 暗色预览地面 `Ground_PreviewOnly`（80m、线性 0.05、粗糙 0.95，填地平线下黑洞；render_max 取景排除、场景拼装排除）+ 东南太阳（能量 3.5、旋转 (50°,0,30°)，与 render_max 默认同向，可见面光照不变；render_max 见 .blend 已有灯光不再补太阳）+ 西北高处 24×2m 亮条灯（RECTANGLE 面光源、能量 15000，车顶镜面方向的“摄影棚柔光条”；ch-cars 在 (20,-45,18) 瞄 (43,-76,1)，ov-parking 同相对位置在 (-53,-59,18) 瞄 (-30,-90,1)）。对照实验：600 能量面光源仅 +3（太弱）、40000 全车顶 245+ 过曝、24×2/15000 最均衡；方向太阳单车过曝 246、三车不可兼得。
+  - **本地验证（走真实 render_max 路径，320×180 像素统计）**：ch-cars 蓝车顶行 184→209 渐变光带（R2 为均匀 183）、红车顶 229、白车顶 225，纯黑像素 35.1%→0；ov-parking 灰/蓝/红车顶均值 (205,212,219)/(244,246,249)/(221,188,193)，三行均有亮度起伏（蓝车顶 219→249→232）。回读：ch-cars 201 对象（198 车 + 地面/太阳/柔光条）、ov-parking 236 对象（233 + 3），零 Error/Traceback；GLB JSON 清漆 factor 1.0 / roughness 0.05，blob SHA 与仓库一致。
+  - 触发 blender-previews run **#45275914559**（run #78），待出图验收：只看 ch-cars 与 ov-parking 两张 + 回归（di-signs、st-cabinet、pv-panels）。
+
 - 2026-11-24 05:4x CST 取景修补（验收 run 45227196322 / #72 非阻塞观察：cl-ac、ov-flag-lamp、pv-mount、ch-piles 取景过远/对比低，细节无法核验）：
   - **根因**：`tools/render_max.py` 按整件包围盒定相机距离（`_fit_camera`，margin 1.10）；四件主体细小且分散在很大的包围盒里——cl-ac 两台空调分处教室对角（包围盒对角 11.72m）、ov-flag-lamp 375 杆件散布全校（对角 303.91m）、pv-mount 三屋顶支架阵（对角 89.6m）、ch-piles 4 台桩排成 11.4m 长行——整件取景下主体只占画面约 5% 以下。模型本身没问题，纯渲染脚本 framing 问题。
   - **改动：只改 `tools/render_max.py` 一个文件**（commit `ceeb81df`，父 `89a06cf8`，仅该文件；改前本地与仓库 blob `64dbc665` 核对一致；`.py`/`.blend`/`.glb`、6 组 matrix、产物规格全不动）：新增白名单 `_DETAIL_FRAMING = {cl-ac, ov-flag-lamp, pv-mount, ch-piles}` + `_DETAIL_BRIGHT_BG = {pv-mount}`；`_ensure_camera` 对白名单件跳过内置相机保留检测、走新增 `_frame_detail_view`：取最大簇（扁长行先 `_subdivide_flat_row` 拆单件），主视图只拍该簇、**不增发分镜**；`_ensure_world` 仅对 pv-mount 把深灰世界（lum 0.0509）提亮为天蓝；cl-ac 不提亮（白空调在深灰底上对比更好）。其余 40 件走原逻辑，一字未动。
@@ -355,6 +361,14 @@
   - **验收**（逐张目视，新图在 `~/workspace/review-rework-r1/framing-fix/`，旧图对照 `~/workspace/review-rework-r1/acceptance/`；非背景像素占比为角点背景色 ±40 阈值实测）：cl-ac 单台空调占满画面高度 77%（旧 26%）、非背景像素 1.2%→9.8%，前面板/显示屏/顶栅/铜管/底座均清晰，无过曝无裁切；ov-flag-lamp 3 根旗杆 + 红旗 + 2 根路灯占满画面高度 71%（旧 47%）、非背景像素 0.01%→1.65%，旗面纹理可读，无裁切；pv-mount LAB 阵列横梁/支腿/压块网格清晰可辨（旧图支架与背景灰度差 <40、基本融进背景）、非背景像素 ~0→2.1%，背景已提亮，无过曝、主体完整；ch-piles 单台桩占满画面高度 76%（旧 25%）、非背景像素 2.1%→4.4%，屏幕/绿灯/充电枪/枪线/顶盖/底座均清晰，无过曝无裁切。**4 件全部通过**。
   - **取舍**：主视图只含一件主体——另一台空调、其余 3 台桩、其余两屋顶支架阵列、其余路灯不在主图内；数量与全校/全屋顶位置仍以旧整件图 + 模型文件为准，主图只负责细节核验。pv-mount 左下角有相邻屋顶阵列一角入画（被框边裁切），主体 LAB 阵列本身完整，未动——属构图小瑕，不返工。
   - **回归抽查**：随机 4 件目视正常（pv-panels、cl-desks、ch-cars、st-cabinet）；另 ov-trees、ov-bldA 新旧图逐像素对比 mean|diff| = 0.00，pv-panels、cl-desks、st-cabinet 同为 0.00——其余件取景未被带坏。
+
+- 2026-11-24 06:1x CST 总览地面偏淡 F4 + 树木灰白 F5 根因调查修补（验收 run 45261531067 拼装总览全景）：
+  - **F5 根因（Blender 侧，已证实）**：6 种树冠 + 1 种树干材质把灰色噪波图（LeafNoise/BarkNoise，均值 #7C7C7C）直接当 baseColorTexture 导出、无 baseColorFactor；绿色只存在于 .blend 里的 ColorRamp 节点，glTF 无法表示，导出即丢。Blender 单件预览是绿的、Godot 总览里是灰白锥体，两边不一致即由此而来。树干同病（灰噪波→棕褐 Ramp）。
+  - **F5 修复（只改 Blender 侧）**：`assets/blender/overview/bake_trees.py` 把每档 Ramp 烘成 sRGB 彩色噪波贴图（噪波 t→三档线性插值→线性转 sRGB；7 张 `ov-trees_textures/Crown_*_color.png` + `Trunk_Bark_color.png`，均值与各档 mid 色差 ≤1，如 Crown_Perimeter #4F8A3E 对 #4E8A3F）；`ov-trees.py` 的 Base Color 改直连烘焙图（Ramp 节点删除），灰噪波图只留给 Bump。重跑 ov-trees.py：回读 292 对象、零 Error/Traceback；新 ov-trees.glb（386,908 B）JSON 实测 7 材质 baseColor 贴图均已绿（树冠 #4F8A3E/#5D9A48/#5F9A45/#71A852/#7CA64C/#8CB55B，树干 #6B4E30）。
+  - **F4 根因（Godot 侧光照，非贴图）**：地面贴图实测均值正是 #69B45D（`GroundGrass_color`，UV 85×85 平铺、法线朝上均正确）；同 run 回退帧（程序化平色地面 #4F9D43、粗糙度 0.85、无任何 GLB）一样洗白成 (130,255,164)、G 截顶；跑道（采样实测 #B8543F）与楼体基本正确、暴雨帧地面色相正确只是偏暗。晴天总光照约 2.3×（太阳 1.38 + 天光 0.73，偏蓝的天光是主因），地面粗糙度 0.26 的镜面反射不是主因（洗白在近/远处均匀、与掠射角无关；暴雨天光一暗即正常）。地面基色不动。
+  - **F4 修复（只改 Godot 侧）**：`scripts/weather_system.gd`：太阳 `(0.18+1.2*daylight)`→`(0.18+0.65*daylight)`（晴天 1.38→0.83）、天光 `0.28+0.45*daylight`→`0.12+0.16*daylight`（晴天 0.73→0.28）、雾密度 0.0005→0.0002（`scenes/main.tscn` 同步）；标定目标晴天总光照约 1.1×，预测草地约 (112,191,112)，待新 run 截图实测复核。
+  - **总览重刷 + 瘦身**：重跑 `assets/blender/scenes/overview.py`，回读 13,036 对象、零 Error/Traceback；完整版 .glb 121,831,988 B / .blend 64,568,788 B 留本地；GLB JSON 实测 202 材质 / 434 贴图（+7 烘焙图）、树冠贴图已绿、地面仍 #69B45D。瘦身（§10 口径）：.glb **36,070,084 B**（<40MB）、.blend 8,978,835 B；`verify_slim.py` 全绿（瘦身 GLB 13,036 对象 / 0 无材质 primitive；瘦身 .blend 13,036 对象 / 472 贴图 / 缺失 0）；瘦身后树冠贴图仍绿（JPEG q80 均值漂移 ≤1）、地面 #68B45C（漂移 1）。
+  - **推送与验证待填**：本次随 Godot 侧改动一次推送，待 godot-verify 新 run 出图后像素复核晴天草地均值（目标 SPEC #69B45E ±15）与树冠绿色，见 `~/workspace/review-rework-r1/godot-acceptance/ACCEPTANCE.md` 新节。
 
 ## §10 总览大文件瘦身入仓（2026-11-23 11:39–12:00 CST，瘦身任务 8bb03134）
 
