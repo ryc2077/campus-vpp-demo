@@ -9,11 +9,22 @@
 #         (柜门面 y=4.085, 仪表窗 z 1.6~1.9, 把手 z 1.05~1.09, 编号牌放中间空位)
 # 牌面用薄板 + 彩色边框条做, 不用文字纹理; 牌面文字是真实 Text 对象
 # (bpy.data.curves.new type 'FONT'), 随牌导出进 GLB, 不再是占位色块
-# 字体: 工程 tools/fonts/NotoSansSC-static.ttf (全量, 10MB; 注意 assets/fonts/
-# NotoSansSC-Regular.ttf 是子集, 经 fontTools 核查缺 危/险/止/人 四字, 会出方框, 不能用)
-# 该字体已推上仓库 (tools/fonts/NotoSansSC-static.ttf) 且打包进 .blend (双保险);
-# 缺字体时 Blender 静默用内置 Noto Sans CJK Regular 替代, 同 size 字形大 ~2.85 倍.
-# 系统备用: /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc (仅应急, 会打乱尺寸)
+# 字体: tools/fonts/NotoSansCJKSC-signs.ttf (Noto Sans CJK SC Regular 子集,
+# 仅 5,876 B, 覆盖本件全部 19 字: 高压危险/禁止合闸/有人工作/0-6; 从系统
+# /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc 第 2 面 (SC) 抽出,
+# fontTools pyftsubset --desubroutinize; OFL 授权)
+# (2026-11-24 返工: 旧字体 tools/fonts/NotoSansSC-static.ttf (Noto Sans SC
+#  Thin 全量) 字形本身没错 (FreeType 渲染正确), 但 Blender 4.2 的 Font 曲线
+#  填充把它算坏了: 孔洞被填实、笔画被巨型三角桥接、细笔画缩成发丝, run
+#  45219977015 的 05-dist 目视 “高压危□金”. 实测对照 (同一文本、同一
+#  Blender, 只换字体; 前盖三角光栅化核对): static 版 Warn 前盖 1442 多边形、
+#  最大单片占总面积 8.6%, 高/压/危/险全错; CJK SC Regular 版 767 多边形、
+#  最大单片 2.6%, 四字全对. assets/fonts/NotoSansSC-Regular.ttf 子集版同样
+#  算坏 (高压最大单片 13.4%), 也不能用. 旧 static 字体文件留仓不动, 仅停用.
+# 该字体已推上仓库 (tools/fonts/NotoSansCJKSC-signs.ttf) 且打包进 .blend
+# (双保险); 脚本另有字形三角化硬校验 (见下文 _TEXT_SHAPE_CHECK).
+# 系统备用: /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc (仅应急,
+# Blender 取第 0 面 JP, 字形为日文版, 会打乱尺寸与字形, 只作保底)
 # 只做标识牌: 不做配电柜/变压器/母线线缆/墙面地面
 # 材质只用 Principled BSDF
 # 渲染: 本地不渲染, 预览图走 GitHub Actions 出图; 本脚本只做建模→存盘→导出→回读验证
@@ -144,8 +155,9 @@ def add_text(name, body, size, loc, quat, mat, fit_width=None,
               "dims", tuple(round(v, 3) for v in ob.dimensions))
     return ob
 
-# 字体: 全量思源黑体 (核查过: 高压危险/禁止合闸/有人工作/数字全覆盖)
-FONT_PATH = BASE + "/tools/fonts/NotoSansSC-static.ttf"
+# 字体: Noto Sans CJK SC Regular 子集 (只含本件 19 字, 见文件头注释);
+# 旧 NotoSansSC-static.ttf 已停用 (Blender 4.2 曲线填充算坏其字形, 详见文件头)
+FONT_PATH = BASE + "/tools/fonts/NotoSansCJKSC-signs.ttf"
 if not os.path.exists(FONT_PATH):
     FONT_PATH = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
 FONT = bpy.data.fonts.load(FONT_PATH)
@@ -196,6 +208,7 @@ print("di-signs objects:", len(objs), [o.name for o in objs])
 # 上 tools/fonts/NotoSansSC-static.ttf 缺失, Blender 用内置 Noto Sans CJK
 # Regular 替代, 同样 size 下字形大 ~2.85 倍. 尺寸必须在建完当场按实测
 # 包围盒校验, 且字体必须随 .blend 打包 + 推上仓库, 否则下次还会复发.
+# (2026-11-24: 该 static 字体本身已被停用, 见文件头; 此段保留作历史教训)
 bpy.context.view_layer.update()
 _TEXT_LIMITS = {"Warn_Text": (0.42, 0.20), "NoClose_Text": (0.42, 0.28)}
 for _ob in objs:
@@ -210,6 +223,47 @@ for _ob in objs:
         assert 0.072 <= _h <= 0.084 and _w <= 0.14, \
             "text oversize: %s %.3fx%.3f" % (_ob.name, _w, _h)
     print("text check OK:", _ob.name, "%.3fx%.3f" % (_w, _h))
+
+# ---------- 字形三角化硬校验 (2026-11-24 标牌返工教训) ----------
+# 尺寸对不等于字形对: NotoSansSC-static.ttf 在尺寸校验全绿的情况下,
+# Blender 4.2 的曲线填充仍把字形算坏 (孔洞填实/笔画桥接/细笔画变发丝),
+# run 45219977015 的 05-dist 目视 “高压危□金”. 坏字体的特征是前盖出现
+# 巨型桥接三角: Warn 前盖最大单片占总面积 8.6%、NoClose 13.4%; 好字体
+# (Noto Sans CJK SC Regular) 为 2.6%/1.7%. 判据: 多字牌 (Warn/NoClose)
+# 前盖单多边形面积不得超过前盖总面积 5% (与字号无关的比值, 不随缩放变).
+# 做法: 复制文字对象转网格量前盖 (原对象保持 FONT 曲线不动, 照常导出).
+for _name in ("Warn_Text", "NoClose_Text"):
+    _src = bpy.data.objects[_name]
+    bpy.ops.object.select_all(action='DESELECT')
+    _src.select_set(True)
+    bpy.context.view_layer.objects.active = _src
+    bpy.ops.object.duplicate()
+    _dup = bpy.context.active_object
+    _dup.data = _dup.data.copy()
+    bpy.ops.object.convert(target='MESH')
+    _me = _dup.data
+    _areas = []
+    for _p in _me.polygons:
+        if abs(_p.normal.z + 1.0) < 0.01:  # 前盖 (局部法线 -Z)
+            _pts = [_me.vertices[i].co for i in _p.vertices]
+            _a = 0.0
+            for _i in range(len(_pts)):
+                _x1, _y1 = _pts[_i].x, _pts[_i].y
+                _x2, _y2 = _pts[(_i + 1) % len(_pts)].x, _pts[(_i + 1) % len(_pts)].y
+                _a += _x1 * _y2 - _x2 * _y1
+            _areas.append(abs(_a) / 2.0)
+    _total = sum(_areas)
+    _max = max(_areas) if _areas else 0.0
+    print("text shape check:", _name, "frontcap polys=%d max=%.6f total=%.6f ratio=%.3f"
+          % (len(_areas), _max, _total, _max / _total if _total else 0.0))
+    assert _total > 0.0 and _max <= 0.05 * _total, \
+        "text triangulation broken: %s max/total=%.3f (bridging triangles)" % (_name, _max / _total if _total else 0.0)
+    _mesh_data = _dup.data
+    bpy.ops.object.select_all(action='DESELECT')
+    _dup.select_set(True)
+    bpy.ops.object.delete()
+    bpy.data.meshes.remove(_mesh_data)
+bpy.ops.object.select_all(action='DESELECT')
 
 # ---------- lighting (SPEC §2) ----------
 # 太阳光: 能量 3.5, 从西南来, 仰角约 50°, 开阴影
