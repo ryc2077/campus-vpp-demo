@@ -18,8 +18,9 @@
 # 件提供（Blender (74,30)，58 个对象），见 PARTS 末尾。
 # 绿地重叠：实测 ov-dorm 的 dorm_lawn_between 与 ov-lawn 在宿舍区无 XY
 #   重叠（见脚本内检查打印），不做高差调整，调整量 0。
-#   池塘处 ov-lawn 的 Lawn_Pond_Grass_* 草丛会穿出水面，场景副本内把
-#   它们下移 0.5m 藏到水面/地面之下（只动场景副本，不改件文件）。
+#   池塘草坪已返工：ov-lawn.py 撒点排除水面椭圆（含 1m 边距），只留
+#   环形草坪带，场景内不再下移 Lawn_Pond_Grass_*（旧 -0.5m 下移曾把
+#   18,863 叶全埋进地下，2026-11-23 返工删除）。
 
 import bpy
 import os
@@ -226,14 +227,15 @@ bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
 pond.data.materials.append(pond_mat)
 print("ASSEMBLY pond ellipse center=(82,-78) rx=11 ry=8 top z=0.10 color=#2F7FC4")
 
-# 池塘处 ov-lawn 的草丛（Lawn_Pond_Grass_*，顶高约 0.4）会穿出水面：
-# 场景副本内下移 0.5m 藏到水面/地面之下，只动场景副本，不改件文件。
-buried = []
+# 池塘草坪不再下移：ov-lawn.py 撒点已排除水面椭圆（含 1m 边距），环形带
+# 上的草丛扎在草坪底板顶面 z=0.05、丛高 0.15-0.35m，不再穿出水面；
+# 旧版 -0.5m 下移把 18,863 叶全埋进地下，已删除（2026-11-23 返工）。
+# 校验：Lawn_Pond_Grass_* 的 location.z 必须为 0，与另两片草坪一致。
 for obj in list(bpy.context.scene.objects):
     if obj.name.startswith("Lawn_Pond_Grass_"):
-        obj.location.z -= 0.5
-        buried.append(obj.name)
-print("ASSEMBLY pond grass buried -0.5m: %s" % (buried,))
+        assert obj.location.z == 0.0, "pond grass moved: %s z=%s" % (
+            obj.name, obj.location.z)
+print("ASSEMBLY pond grass kept at z=0 (no bury, ring-only scatter)")
 
 # 3c. 配电房外壳：campus.json buildings.dist，Godot [48,-30] -> Blender
 #     (48,30)，16x10，高 8m，color #dfe9f2；屋顶板深灰 #424A52（SPEC §3）。

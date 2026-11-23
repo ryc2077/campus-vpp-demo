@@ -6,6 +6,10 @@
 #   几何位置照旧，只加密草。三角面预算 <15 万（实测见运行日志）。
 #   渲染全部走 GitHub Actions，本地不渲染：本脚本只建模 + 存 .blend + 导出 .glb + 回读确认。
 #   （磁盘上曾有一份未跑通的 v4 草稿头注释，密度参数仍是 v2 的 0.5，已按本任务 v3 规约覆盖。）
+# 2026-11-23 池塘返工：主撒点排除池塘水面椭圆（Blender 中心 (82,-78)，
+#   水面 rx11/ry8 + 1m 安全边距），只留环形草坪带；拼装不再下移
+#   Lawn_Pond_Grass_*（见 scenes/overview.py，旧 -0.5m 下移曾把
+#   18,863 叶全埋进地下）。另两片草坪与真草素材（8,140 株）不动。
 # Blender 坐标 x 向东、y 向北、z 向上，单位米
 # 内容：3 块草地（实体草丛铺满）、南门广场两侧 4 个花坛、20 个灌木球
 # v3 改动：草地底板/土面/灌木/花/草丛加程序化噪波纹理（颜色+粗糙度+轻微凹凸），
@@ -286,10 +290,22 @@ random.seed(20261122)
 TUFTS_PER_M2 = 10.0  # 丛/m2（v2 为 2 丛/m2）
 CLUSTER_FRAC = 0.60
 CLUSTER_SIGMA = 0.9  # m，簇内散布标准差
+# 池塘排除（Blender 坐标）：水面椭圆中心 (82,-78)，rx=11、ry=8（SPEC §4，
+# campus.json pond Godot [82,78]）；留 1m 安全边距，与本文件 _blocked()
+# 的池塘排除 (12,9) 一致。环形带面积 = 草坪矩形 − 边距椭圆。
+POND_CX, POND_CY = 82.0, -78.0
+POND_RX, POND_RY = 12.0, 9.0  # 水面 rx11/ry8 + 1m 边距
 grass_counts = {}
+target_total = 0
 for lawn_name, (cx, cy), (sx, sy) in lawns:
     area = sx * sy
     n_tufts = int(area * TUFTS_PER_M2)
+    if lawn_name == "Lawn_Pond":
+        # 环带目标丛数 = 环带面积 × 密度（旧版按整块矩形算 4500 丛，其中
+        # 68.4% 落在水面椭圆内；且簇心内缩 1m、簇生点更难落进环带，只靠
+        # 跳过会只剩 778 丛（29.5 叶/m2），故拒绝采样补满到环带目标）。
+        n_tufts = int((area - math.pi * POND_RX * POND_RY) * TUFTS_PER_M2)
+    target_total += n_tufts
     # 簇心：约每 12 m2 一个，覆盖整块草皮
     n_clusters = max(8, int(area / 12))
     clusters = [(cx + random.uniform(-sx / 2 + 1.0, sx / 2 - 1.0),
@@ -298,7 +314,12 @@ for lawn_name, (cx, cy), (sx, sy) in lawns:
     # 每色一个 (verts, faces) 累积器
     buckets = {k: ([], []) for k in color_keys}
     tufts_per_color = {k: 0 for k in color_keys}
-    for _ in range(n_tufts):
+    # 池塘草坪拒绝采样直到种满环带目标（密度与另两片一致）；其余草坪
+    # 每抽必中，while 与原 for 消耗的随机流完全相同。
+    placed_count = 0
+    tries = 0
+    while placed_count < n_tufts and tries < n_tufts * 30:
+        tries += 1
         if random.random() < CLUSTER_FRAC:
             ccx, ccy = random.choice(clusters)
             px = ccx + random.gauss(0, CLUSTER_SIGMA)
@@ -313,7 +334,6 @@ for lawn_name, (cx, cy), (sx, sy) in lawns:
         pverts, pfaces = PROTO_MESHES[proto_idx]
         ckey = random.choices(color_keys, weights=color_weights, k=1)[0]
         verts, faces = buckets[ckey]
-        tufts_per_color[ckey] += 1
         # 随机旋转 + 缩放（xy 0.85-1.2，z 0.75-1.05：原型丛高 0.20-0.33m
         #  → 实际丛高 0.15-0.35m，丛幅随机）
         rot = Matrix.Rotation(random.uniform(0, math.tau), 4, 'Z')
@@ -323,9 +343,23 @@ for lawn_name, (cx, cy), (sx, sy) in lawns:
                                1.0))
         loc = Matrix.Translation((px, py, 0.05))  # 扎在草地底板顶面
         mat = loc @ rot @ scl
+        # 池塘排除：落在水面椭圆（含 1m 边距）内的丛跳过不种，只留环形带。
+        # 检查放在全部随机抽取之后；拒绝采样会多消耗随机数，下游花坛抖动
+        # 随之重抽（仍在 ±0.15m 规格内），其余两片草坪与真草素材不受影响。
+        # 跳过的丛不计入 tufts_per_color，且不计入 placed_count，while
+        # 循环会继续抽，直到种满环带目标丛数。
+        if lawn_name == "Lawn_Pond" and (
+                (px - POND_CX) / POND_RX) ** 2 + (
+                (py - POND_CY) / POND_RY) ** 2 <= 1.0:
+            continue
+        tufts_per_color[ckey] += 1
+        placed_count += 1
         base = len(verts)
         verts.extend(mat @ Vector(v) for v in pverts)
         faces.extend(tuple(base + i for i in f) for f in pfaces)
+    if placed_count < n_tufts:
+        print(f"WARNING {lawn_name}: only {placed_count}/{n_tufts} tufts "
+              f"after {tries} tries")
     for ckey in color_keys:
         verts, faces = buckets[ckey]
         if not verts:
@@ -350,13 +384,18 @@ for lawn_name, (cx, cy), (sx, sy) in lawns:
         objs.append(o)
         grass_counts[f"{lawn_name}_{ckey}"] = tufts_per_color[ckey]
     total = sum(len(buckets[k][1]) for k in color_keys)
-    print(f"GRASS {lawn_name}: {n_tufts} tufts, {total} tris, "
+    placed = sum(tufts_per_color.values())
+    extra = ""
+    if lawn_name == "Lawn_Pond":
+        ring = area - math.pi * POND_RX * POND_RY
+        extra = (f", ring area {ring:.1f}m2, placed density "
+                 f"{total / ring:.1f} blades/m2")
+    print(f"GRASS {lawn_name}: {placed}/{n_tufts} tufts placed, {total} tris, "
           f"area {area:.0f}m2 ({TUFTS_PER_M2:.1f} tufts/m2, "
-          f"{n_clusters} clusters)")
+          f"{n_clusters} clusters){extra}")
 
-total_tufts = sum(int(sx * sy * TUFTS_PER_M2) for _, _, (sx, sy) in lawns)
-print(f"GRASS TOTAL: {total_tufts} tufts, 18 merged meshes "
-      f"(3 lawns x 6 colors), tuft height 0.15-0.35m")
+print(f"GRASS TOTAL: {sum(grass_counts.values())}/{target_total} tufts placed, "
+      f"18 merged meshes (3 lawns x 6 colors), tuft height 0.15-0.35m")
 
 # ---- 花坛：南门广场两侧各 2 个，6x2m（照旧版）----
 beds = [
@@ -722,8 +761,8 @@ def _blocked(x, y):
             return True
     if ((x + 80) / 41.0) ** 2 + ((y + 25) / 29.0) ** 2 <= 1.0:
         return True  # 跑道内圈（含 1m 余量）
-    if ((x - 82) / 12.0) ** 2 + ((y + 78) / 9.0) ** 2 <= 1.0:
-        return True  # 池塘（含 1m 余量）
+    if ((x - POND_CX) / POND_RX) ** 2 + ((y - POND_CY) / POND_RY) ** 2 <= 1.0:
+        return True  # 池塘（含 1m 余量，与主撒点排除同口径）
     return False
 
 
