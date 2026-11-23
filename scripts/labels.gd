@@ -26,6 +26,9 @@ var _top_reserve := 80.0 # 顶栏底 72px + 8px：标签不得躲进半透明顶
 var panel_control: Control = null # 场景面板（右侧固定 UI）：main.gd 把 $UI/ScenePanel 赋过来；
 # _update 里取其实时 get_global_rect() 作碰撞区，不硬编码像素 rect（面板宽随窗口变，
 # ABC 双开时还会下移）。为 null 或面板不可见时（总览）不碰撞。
+var abc_panel_control: Control = null # ABC 面板（右侧浮层 UI）：main.gd 把 $UI/ABCPanel 赋过来；
+# 与场景面板同一模式：_update 里取其实时 get_global_rect() 作碰撞区，打开时才碰撞，
+# 关闭时不碰撞；双开时场景面板下移、ABC 面板 rect 本身不动，实时取都跟得上。
 var _min_gap := 20.0 # 去重叠最小净空（屏上 px，720p 口径）：候选字盒与已放字盒之间
 # 至少留 20px 空隙才算排开，否则继续试下一档。只扩判定用的盒，不改 est_h。
 # （02-storage 实测：储能柜标签 y≈48 落在顶栏带内，隔着 93% 白面板只剩约 7% 可见度，白字压白底）
@@ -92,6 +95,13 @@ func _update() -> void:
 	if panel_control != null and panel_control.is_visible_in_tree():
 		panel_rect = panel_control.get_global_rect()
 		panel_on = true
+	# ABC 面板碰撞区：与场景面板同一模式，实时 rect（窗口缩放 / 窄屏满宽都跟得上）；
+	# 面板关闭时不碰撞（总览 ABC 常关；场景页 ABC 未打开时也不碰撞）。
+	var abc_rect := Rect2()
+	var abc_on := false
+	if abc_panel_control != null and abc_panel_control.is_visible_in_tree():
+		abc_rect = abc_panel_control.get_global_rect()
+		abc_on = true
 	# Screen size correction (fixed_size normalises distance to 1.0, so distance
 	# drops out; only viewport height and fov matter):
 	#   screen_px = font_size * pixel_size * vp_h / (2*tan(fov/2))
@@ -186,6 +196,12 @@ func _update() -> void:
 			# 同类旧局限一并收敛：02-storage 配电变压器、04-charge 三号/配电房/配电变压器/
 			# 储能 SOC、09-freeze 二号/创造力中心在面板后的，整条藏掉而非半截。
 			if panel_on and r.intersects(panel_rect):
+				continue
+			# ABC 面板修复：与场景面板同一模式，候选盒与实时 ABC rect 相交按“撞上”
+			# 处理，继续试下一档；ABC 纵贯 y60–440、档位逃不出的标签按现有机制隐藏
+			#（不新写隐藏逻辑）。注意双开时 ABC 打开会把场景面板顶到 452，原先被
+			# 场景面板藏掉的标签会复活到 ABC 矩形里——正是本修要藏掉的那批。
+			if abc_on and r.intersects(abc_rect):
 				continue
 			# 净空规则：候选盒上下各扩 _min_gap 再判交——只“刚好不交”
 			#（总览屋顶光伏/艺体馆曾只差 6px、冻结帧只差 16px）也算撞上，

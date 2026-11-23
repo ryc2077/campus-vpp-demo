@@ -162,6 +162,7 @@ func _rebuild_classroom() -> void:
 func _setup_labels() -> void:
 	labels.camera = rig
 	labels.panel_control = panel # 场景面板实时 rect 作标签碰撞区（labels.gd 内取，不硬编码像素）
+	labels.abc_panel_control = $UI/ABCPanel # ABC 面板实时 rect 作标签碰撞区，同一模式；关闭时不碰撞
 	for b in campus_data["buildings"]:
 		var pos: Array = b["pos"]
 		labels.add_label(String(b["name"]), DataLoader.color_from_hex("#17557f"), int(b["label_prio"]), Vector3(pos[0], float(b["height"]) + 2.0, pos[1]))

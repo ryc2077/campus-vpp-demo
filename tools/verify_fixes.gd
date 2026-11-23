@@ -4,7 +4,8 @@ extends SceneTree
 ## 检查：P0 面板数值列/标题颜色、P1-1 HintLabel、P1-2 舒适带绿、P1-3 ABC 保供逻辑、
 ##      P2-3 标签色、P2-5 WxLabel、labels fixed_size、标题/时钟色、
 ##      屋顶光伏/艺体馆标签净空（总览 + 冻结帧，1280×720）、
-##      池塘标签不进场景栏（总览）+ 屏内标签栏带扫查（储能场景/总览/冻结帧）。
+##      池塘标签不进场景栏（总览）+ 屏内标签栏带扫查（储能场景/总览/冻结帧）、
+##      ABC 面板遮挡（充电区 + 总览 ABC 打开态：屏内可见标签无一与 ABC 面板相交）。
 ## 每项打印 PASS/FAIL，最后汇总。退出码 0=全过，1=有 FAIL。
 
 var _main: Node = null
@@ -148,6 +149,44 @@ func _labels_panel_detail(labels: Node) -> Array:
 		if r.intersects(pr):
 			bad.append(String(d["text"]) + " overlap=" + str(snappedf(r.intersection(pr).get_area() / r.get_area(), 0.01)))
 	return [bad.is_empty(), "panel=" + str(pr) + " onscreen=" + str(n) + " bad=[" + ", ".join(bad) + "]"]
+
+
+func _labels_abc_detail(labels: Node) -> Array:
+	# [是否全部通过, 详情]：ABC 面板打开时，屏内可见标签的渲染字盒不得与 ABC 面板实时 rect 相交；
+	# ABC 关闭时不审。口径与 labels.gd 的 ABC 守卫一致（判定盒与面板 rect 相交即撞上）。
+	# 注意双开时 ABC 打开会把场景面板顶到 y452，原先被场景面板藏掉的标签会复活到
+	# ABC 矩形里——探针里储能/充电区/冻结帧 ABC 打开态的屏内可见数因此比关闭态还多，
+	# 正是本修要藏掉的那批（储能 5、充电区 7、冻结帧 6，关闭态各为 3/3/4）。
+	var abc: Control = _main.get_node("UI/ABCPanel")
+	if not abc.is_visible_in_tree():
+		return [true, "abc hidden"]
+	var ar: Rect2 = abc.get_global_rect()
+	var cam: Camera3D = labels.camera as Camera3D
+	var bad: Array[String] = []
+	var n := 0
+	for d in labels.defs:
+		var l: Label3D = d["label"]
+		if not l.visible:
+			continue
+		var sp: Vector2 = cam.unproject_position(l.position)
+		if sp.x < 0.0 or sp.x > 1280.0 or sp.y < 0.0 or sp.y > 720.0:
+			continue
+		n += 1
+		var r := _labels_rect(labels, d)
+		if r.intersects(ar):
+			bad.append(String(d["text"]) + " overlap=" + str(snappedf(r.intersection(ar).get_area() / r.get_area(), 0.01)))
+	return [bad.is_empty(), "abc=" + str(ar) + " onscreen=" + str(n) + " bad=[" + ", ".join(bad) + "]"]
+
+
+func _soc_sp(labels: Node) -> Vector2:
+	# SOC 标签渲染中心（动态文本，按 dynamic=="soc" 找）；不可见时返回 Vector2.ZERO。
+	var cam: Camera3D = labels.camera as Camera3D
+	for d in labels.defs:
+		if String(d["dynamic"]) == "soc":
+			var l: Label3D = d["label"]
+			if l.visible:
+				return cam.unproject_position(l.position)
+	return Vector2.ZERO
 
 
 func _label_visible(labels: Node, text: String) -> bool:
@@ -346,6 +385,86 @@ func _process(_delta: float) -> bool:
 			_chk("04-charge：充电区 · V2G 仍屏内可见（在面板外，未被误藏）", _label_onscreen_visible(_labels_ch, "充电区 · V2G"), "visible=" + str(_label_visible(_labels_ch, "充电区 · V2G")))
 			var _band_ch: Array = _labels_band_detail(_labels_ch)
 			_chk("04-charge：屏内标签渲染中心都不进顶栏/场景栏（90≤y≤642）", bool(_band_ch[0]), String(_band_ch[1]))
+			# ---- 04-charge ABC 打开放到新 phase 再量：ABC 打开会把场景面板顶到 y452，
+			# 切面板后等 4 帧再量（与切场景同理）。
+			(_main.get_node("UI/ABCPanel") as Control).visible = true
+			_main.get_node("UI").call("layout_panels")
+			_phase = 7
+		return false
+	if _phase == 7:
+		if _frames >= 27:
+			# ---- 04-charge ABC 打开（本轮主修）：ABC rect (720,60,548,380) 与场景面板
+			# 同一模式作碰撞区。修前 ABC 打开态屏内可见 7 条，其中 5 条在 ABC 矩形里
+			#（三号/创造力中心/配电房/配电变压器/储能 SOC，overlap 1.0/1.0/1.0/0.97/1.0，
+			# 其中三号等 4 条是场景面板下移后从面板后复活的）；修后 5 条都应隐藏，
+			# 只剩操场与充电区 · V2G 在 ABC 外可见，场景面板（已下移）也仍无相交。
+			var _labels_ab = _main.get_node("Labels")
+			_labels_ab.call("_update")
+			var _abc_ch: Array = _labels_abc_detail(_labels_ab)
+			_chk("04-charge ABC 打开：屏内可见标签无一与 ABC 面板相交", bool(_abc_ch[0]), String(_abc_ch[1]))
+			var _panel_ab: Array = _labels_panel_detail(_labels_ab)
+			_chk("04-charge ABC 打开（双开）：屏内可见标签无一与场景面板相交", bool(_panel_ab[0]), String(_panel_ab[1]))
+			_chk("04-charge ABC 打开：三号教学楼标签藏掉（在 ABC 矩形里）", not _label_visible(_labels_ab, "三号教学楼"), "visible=" + str(_label_visible(_labels_ab, "三号教学楼")))
+			_chk("04-charge ABC 打开：创造力中心标签藏掉（在 ABC 矩形里）", not _label_visible(_labels_ab, "创造力中心"), "visible=" + str(_label_visible(_labels_ab, "创造力中心")))
+			_chk("04-charge ABC 打开：配电房标签藏掉（在 ABC 矩形里）", not _label_visible(_labels_ab, "配电房"), "visible=" + str(_label_visible(_labels_ab, "配电房")))
+			_chk("04-charge ABC 打开：配电变压器标签藏掉（在 ABC 矩形里）", not _label_visible(_labels_ab, "配电变压器"), "visible=" + str(_label_visible(_labels_ab, "配电变压器")))
+			_chk("04-charge ABC 打开：储能 SOC 标签藏掉（在 ABC 矩形里）", not _soc_visible(_labels_ab), "visible=" + str(_soc_visible(_labels_ab)))
+			_chk("04-charge ABC 打开：操场 · 田径场仍屏内可见（在 ABC 外，未被误藏）", _label_onscreen_visible(_labels_ab, "操场 · 田径场"), "visible=" + str(_label_visible(_labels_ab, "操场 · 田径场")))
+			_chk("04-charge ABC 打开：充电区 · V2G 仍屏内可见（在 ABC 外，未被误藏）", _label_onscreen_visible(_labels_ab, "充电区 · V2G"), "visible=" + str(_label_visible(_labels_ab, "充电区 · V2G")))
+			var _band_ab: Array = _labels_band_detail(_labels_ab)
+			_chk("04-charge ABC 打开：屏内标签渲染中心都不进顶栏/场景栏（90≤y≤642）", bool(_band_ab[0]), String(_band_ab[1]))
+			# 总览 ABC 打开放到新 phase 再量：先关 ABC、回总览（_restore_scene_state
+			# 解除近拍 rig limits + 藏场景面板，见 phase 3 同款陷阱），切场景后等 4 帧。
+			(_main.get_node("UI/ABCPanel") as Control).visible = false
+			_main.get_node("UI").call("layout_panels")
+			_main.call("_restore_scene_state")
+			(_main.get_node("UI/ScenePanel") as Control).visible = false
+			_main.call("_enter_instant", "overview")
+			_phase = 8
+		return false
+	if _phase == 8:
+		if _frames >= 31:
+			# 总览无场景面板：ABC 单开，rect 同为 (720,60,548,380)。
+			(_main.get_node("UI/ABCPanel") as Control).visible = true
+			_main.get_node("UI").call("layout_panels")
+			_phase = 9
+		return false
+	if _phase == 9:
+		if _frames >= 35:
+			# ---- 总览 ABC 打开（本轮主修，标签最密的一处）：修前 ABC 打开态屏内可见
+			# 17 条，其中 7 条在 ABC 矩形里（二号 0.29、实验楼 0.45、创造力中心 1.0、
+			# 餐厅 1.0、配电房 1.0、配电变压器 0.46、储能 SOC 1.0）；修后 6 条藏掉，
+			# 储能 SOC 走 +88 档逃到 ABC 底边之下（y381→469，字盒顶 454 ≥ ABC 底 440），
+			# 宿舍楼 A/B 各被它顶下 +22（511→533、563→585），仍在面板外、无新重叠。
+			var _labels_ov2 = _main.get_node("Labels")
+			_labels_ov2.call("_update")
+			var _abc_ov: Array = _labels_abc_detail(_labels_ov2)
+			_chk("总览 ABC 打开：屏内可见标签无一与 ABC 面板相交", bool(_abc_ov[0]), String(_abc_ov[1]))
+			_chk("总览 ABC 打开：二号教学楼标签藏掉（在 ABC 矩形里）", not _label_visible(_labels_ov2, "二号教学楼"), "visible=" + str(_label_visible(_labels_ov2, "二号教学楼")))
+			_chk("总览 ABC 打开：实验楼标签藏掉（在 ABC 矩形里）", not _label_visible(_labels_ov2, "实验楼"), "visible=" + str(_label_visible(_labels_ov2, "实验楼")))
+			_chk("总览 ABC 打开：创造力中心标签藏掉（在 ABC 矩形里）", not _label_visible(_labels_ov2, "创造力中心"), "visible=" + str(_label_visible(_labels_ov2, "创造力中心")))
+			_chk("总览 ABC 打开：餐厅标签藏掉（在 ABC 矩形里）", not _label_visible(_labels_ov2, "餐厅 · 学术报告厅"), "visible=" + str(_label_visible(_labels_ov2, "餐厅 · 学术报告厅")))
+			_chk("总览 ABC 打开：配电房标签藏掉（在 ABC 矩形里）", not _label_visible(_labels_ov2, "配电房"), "visible=" + str(_label_visible(_labels_ov2, "配电房")))
+			_chk("总览 ABC 打开：配电变压器标签藏掉（在 ABC 矩形里）", not _label_visible(_labels_ov2, "配电变压器"), "visible=" + str(_label_visible(_labels_ov2, "配电变压器")))
+			var _soc_sp2 := _soc_sp(_labels_ov2)
+			_chk("总览 ABC 打开：储能 SOC 走 +88 档逃到 ABC 底边之下（455≤y≤485）", _soc_onscreen_visible(_labels_ov2) and _soc_sp2.y >= 455.0 and _soc_sp2.y <= 485.0, "y=" + str(_soc_sp2.y))
+			_chk("总览 ABC 打开：一号教学楼仍屏内可见（在 ABC 外，未被误藏）", _label_onscreen_visible(_labels_ov2, "一号教学楼"), "visible=" + str(_label_visible(_labels_ov2, "一号教学楼")))
+			_chk("总览 ABC 打开：宿舍楼 A 仍屏内可见（被 SOC 顶下 +22，仍在面板外）", _label_onscreen_visible(_labels_ov2, "宿舍楼 A"), "visible=" + str(_label_visible(_labels_ov2, "宿舍楼 A")))
+			var _band_ov2: Array = _labels_band_detail(_labels_ov2)
+			_chk("总览 ABC 打开：屏内标签渲染中心都不进顶栏/场景栏（90≤y≤642）", bool(_band_ov2[0]), String(_band_ov2[1]))
+			# 关闭 ABC：总览应恢复 17 条（关上面板不误藏的回归对照）。
+			(_main.get_node("UI/ABCPanel") as Control).visible = false
+			_main.get_node("UI").call("layout_panels")
+			_labels_ov2.call("_update")
+			var _n_back := 0
+			for _d4 in _labels_ov2.defs:
+				var _l4: Label3D = _d4["label"]
+				if not _l4.visible:
+					continue
+				var _sp4: Vector2 = (_labels_ov2.camera as Camera3D).unproject_position(_l4.position)
+				if _sp4.x >= 0.0 and _sp4.x <= 1280.0 and _sp4.y >= 0.0 and _sp4.y <= 720.0:
+					_n_back += 1
+			_chk("总览 ABC 关闭后：屏内可见恢复 17 条（无标签被误藏）", _n_back == 17, "onscreen=" + str(_n_back))
 			print("VERIFY-SUMMARY: PASS=", _passes, " FAIL=", _fails)
 			quit(1 if _fails > 0 else 0)
 		return false
