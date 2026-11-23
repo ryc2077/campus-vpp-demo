@@ -42,7 +42,9 @@ func setup(data: Dictionary, p_sun: DirectionalLight3D, p_env: WorldEnvironment)
 	env.environment.ambient_light_energy = 0.6
 	env.environment.fog_enabled = true
 	env.environment.fog_light_color = Color("#cfe0ee")
-	env.environment.fog_density = 0.0012
+	# Fog 0.0012 -> 0.0009: at overview distance 235m transmittance 0.75 -> 0.81,
+	# less white wash. Keep in sync with scenes/main.tscn Environment_main.
+	env.environment.fog_density = 0.0009
 	_build_clouds()
 	_build_rain()
 	_build_shadows()
@@ -165,9 +167,9 @@ func update_frame(hour: float, delta: float) -> void:
 		sky_col = sky_col.lerp(Color("#5d7488"), (1.0 - float(current.get("pv_factor", 1.0))) * 0.30)
 	var sky_mat: ProceduralSkyMaterial = _sky.sky_material
 	sky_mat.sky_top_color = sky_col
-	sky_mat.sky_horizon_color = sky_col.lerp(Color.WHITE, 0.45)
+	sky_mat.sky_horizon_color = sky_col.lerp(Color.WHITE, 0.35)
 	env.environment.ambient_light_energy = 0.32 + 0.5 * daylight
-	env.environment.fog_light_color = sky_col.lerp(Color.WHITE, 0.25)
+	env.environment.fog_light_color = sky_col.lerp(Color.WHITE, 0.15)
 	# 云漂移 + 云影（减弱动效时冻结，P3-4）
 	if not reduced_motion:
 		var spd := 2.6 if current_key == "storm" else (1.5 if current_key == "cloudy" or current_key == "overcast" else 1.0)

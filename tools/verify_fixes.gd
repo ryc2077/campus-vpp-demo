@@ -88,7 +88,9 @@ func _process(_delta: float) -> bool:
 	var vlab := row.get_child(1) as Label
 	_chk("面板数值列深色 #1e293b", _col(_label_color(vlab)) == "#1e293b", _col(_label_color(vlab)))
 	_chk("面板数值列 16px", vlab.get_theme_font_size("font_size") == 16, str(vlab.get_theme_font_size("font_size")))
-	# ---- 3D 标签 fixed_size ----
+	# ---- 3D labels: large font + small pixel_size (fixed_size = as if 1m away) ----
+	# screen px = font_size * pixel_size * vp_h / (2*tan(fov/2)); 64 * 0.0003615
+	# ~= 16px at 720p/55deg. Old 16 * 0.012 rendered ~133px with a ~33px outline.
 	var labels = _main.get_node("Labels")
 	var found := false
 	for d in labels.defs:
@@ -96,10 +98,20 @@ func _process(_delta: float) -> bool:
 		if l != null and l.text == "一号教学楼":
 			found = true
 			_chk("Label3D 一号教学楼 fixed_size", l.fixed_size == true, "fixed=" + str(l.fixed_size))
-			_chk("Label3D 一号教学楼 font_size 16", l.font_size == 16, "size=" + str(l.font_size))
+			_chk("Label3D font_size 64 (crisp glyphs)", l.font_size == 64, "size=" + str(l.font_size))
+			_chk("Label3D pixel_size ~0.00036 (16px @720p)", l.pixel_size > 0.0002 and l.pixel_size < 0.0006, "px=" + str(l.pixel_size))
+			_chk("Label3D outline 16 (scales with font)", l.outline_size == 16, "outline=" + str(l.outline_size))
 			_chk("Label3D 一号教学楼有中文字体", l.font != null and l.font.has_char(0x4e00), "font=" + str(l.font != null))
 	if not found:
 		_chk("Label3D 一号教学楼存在", false, "defs 里没找到")
+	# ---- Interior cameras must sit inside the room (old ones were outside/above) ----
+	var sc = _main.scenes_data["scenes"]
+	var dcam = sc["dist"]["cam"]
+	_chk("dist cam inside room (dist<=8, target y<2.5)", float(dcam["dist"]) <= 8.0 and float(dcam["target"][1]) < 2.5, str(dcam))
+	var ccam = sc["classroom"]["cam"]
+	_chk("classroom cam inside room (dist<=8, target y<2.5)", float(ccam["dist"]) <= 8.0 and float(ccam["target"][1]) < 2.5, str(ccam))
+	var wsys2 = _main.get_node("Weather")
+	_chk("fog density 0.0009 (less haze)", absf(wsys2.env.environment.fog_density - 0.0009) < 0.00001, str(wsys2.env.environment.fog_density))
 	# ---- ABC 表格保供列 ----
 	var ui = _main.get_node("UI")
 	var grid = _main.get_node("UI/ABCPanel/VBox/ABCGrid") as GridContainer

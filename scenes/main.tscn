@@ -17,8 +17,8 @@ ambient_light_source = 2
 ambient_light_color = Color(0.62, 0.74, 0.88, 1)
 ambient_light_energy = 0.6
 fog_enabled = true
-fog_light_color = Color(0.72, 0.82, 0.92, 1)
-fog_density = 0.0012
+fog_light_color = Color(0.62, 0.75, 0.88, 1)
+fog_density = 0.0009
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
 bg_color = Color(1, 1, 1, 0.93)
