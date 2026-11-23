@@ -84,27 +84,34 @@ def make_paint(name, hexstr):
 
 
 def make_glass(name):
-    """Layered glass: Principled (Transmission ~0.9, pale blue-grey)
-    mixed with Glass BSDF, so SSR/refraction shows in the render."""
+    """Tinted car glass (2026-11-24 glass fix, R3 leftover):
+    R3 acceptance: side windows had a sky gradient (top (200,214,232) /
+    bottom (101,142,181)) but still read as a flat pale grey-green slab,
+    no bright band. Root cause: vertical faces, seen from the SE camera,
+    mirror toward the ground below the horizon, so they reflect dark
+    ground -- and Transmission 0.9 let the dark interior dominate.
+    Fix (glass material only, paint + preview studio untouched):
+    Transmission 0.9 -> 0.10 (stop seeing the dark interior),
+    Base Color #9FC3D8 -> #33505F dark tint (dark field so the bright
+    horizon glow / lit-ground reflection reads as a band, not a wash),
+    Roughness 0.06 -> 0.15 (a SHARPER mirror would only mirror the dark
+    ground more faithfully; a slightly wider lobe blends in the bright
+    near-horizon sky glow), Specular IOR Level 0.5 -> 1.0 (stronger
+    Fresnel, grazing top brighter). Metallic stays 0.
+    The old 35% Glass BSDF mix is dropped: it is not exported to glTF
+    (only the Principled BSDF survives), and its pale #BFD4DE refraction
+    diluted the tint in EEVEE -- Principled-only keeps EEVEE == GLB ==
+    Godot."""
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
     ntree = mat.node_tree
     bsdf = ntree.nodes["Principled BSDF"]
-    bsdf.inputs["Base Color"].default_value = srgb_to_linear("#9FC3D8")
-    bsdf.inputs["Roughness"].default_value = 0.06
+    bsdf.inputs["Base Color"].default_value = srgb_to_linear("#33505F")
+    bsdf.inputs["Roughness"].default_value = 0.15
     bsdf.inputs["Metallic"].default_value = 0.0
-    bsdf.inputs["Transmission Weight"].default_value = 0.9
+    bsdf.inputs["Transmission Weight"].default_value = 0.10
+    bsdf.inputs["Specular IOR Level"].default_value = 1.0
     bsdf.inputs["IOR"].default_value = 1.45
-    glass = ntree.nodes.new("ShaderNodeBsdfGlass")
-    glass.inputs["Color"].default_value = srgb_to_linear("#BFD4DE")
-    glass.inputs["Roughness"].default_value = 0.05
-    glass.inputs["IOR"].default_value = 1.45
-    mix = ntree.nodes.new("ShaderNodeMixShader")
-    mix.inputs[0].default_value = 0.35  # 35% Glass, 65% Principled
-    out = ntree.nodes["Material Output"]
-    ntree.links.new(bsdf.outputs["BSDF"], mix.inputs[1])
-    ntree.links.new(glass.outputs["BSDF"], mix.inputs[2])
-    ntree.links.new(mix.outputs["Shader"], out.inputs["Surface"])
     return mat
 
 
@@ -298,6 +305,15 @@ for _m in [m for m in bpy.data.materials
             f"{_m.name}: Coat Roughness != 0.05"
 print("MATERIAL CHECK PASS: car paint + hub have solid Base Color + Roughness; "
       "car paint clearcoat Coat Weight 1.0 / Coat Roughness 0.05")
+# glass fix 2026-11-24: tinted glass, low transmission, strong specular
+_g = MAT_GLASS.node_tree.nodes["Principled BSDF"]
+assert abs(_g.inputs["Transmission Weight"].default_value - 0.10) < 1e-6, \
+    "ch-cars_glass: Transmission Weight != 0.10"
+assert abs(_g.inputs["Roughness"].default_value - 0.15) < 1e-6, \
+    "ch-cars_glass: Roughness != 0.15"
+assert abs(_g.inputs["Specular IOR Level"].default_value - 1.0) < 1e-6, \
+    "ch-cars_glass: Specular IOR Level != 1.0"
+print("GLASS CHECK PASS: transmission 0.10 / roughness 0.15 / specular 1.0")
 
 # ---- lighting / world (SPEC section 2) ----
 # 2026-11-24 返工 R2（验收 run 45251171902：Coat 0.05/底漆 0.25 后新图与旧图

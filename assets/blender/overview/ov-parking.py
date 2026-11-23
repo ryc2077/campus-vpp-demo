@@ -152,22 +152,25 @@ def make_paint(name, hexstr):
 
 
 def make_glass(name):
-    """车窗玻璃：透明材质（Alpha 0.65、粗糙度低），与 ov-gate 的
-    Glass_Reflective 做法一致。v2 的 Transmission 0.9 + Glass BSDF
-    混合导出后是 OPAQUE（alpha 1.0），Godot 里不透明，改回 Alpha 混合。
-    2026-11-24 返工 R1（验收 run #72：车窗纯色平板）：加细噪波 Bump
-    （scale 20、strength 0.10）给窗面纹理/反光变化，粗糙度 0.06→0.05；
-    Alpha 混合不动，Godot 里仍透明。"""
+    """车窗玻璃：深色镀膜玻璃（2026-11-24 glass fix，R3 遗留弱项）。
+    R3 验收：侧窗有天空纵向渐变（顶部 (200,214,232)/底部 (101,142,181)）
+    但一眼仍是淡灰绿平板、无亮带。根因：竖直面从东南相机看镜面方向
+    指向地平线以下暗地面，且旧 Alpha 0.65 透出暗内饰。
+    修法（只改玻璃材质，车漆与预览环境不动）：Alpha 0.65→0.90（少透暗
+    内饰）、底色 #9FC3D8→#33505F 深色镀膜（暗底衬出顶部辉光亮带）、
+    Roughness 0.05→0.15（镜面越锐越忠实映出暗地面；稍放宽 lobe 才能
+    蹭进地平线附近亮天光）、Specular IOR Level 1.0 不变（掠射更亮）。
+    Metallic 仍 0。R1 加的细噪波 Bump 删掉：它把镜面 lobe 打散成均匀
+    雾面，正是“平板感”的帮凶。"""
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
     ntree = mat.node_tree
     bsdf = ntree.nodes["Principled BSDF"]
-    bsdf.inputs["Base Color"].default_value = srgb_to_linear("#9FC3D8")
-    bsdf.inputs["Roughness"].default_value = 0.05
+    bsdf.inputs["Base Color"].default_value = srgb_to_linear("#33505F")
+    bsdf.inputs["Roughness"].default_value = 0.15
     bsdf.inputs["Metallic"].default_value = 0.0
-    bsdf.inputs["Alpha"].default_value = 0.65
+    bsdf.inputs["Alpha"].default_value = 0.90
     bsdf.inputs["Specular IOR Level"].default_value = 1.0
-    _noise_bump(ntree, bsdf, scale=20.0, strength=0.10)
     mat.surface_render_method = "DITHERED"
     return mat
 
@@ -529,6 +532,16 @@ for _m in [m for m in bpy.data.materials
         f"{_m.name}: Coat Roughness != 0.05"
 print("MATERIAL CHECK PASS: car paint clearcoat Coat Weight 1.0 / "
       "Coat Roughness 0.05")
+# glass fix 2026-11-24: tinted glass, low see-through, strong specular
+_g = MAT_GLASS.node_tree.nodes["Principled BSDF"]
+assert abs(_g.inputs["Alpha"].default_value - 0.90) < 1e-6, \
+    "ov-parking_glass: Alpha != 0.90"
+assert abs(_g.inputs["Roughness"].default_value - 0.15) < 1e-6, \
+    "ov-parking_glass: Roughness != 0.15"
+assert abs(_g.inputs["Specular IOR Level"].default_value - 1.0) < 1e-6, \
+    "ov-parking_glass: Specular IOR Level != 1.0"
+assert not _g.inputs["Normal"].is_linked, "ov-parking_glass: Normal linked (bump)!"
+print("GLASS CHECK PASS: alpha 0.90 / roughness 0.15 / specular 1.0, no bump")
 
 # ---- 世界背景：Nishita 天空（返工 R2，与 ch-cars 同口径） ----
 # 返工 R2（验收 run 45251171902：ov-parking 同 ch-cars 一样，纯色平坦世界里
