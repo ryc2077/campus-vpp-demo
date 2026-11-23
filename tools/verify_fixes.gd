@@ -2,7 +2,8 @@ extends SceneTree
 ## 无头逻辑验证：不渲染，只跑代码并检查运行时的实际状态。
 ## 用法：godot --headless --path . -s tools/verify_fixes.gd
 ## 检查：P0 面板数值列/标题颜色、P1-1 HintLabel、P1-2 舒适带绿、P1-3 ABC 保供逻辑、
-##      P2-3 标签色、P2-5 WxLabel、labels fixed_size、标题/时钟色。
+##      P2-3 标签色、P2-5 WxLabel、labels fixed_size、标题/时钟色、
+##      屋顶光伏/艺体馆标签净空（总览 + 冻结帧，1280×720）。
 ## 每项打印 PASS/FAIL，最后汇总。退出码 0=全过，1=有 FAIL。
 
 var _main: Node = null
@@ -36,6 +37,70 @@ func _label_color(n: Node) -> Color:
 	if n is Label:
 		return (n as Label).get_theme_color("font_color")
 	return Color(0, 0, 0, 0)
+
+
+func _labels_rect(labels: Node, d: Dictionary) -> Rect2:
+	# 与 labels.gd 同口径的渲染字盒：实测字宽 ×1.25 + 20px 裕量，高 30px，
+	# 中心 = 相机对 Label3D 实际位置的投影（不是锚点投影；钳制/档位折回后两者会差几十 px）。
+	var l: Label3D = d["label"]
+	var cam: Camera3D = labels.camera as Camera3D
+	var sp: Vector2 = cam.unproject_position(l.position)
+	var w: float = 100.0
+	var font: Font = labels.font
+	if font != null:
+		var m: Vector2 = font.get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16)
+		w = minf(260.0, m.x * 1.25 + 20.0)
+	return Rect2(sp.x - w / 2.0, sp.y - 15.0, w, 30.0)
+
+
+func _labels_pair(labels: Node) -> Array:
+	# [屋顶光伏 def, 艺体馆 def]，找不到时对应位为空字典。
+	var pv := {}
+	var gym := {}
+	for d in labels.defs:
+		if String(d["text"]) == "屋顶光伏":
+			pv = d
+		elif String(d["text"]) == "艺体馆":
+			gym = d
+	return [pv, gym]
+
+
+func _labels_pair_clear(labels: Node, min_gap: float) -> bool:
+	# 两标签都可见、渲染字盒不相交、且盒间净空 ≥ min_gap（横向重叠时算纵向净空）。
+	var pair := _labels_pair(labels)
+	var pv: Dictionary = pair[0]
+	var gym: Dictionary = pair[1]
+	if pv.is_empty() or gym.is_empty():
+		return false
+	var lp: Label3D = pv["label"]
+	var lg: Label3D = gym["label"]
+	if not lp.visible or not lg.visible:
+		return false
+	var rp := _labels_rect(labels, pv)
+	var rg := _labels_rect(labels, gym)
+	if rp.intersects(rg):
+		return false
+	if rp.end.x <= rg.position.x or rg.end.x <= rp.position.x:
+		return true # 横向不重叠，纵向净空不适用
+	var gap: float
+	if rp.end.y <= rg.position.y:
+		gap = rg.position.y - rp.end.y
+	else:
+		gap = rp.position.y - rg.end.y
+	return gap >= min_gap
+
+
+func _labels_pair_detail(labels: Node) -> String:
+	var pair := _labels_pair(labels)
+	var pv: Dictionary = pair[0]
+	var gym: Dictionary = pair[1]
+	if pv.is_empty() or gym.is_empty():
+		return "defs 里没找到"
+	var lp: Label3D = pv["label"]
+	var lg: Label3D = gym["label"]
+	if not lp.visible or not lg.visible:
+		return "visible=" + str(lp.visible) + "/" + str(lg.visible)
+	return "pv=" + str(_labels_rect(labels, pv)) + " gym=" + str(_labels_rect(labels, gym))
 
 
 func _process(_delta: float) -> bool:
@@ -92,6 +157,42 @@ func _process(_delta: float) -> bool:
 			_chk("储能近拍机位：dist 5m（不是默认 17m）", absf(_rig.dist - 5.0) < 0.01, str(_rig.dist))
 			_chk("储能近拍机位：目标柜面中心 (63.2, 1.4, −29.4)", _rig.target.is_equal_approx(Vector3(63.2, 1.4, -29.4)), str(_rig.target))
 			_chk("储能近拍机位：正对柜面 az=0", absf(_rig.az) < 0.01, str(_rig.az))
+			# 标签净空放到新 phase 再量：_enter_instant 只改轨道状态，相机位置由
+			# rig._process 逐帧算出，等几帧再量渲染位置才准（与储能标签同理）。
+			# 注意：储能近拍把 limits 钳在储能区（dist [3,36] + target_box），
+			# _enter_instant("overview") 不清 limits，rig._process 会把总览机位
+			#（dist 235 / target (−6,2,4)）钳回储能区，量到的根本不是总览；
+			# 先 _restore_scene_state 解除 limits（_enter_frozen 内部就是这么做的）。
+			_main._close_cam = false
+			_main.call("_restore_scene_state")
+			_main.call("_enter_instant", "overview")
+			_phase = 4
+		return false
+	if _phase == 4:
+		if _frames >= 16:
+			# ---- 屋顶光伏 / 艺体馆标签净空（总览）：旧去重叠只要求盒不相交，
+			# 总览两盒只差 6px、看着挤成一团；修后净空规则（labels.gd _min_gap=20）
+			# 应把艺体馆推到 −44 档，盒间净空 ≥20px。渲染位置为准（unproject 实测），
+			# 不是锚点投影。视口已是 1280×720（phase 0 末置起）：无头默认 720×1280
+			# 竖屏下两标签横向不重叠，量不到本次修的去重叠路径。
+			var _labels_ov = _main.get_node("Labels")
+			_labels_ov.call("_update")
+			# 附加 dist 守卫：limits 没解除时总览机位会被钳成 dist 36 的储能近拍，
+			# 两标签盒不交就成了空通过；真总览 dist 235，target (−6,2,4)。
+			_chk("总览：屋顶光伏与艺体馆字盒不重叠（净空 ≥20px）", _labels_pair_clear(_labels_ov, 20.0) and absf(_main.rig.dist - 235.0) < 0.5, _labels_pair_detail(_labels_ov) + " dist=" + str(_main.rig.dist) + " target=" + str(_main.rig.target))
+			_main.call("_enter_frozen", "classroom", 0.5)
+			_phase = 5
+		return false
+	if _phase == 5:
+		if _frames >= 19:
+			# ---- 同上，冻结帧（总览 → 教室楼前飞行中段，09-freeze 同机位）：
+			# 旧去重叠冻结帧两盒只差 16px；修后艺体馆应推到 +44 档，净空 ≥20px。
+			var _labels_fz = _main.get_node("Labels")
+			_labels_fz.call("_update")
+			# 同总览的 dist 守卫：冻结帧 easeOutCubic(0.5)=0.875、弧线抬升后
+			# dist = 235 + (38−235)×0.875 + sin(0.875π)×20 ≈ 70.3；若 limits
+			# 意外钳住会变成 36，盒不交就是空通过。
+			_chk("冻结帧：屋顶光伏与艺体馆字盒不重叠（净空 ≥20px）", _labels_pair_clear(_labels_fz, 20.0) and absf(_main.rig.dist - 70.28) < 1.0, _labels_pair_detail(_labels_fz) + " dist=" + str(_main.rig.dist))
 			print("VERIFY-SUMMARY: PASS=", _passes, " FAIL=", _fails)
 			quit(1 if _fails > 0 else 0)
 		return false

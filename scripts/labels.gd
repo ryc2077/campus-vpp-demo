@@ -4,7 +4,10 @@ extends Node3D
 ## 已知问题修复（相对原 Demo）：
 ## 1) 被遮挡标签：一号教学楼/艺体馆/创造力中心/图书馆曾被别的标签挡住不显示——
 ##    本版先做深度遮挡射线检测（被楼体挡住才隐藏），再做屏幕空间去重叠：
-##    按优先级排序，低优先级标签可上下微调（最多 4 档 × 19px）避让，实在排不开才隐藏。
+##    按优先级排序，低优先级标签可上下微调（最多 9 档，见 _update）避让，实在排不开才隐藏。
+##    去重叠要求最小净空：两标签字盒之间至少留 _min_gap（20px @720p），
+##    只“刚好不交”（总览屋顶光伏/艺体馆曾只差 6px、冻结帧只差 16px，看着挤成一团）
+##    也算撞上，继续试下一档；66/88 档是收紧后的逃生口，免得被挤的标签直接隐藏。
 ## 2) 池塘标签被底部场景按钮栏遮住——标签屏上 y 钳制在视口高 − 84px 以上。
 ## 3) 窄屏：宽度 < 760 时标签字号缩小、只保留 prio ≤ 4 的主标签。
 ## 4) 标签锚点贴设施顶部，不再悬空。
@@ -17,6 +20,8 @@ var debug_shot := false # shot 模式才打印去重叠诊断（main.gd 据 _sho
 var _last_ms := 0
 var _bottom_reserve := 84.0 # 底部场景栏高度 + 边距
 var _top_reserve := 80.0 # 顶栏底 72px + 8px：标签不得躲进半透明顶栏后面
+var _min_gap := 20.0 # 去重叠最小净空（屏上 px，720p 口径）：候选字盒与已放字盒之间
+# 至少留 20px 空隙才算排开，否则继续试下一档。只扩判定用的盒，不改 est_h。
 # （02-storage 实测：储能柜标签 y≈48 落在顶栏带内，隔着 93% 白面板只剩约 7% 可见度，白字压白底）
 var _ray: PhysicsRayQueryParameters3D
 
@@ -144,8 +149,9 @@ func _update() -> void:
 		sp.x = clampf(sp.x, est_w / 2.0 + 4.0, vp.x - est_w / 2.0 - 4.0)
 		sp.y = clampf(sp.y, _top_reserve, vp.y - _bottom_reserve)
 		var done := false
-		# 双向 6 档：原位、上 22、下 22、上 44、下 44、上 66（px，屏上）。
-		var steps: Array[float] = [0.0, -22.0, 22.0, -44.0, 44.0, -66.0]
+		# 双向 9 档：原位、上 22、下 22、上 44、下 44、上 66、下 66、上 88、下 88（px，屏上）。
+		# 66/88 档是净空规则的逃生口：档位收紧后被挤的标签有地方去，不直接隐藏。
+		var steps: Array[float] = [0.0, -22.0, 22.0, -44.0, 44.0, -66.0, 66.0, -88.0, 88.0]
 		for dy in steps:
 			# Label3D 默认水平/垂直均居中：盒以屏上锚点为中心。
 			var r := Rect2(sp.x - est_w / 2.0, sp.y - est_h / 2.0 + dy, est_w, est_h)
@@ -155,9 +161,13 @@ func _update() -> void:
 			# 盒顶进顶栏按“撞上”处理，继续试下一档；都进顶栏则隐藏。
 			if r.position.y < _top_reserve:
 				continue
+			# 净空规则：候选盒上下各扩 _min_gap 再判交——只“刚好不交”
+			#（总览屋顶光伏/艺体馆曾只差 6px、冻结帧只差 16px）也算撞上，
+			# 继续试下一档。扩的是判定用的盒，est_h 与顶栏检查口径不变。
 			var hit2 := false
+			var rg := r.grow_individual(0.0, _min_gap, 0.0, _min_gap)
 			for p in placed:
-				if r.intersects(p):
+				if rg.intersects(p):
 					hit2 = true
 					break
 			if not hit2:
