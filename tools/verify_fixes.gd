@@ -8,6 +8,8 @@ extends SceneTree
 ##      总览池塘水面底缘 y<640（F1 取景修补：总览 dist 235→275）、
 ##      F2/F3 标签锚点修补：总览变压器标签渲染中心距箱体顶面中心 ≤30px、
 ##      三号教学楼总览屏内可见、屏内可见标签两两无新重叠（SOC/变压器有意叠放除外）、
+##      一号教学楼总览锚点修补（F1 取景代价）：总览一号屏内可见（+44 档 y≈316）、
+##      二号教学楼 +88 档未被误藏、一号与屋顶光伏纵向净空 ≥20px、ABC 打开/关闭基线 18 条、
 ##      ABC 面板遮挡（充电区 + 总览 ABC 打开态：屏内可见标签无一与 ABC 面板相交）、
 ##      冻结帧屏外标签审计（x 钳制不折回的基线：屏内 4 / 屏外 2，锚点在画面外）、
 ##      面板进场动效（场景面板 + ABC 面板 scale 0.95 中段：_final_rect = 终态 rect、
@@ -406,6 +408,27 @@ func _process(_delta: float) -> bool:
 			# 见 main.gd _apply_c3_anchor），+88 档落到楼南立面正下方空地；
 			# 修后总览应屏内可见。
 			_chk("总览：三号教学楼标签屏内可见（F3 锚点修补）", _label_onscreen_visible(_labels_ov, "三号教学楼"), "visible=" + str(_label_visible(_labels_ov, "三号教学楼")))
+			# 一号教学楼标签修补（F1 取景代价，main.gd _apply_bldA_anchor）：
+			# 总览锚点改用屋顶北缘高位 (-53,23,-37)，屏上 (630,272)，+44 档落到
+			# (630,316)；唯一连带是二号教学楼 +44→+88（329.8→373.8），其余标签不动。
+			_chk("总览：一号教学楼标签屏内可见（一号锚点修补）", _label_onscreen_visible(_labels_ov, "一号教学楼") and absf(_main.rig.dist - 275.0) < 0.5, "visible=" + str(_label_visible(_labels_ov, "一号教学楼")) + " dist=" + str(_main.rig.dist))
+			var _bldA_sp := Vector2.ZERO
+			var _bldB_sp := Vector2.ZERO
+			for _dA in _labels_ov.defs:
+				if String(_dA["text"]) == "一号教学楼":
+					_bldA_sp = (_labels_ov.camera as Camera3D).unproject_position((_dA["label"] as Label3D).position)
+				if String(_dA["text"]) == "二号教学楼":
+					_bldB_sp = (_labels_ov.camera as Camera3D).unproject_position((_dA["label"] as Label3D).position)
+			_chk("总览：一号教学楼渲染中心 y≈316（+44 档，308≤y≤324）", _label_onscreen_visible(_labels_ov, "一号教学楼") and _bldA_sp.y >= 308.0 and _bldA_sp.y <= 324.0, "y=" + str(_bldA_sp.y))
+			_chk("总览：二号教学楼仍屏内可见（被一号顶到 +88 档，y≈374）", _label_onscreen_visible(_labels_ov, "二号教学楼") and _bldB_sp.y >= 365.0 and _bldB_sp.y <= 382.0, "y=" + str(_bldB_sp.y))
+			var _bldA_r := Rect2()
+			var _pv_r := Rect2()
+			for _dB in _labels_ov.defs:
+				if String(_dB["text"]) == "一号教学楼":
+					_bldA_r = _labels_rect(_labels_ov, _dB)
+				if String(_dB["text"]) == "屋顶光伏":
+					_pv_r = _labels_rect(_labels_ov, _dB)
+			_chk("总览：一号教学楼与屋顶光伏字盒不重叠（纵向净空 ≥20px）", not _bldA_r.intersects(_pv_r) and _bldA_r.position.y - _pv_r.end.y >= 20.0, "bldA=" + str(_bldA_r) + " pv=" + str(_pv_r))
 			# 无新重叠：屏内可见标签两两字盒不相交——SOC/变压器是 pin 有意叠放
 			# 的一对（F2），排除在外；其余任何一对相交即新重叠。
 			var _ov_bad: Array[String] = []
@@ -567,11 +590,12 @@ func _process(_delta: float) -> bool:
 		return false
 	if _phase == 9:
 		if _frames >= 35:
-			# ---- 总览 ABC 打开（本轮主修，标签最密的一处）：修前 ABC 打开态屏内可见
-			# 17 条，其中 7 条在 ABC 矩形里（二号 0.29、实验楼 0.45、创造力中心 1.0、
-			# 餐厅 1.0、配电房 1.0、配电变压器 0.46、储能 SOC 1.0）；修后 6 条藏掉，
-			# 储能 SOC 走 +88 档逃到 ABC 底边之下（y381→469，字盒顶 454 ≥ ABC 底 440），
-			# 宿舍楼 A/B 各被它顶下 +22（511→533、563→585），仍在面板外、无新重叠。
+			# ---- 总览 ABC 打开（本轮主修，标签最密的一处）：当前总览屏内可见
+			# 18 条（一号锚点修补后），其中 7 条在 ABC 矩形里（二号 0.29、实验楼 0.45、
+			# 创造力中心 1.0、餐厅 1.0、配电房 1.0、配电变压器 0.46、储能 SOC 1.0）；
+			# 修后 6 条藏掉，储能 SOC 走 +88 档逃到 ABC 底边之下（y381→469，字盒顶 454 ≥ ABC 底 440），
+			# 宿舍楼 A/B 各被它顶下 +22（511→533、563→585），仍在面板外、无新重叠；
+			# 一号教学楼盒右缘 688.5 < ABC 左缘 720，不在 ABC 矩形里，打开态仍可见。
 			var _labels_ov2 = _main.get_node("Labels")
 			_labels_ov2.call("_update")
 			var _abc_ov: Array = _labels_abc_detail(_labels_ov2)
@@ -584,19 +608,15 @@ func _process(_delta: float) -> bool:
 			_chk("总览 ABC 打开：配电变压器标签藏掉（在 ABC 矩形里）", not _label_visible(_labels_ov2, "配电变压器"), "visible=" + str(_label_visible(_labels_ov2, "配电变压器")))
 			var _soc_sp2 := _soc_sp(_labels_ov2)
 			_chk("总览 ABC 打开：储能 SOC 走 +88 档逃到 ABC 底边之下（455≤y≤485）", _soc_onscreen_visible(_labels_ov2) and _soc_sp2.y >= 455.0 and _soc_sp2.y <= 485.0, "y=" + str(_soc_sp2.y))
-			# F1 取景代价（一号教学楼标签）：总览 dist 235→275 后，一号锚点与屋顶光伏
-			# 锚点屏上只差约 10px，九档（0/±22/±44/±66/±88）全被屋顶光伏/艺体馆/
-			# 创造力中心/实验楼/操场堵死，labels.gd 按现有机制藏掉（occ=false，是
-			# 纯屏上排不开，不是遮挡；无头探针 30+ 组机位全量扫查：池塘底缘 <640 的
-			# 机位全都藏一号，dist ≤255 才保得住一号但池塘仍被栏盖）。这是取景修补
-			# 换来的已知代价，不是 ABC 面板误藏：关闭态同样藏掉（下条 16 条对照）。
-			# 若以后改 labels.gd（加档位/缩净空）把一号放回来，把本条改回可见断言。
-			_chk("总览 ABC 打开：一号教学楼标签藏掉（F1 取景代价，与 ABC 无关）", not _label_visible(_labels_ov2, "一号教学楼"), "visible=" + str(_label_visible(_labels_ov2, "一号教学楼")))
+			# 一号教学楼标签（F1 取景代价已修回，main.gd _apply_bldA_anchor）：
+			# 总览锚点改用屋顶北缘高位 (-53,23,-37)，+44 档落到 (630,316)，盒右缘
+			# 688.5 < ABC 左缘 720，不在 ABC 矩形里；ABC 打开态仍可见，不是误藏。
+			_chk("总览 ABC 打开：一号教学楼仍屏内可见（一号锚点修补，在 ABC 矩形外）", _label_onscreen_visible(_labels_ov2, "一号教学楼"), "visible=" + str(_label_visible(_labels_ov2, "一号教学楼")))
 			_chk("总览 ABC 打开：宿舍楼 A 仍屏内可见（被 SOC 顶下 +22，仍在面板外）", _label_onscreen_visible(_labels_ov2, "宿舍楼 A"), "visible=" + str(_label_visible(_labels_ov2, "宿舍楼 A")))
 			var _band_ov2: Array = _labels_band_detail(_labels_ov2)
 			_chk("总览 ABC 打开：屏内标签渲染中心都不进顶栏/场景栏（90≤y≤642）", bool(_band_ov2[0]), String(_band_ov2[1]))
-			# 关闭 ABC：总览应恢复 17 条（一号因 F1 取景藏掉，见上条；三号本轮
-			# F3 已修回；关上面板不误藏的回归对照，18→17 只差这一号）。
+			# 关闭 ABC：总览应恢复 18 条（一号锚点修补已修回、三号 F3 已修回；
+			# 关上面板不误藏的回归对照）。
 			(_main.get_node("UI/ABCPanel") as Control).visible = false
 			_main.get_node("UI").call("layout_panels")
 			_labels_ov2.call("_update")
@@ -608,7 +628,7 @@ func _process(_delta: float) -> bool:
 				var _sp4: Vector2 = (_labels_ov2.camera as Camera3D).unproject_position(_l4.position)
 				if _sp4.x >= 0.0 and _sp4.x <= 1280.0 and _sp4.y >= 0.0 and _sp4.y <= 720.0:
 					_n_back += 1
-			_chk("总览 ABC 关闭后：屏内可见恢复 17 条（一号因 F1 取景藏掉，三号 F3 已修回）", _n_back == 17, "onscreen=" + str(_n_back))
+			_chk("总览 ABC 关闭后：屏内可见恢复 18 条（一号锚点修补已修回，三号 F3 已修回）", _n_back == 18, "onscreen=" + str(_n_back))
 			# 动效闪现放到新 phase 再量：进储能场景、等 4 帧让面板排版定型。
 			_main.call("_restore_scene_state")
 			(_main.get_node("UI/ABCPanel") as Control).visible = false

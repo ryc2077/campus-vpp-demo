@@ -175,6 +175,18 @@ func _setup_labels() -> void:
 			# 所以锚点按场景分（见 _apply_c3_anchor）：总览用 (17,8,-20)，
 			# 其余场景用楼顶 (26,16,-30)。启动即总览，先按总览锚点建。
 			anchor = Vector3(17, 8, -20)
+		if String(b["id"]) == "bldA":
+			# 一号教学楼总览标签修补（F1 取景代价，run 45261531067 之后）：
+			# 总览 dist 275 后，楼顶锚点 (-56,21,-30) 屏上与屋顶光伏锚点只差约
+			# 10px，九档全堵死（探针逐档复算：0/±22/−44 撞屋顶光伏，
+			# +44/+66/+88 只差操场盒 8px 横向重叠，−66/−88 撞艺体馆）。
+			# 总览改用屋顶北缘高位 (-53,23,-37)：仍在屋顶上方（x −53 在楼长
+			# −76..−36 内、z −37 在楼宽 −37.5..−22.5 内、y 23 为屋顶 +4m，
+			# occ=false），屏上 (630,272)，+44 档落到 (630,316)，与屋顶光伏盒底
+			# 净空约 39px、与操场盒右缘约 8px、与二号 +88 档约 8px；
+			# 唯一连带是二号教学楼 +44→+88（329.8→373.8），其余标签不动。
+			# 其余场景用楼顶原锚点（见 _apply_bldA_anchor），启动即总览，先按总览锚点建。
+			anchor = Vector3(-53, 23, -37)
 		labels.add_label(String(b["name"]), DataLoader.color_from_hex("#17557f"), int(b["label_prio"]), anchor)
 	for e in campus_data["labels_extra"]:
 		var pos: Array = e["pos"]
@@ -356,9 +368,25 @@ func _apply_c3_anchor(overview: bool) -> void:
 			(d["label"] as Label3D).position = a
 			return
 
+## 一号教学楼标签锚点按场景分（F1 取景代价修补，F3 同模式）：总览是 18 标签密排地图，
+## 楼顶原锚点 (-56,21,-30) 在总览屏上九档全堵死，改用屋顶北缘高位 (-53,23,-37)；
+## 近景里同锚点会偏离楼顶（pv 场景一号楼是主角），所以进场景切回楼顶 (-56,21,-30)。
+## 锚点是呈现锚点、随场景切，楼体本身不动。探针（probe_bldA_real / probe_bldA_fine，
+## 用完已删）：(-53,23,-37) 总览可见 (630,316)，仅二号教学楼 +44→+88，
+## 其余 16 条原地不动；(-52,21,-30) 等仍藏、北侧/西侧低位锚点 occ=true。
+## 在每次切场景的入口调用（与 _apply_c3_anchor 同处）。
+func _apply_bldA_anchor(overview: bool) -> void:
+	for d in labels.defs:
+		if String(d["text"]) == "一号教学楼":
+			var a := Vector3(-53, 23, -37) if overview else Vector3(-56, 21, -30)
+			d["anchor"] = a
+			(d["label"] as Label3D).position = a
+			return
+
 ## 冻结帧：总览 → 目标机位的飞行在进度 u 处定格（内景取第一段：总览 → 楼前）。
 func _enter_frozen(key: String, u: float) -> void:
 	_apply_c3_anchor(key == "overview")
+	_apply_bldA_anchor(key == "overview")
 	if key == "overview":
 		_snap_to(scenes_data["overview"]["cam"])
 		return
@@ -391,6 +419,7 @@ func _enter_instant(key: String) -> void:
 	_pending_entry = ""
 	_pending_exit = false
 	_apply_c3_anchor(key == "overview")
+	_apply_bldA_anchor(key == "overview")
 	if key == "overview":
 		_snap_to(scenes_data["overview"]["cam"])
 		return
@@ -480,6 +509,7 @@ func enter_scene(key: String) -> void:
 	if not scenes_data["scenes"].has(key):
 		return
 	_apply_c3_anchor(false)
+	_apply_bldA_anchor(false)
 	# 从一个场景直切另一个：先恢复上一个场景的剖切，避免两套内景叠加
 	_restore_scene_state()
 	_pending_entry = ""
@@ -534,6 +564,7 @@ func _on_landed(key: String) -> void:
 
 func exit_scene() -> void:
 	_apply_c3_anchor(true)
+	_apply_bldA_anchor(true)
 	if active_scene == "" and not _pending_exit:
 		rig.fly_to(scenes_data["overview"]["cam"], 1000)
 		ui.set_scene_active("overview")
