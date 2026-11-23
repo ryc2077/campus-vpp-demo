@@ -259,8 +259,8 @@ func _build_storage() -> void:
 		var fan := _cyl(storage_group, Vector3(x, 4.3, 0.4), 0.55, 0.55, 0.15, _mat(Color("#d7dde3"), 0.4, 0.5), 12)
 		fan.rotation_degrees.x = 90
 		i += 1
-	# PCS 柜
-	_box(storage_group, Vector3(4.6, 1.6, -1.2), Vector3(1.6, 3.2, 1.4), _mat(Color("#5b7186"), 0.45, 0.4))
+	# PCS 柜：柜底 2.0-1.6=0.40 落在基座顶（0.40），旧值 1.6 时柜底 0.0 埋入基座 0.40
+	_box(storage_group, Vector3(4.6, 2.0, -1.2), Vector3(1.6, 3.2, 1.4), _mat(Color("#5b7186"), 0.45, 0.4))
 	# 状态灯
 	var dot_mat := StandardMaterial3D.new()
 	dot_mat.albedo_color = Color("#38f27a")
@@ -293,13 +293,13 @@ func _build_charge() -> void:
 		for wx_off in [-1.2, 1.2]:
 			for wz_off in [-0.95, 0.95]:
 				_cyl(g, Vector3(cx + wx_off, 0.45, wz_off), 0.35, 0.35, 0.25, wheel_mat, 16).rotation_degrees.x = 90
-		# 车顶 SOC 条（缩放 x 反映 SOC）
+		# 车顶 SOC 条（缩放 x 反映 SOC）：条底 1.84-0.09=1.75 贴合车舱顶（1.75），旧值 1.90 时条底 1.81 悬空 0.06
 		var fill_mat := StandardMaterial3D.new()
 		fill_mat.albedo_color = Color("#2fbf71")
 		fill_mat.emission_enabled = true
 		fill_mat.emission = Color("#2fbf71")
 		fill_mat.emission_energy_multiplier = 0.8
-		var fill := _box(g, Vector3(cx, 1.90, 0), Vector3(3.4, 0.18, 0.3), fill_mat)
+		var fill := _box(g, Vector3(cx, 1.84, 0), Vector3(3.4, 0.18, 0.3), fill_mat)
 		fill.scale.x = float(car["base_soc"])
 		fill.position.x = cx - 3.4 * (1.0 - float(car["base_soc"])) / 2.0
 		car_fills.append({"fill": fill, "base_soc": float(car["base_soc"]), "v2g": bool(car.get("v2g", false)), "cx": cx})

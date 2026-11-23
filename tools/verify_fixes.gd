@@ -976,6 +976,33 @@ func _process(_delta: float) -> bool:
 					if mi2.position.y + 0.7 > bh + 0.001:
 						win_bad += 1
 	_chk("S5 全部窗顶 ≤ 墙顶（无埋入屋顶板）", win_bad == 0, "checked=" + str(win_n) + " bad=" + str(win_bad))
+	# ---- 回退分支修补：S2 PCS 柜落基座顶 / S4 车顶 SOC 条贴车舱顶 ----
+	var pcs_box: MeshInstance3D = null
+	var st_base: MeshInstance3D = null
+	for ch3 in cb.storage_group.get_children():
+		if ch3 is MeshInstance3D:
+			var mi3 := ch3 as MeshInstance3D
+			if mi3.mesh is BoxMesh and (mi3.mesh as BoxMesh).size.is_equal_approx(Vector3(1.6, 3.2, 1.4)):
+				pcs_box = mi3
+			if mi3.mesh is BoxMesh and (mi3.mesh as BoxMesh).size.is_equal_approx(Vector3(10, 0.4, 6)):
+				st_base = mi3
+	_chk("S2 PCS 柜中心 y=2.0", pcs_box != null and absf(pcs_box.position.y - 2.0) < 0.001, str(pcs_box.position.y) if pcs_box != null else "null")
+	_chk("S2 PCS 柜底 0.40 落在基座顶（不埋入）", pcs_box != null and st_base != null and absf((pcs_box.position.y - 1.6) - (st_base.position.y + 0.2)) < 0.001, str(pcs_box.position.y - 1.6) + " vs " + str(st_base.position.y + 0.2) if pcs_box != null and st_base != null else "null")
+	var cabin_top_y := 0.0
+	for ch4 in cg.get_children():
+		if ch4 is MeshInstance3D:
+			var mi4 := ch4 as MeshInstance3D
+			if mi4.mesh is BoxMesh and (mi4.mesh as BoxMesh).size.is_equal_approx(Vector3(2.0, 0.7, 1.6)):
+				cabin_top_y = mi4.position.y + 0.35
+				break
+	var fills_ok: bool = cb.car_fills.size() == 3
+	var fills_y_ok := true
+	for c in cb.car_fills:
+		var fl := c["fill"] as MeshInstance3D
+		if absf(fl.position.y - 1.84) >= 0.001 or absf((fl.position.y - 0.09) - cabin_top_y) >= 0.001:
+			fills_y_ok = false
+	_chk("S4 车顶 SOC 条中心 y=1.84（3 辆）", fills_ok and fills_y_ok, str(cb.car_fills.size()))
+	_chk("S4 车顶 SOC 条底 1.75 贴合车舱顶（不悬空）", fills_ok and fills_y_ok, "cabin_top=" + str(cabin_top_y))
 	# ---- 储能外壳开关 + SOC 条（GLB/回退两路，分支感知：GLB 未载入时验回退路） ----
 	# 实时 SOC 与填充比：_process 每帧调 _update_visuals，条子中心/缩放都由它定，
 	# 检查必须按同一 soc 算期望值，不能写死位置。
