@@ -8,7 +8,10 @@ extends Node3D
 ##    去重叠要求最小净空：两标签字盒之间至少留 _min_gap（20px @720p），
 ##    只“刚好不交”（总览屋顶光伏/艺体馆曾只差 6px、冻结帧只差 16px，看着挤成一团）
 ##    也算撞上，继续试下一档；66/88 档是收紧后的逃生口，免得被挤的标签直接隐藏。
-## 2) 池塘标签被底部场景按钮栏遮住——标签屏上 y 钳制在视口高 − 84px 以上。
+## 2) 标签屏上 y 钳制（顶栏 80 / 场景栏 视口高 − 84）必须折回 3D 位置：
+##    旧代码只改判定 rect、不改锚点，渲染中心与 rect 脱节——池塘总览 659.7 落进
+##    场景栏带、储能场景三号教学楼 48.3 / 配电房 69.7 落进顶栏带。本版全标签
+##    用视线深度把（钳制量 + 档位）一次折回，渲染中心 = rect 中心。
 ## 3) 窄屏：宽度 < 760 时标签字号缩小、只保留 prio ≤ 4 的主标签。
 ## 4) 标签锚点贴设施顶部，不再悬空。
 
@@ -140,11 +143,11 @@ func _update() -> void:
 			est_w = minf(260.0, m.x * 1.25 + 20.0)
 		else:
 			est_w = minf(260.0, float(l.text.length()) * target_px * 1.25 + 20.0)
-		# 池塘修复：y 钳制在视口高 − 底部预留之上；x 钳制在屏内。
-		# 顶栏修复：y 下限 80px（顶栏底 72 + 8），不得躲进顶栏后面。
-		# 注意：下面的钳制只改了判定用的 rect（sp），没改锚点本身；
-		# 折回 3D 时必须把钳制量也算进去，否则渲染位置与 rect 脱节
-		# （储能标签就是这么被顶栏盖住一半的，见 dy 循环里的 soc 专修）。
+		# y 钳制：顶栏下限 80px（顶栏底 72 + 8），场景栏上限 视口高 − 84；
+		# x 钳制在屏内。注意：钳制只改判定用的 rect（sp），没改锚点本身；
+		# 折回 3D 时必须把钳制量也算进去，否则渲染位置与 rect 脱节——
+		# 池塘、储能场景的三号教学楼与配电房都是这么落进栏带里的，
+		# 见 dy 循环里的全标签折回。
 		var sp_orig_y := sp.y
 		sp.x = clampf(sp.x, est_w / 2.0 + 4.0, vp.x - est_w / 2.0 - 4.0)
 		sp.y = clampf(sp.y, _top_reserve, vp.y - _bottom_reserve)
@@ -161,6 +164,13 @@ func _update() -> void:
 			# 盒顶进顶栏按“撞上”处理，继续试下一档；都进顶栏则隐藏。
 			if r.position.y < _top_reserve:
 				continue
+			# 场景栏修复：盒底不得进场景栏（y652–708 @720p）。只钳制锚点中心不够——
+			# dy 取正档时会把盒底再推进场景栏后面（池塘总览即此例：中心钳在 636，
+			# +22 档会把中心推到 658）。盒底进场景栏按“撞上”处理，继续试下一档；
+			# 都进场景栏则隐藏。口径与中心钳制一致：盒底 ≤ vp.y − 84 + est_h/2
+			#（720p 下为 651，场景栏顶 652 之上 1px）。
+			if r.end.y > vp.y - _bottom_reserve + est_h / 2.0:
+				continue
 			# 净空规则：候选盒上下各扩 _min_gap 再判交——只“刚好不交”
 			#（总览屋顶光伏/艺体馆曾只差 6px、冻结帧只差 16px）也算撞上，
 			# 继续试下一档。扩的是判定用的盒，est_h 与顶栏检查口径不变。
@@ -174,22 +184,20 @@ func _update() -> void:
 				placed.append(r)
 				# 把微调量折回 3D：dy>0 是向屏下移，对应 anchor 沿相机上方向的
 				# 反方向（anchor - up * world_dy）；旧代码这里是 + 号，方向反了。
-				# px_per_world = vp_h / (2*tan(fov/2))，world_dy = dy*dist/px_per_world。
+				# px_per_world = vp_h / (2*tan(fov/2))。
 				var up: Vector3 = camera.global_transform.basis.y
-				var cam_dist := (anchor - camera.global_position).length()
-				var world_dy: float
-				if String(d["dynamic"]) == "soc":
-					# 储能标签专修（run 45226479162）：锚点原投影 y≈48，rect 被钳到 80
-					# 再取 +22 档，但旧折回只用了 dy，丢了钳制的 32px，实际渲染中心
-					# ≈48+24=72，正好压在顶栏底边（72）上，上半截字被顶栏盖住。
-					# 这里把钳制量也折回去，并用视线深度（非相机距离）换算，使屏上
-					# 位移与 rect 一致（中心 80+22=102，字盒顶 87，完全在顶栏之下）。
-					# 只修 dynamic=="soc" 的储能标签，其他标签保持原行为。
-					var fwd: Vector3 = -camera.global_transform.basis.z
-					var depth: float = (anchor - camera.global_position).dot(fwd)
-					world_dy = (sp.y + dy - sp_orig_y) * depth / px_per_world
-				else:
-					world_dy = dy * cam_dist / px_per_world
+				# 钳制折回（全标签通用；原先只修了 dynamic=="soc" 的储能标签，
+				# run 45226479162）：sp 经顶栏/场景栏钳制后与锚点原投影 sp_orig_y
+				# 脱节，旧折回只用了 dy，丢了钳制量，渲染中心与判定 rect 差几十 px——
+				# 池塘总览锚点 y≈660 被钳到 636、取 0 档，渲染仍在 659.7 落进场景栏带；
+				# 储能场景三号教学楼锚点 y≈−78 被钳到 80、取 +88 档，渲染只到 48.3
+				# 落进顶栏带；配电房锚点 y≈43 被钳到 80、取 +22 档，渲染只到 69.7
+				# 压在顶栏底边上。这里把钳制量也折回去，并用视线深度（非相机距离）
+				# 换算：沿相机上方向位移 w 时屏上位移恰为 w*px_per_world/depth，
+				# 渲染中心与 rect 一致（= sp.y + dy）。
+				var fwd: Vector3 = -camera.global_transform.basis.z
+				var depth: float = (anchor - camera.global_position).dot(fwd)
+				var world_dy: float = (sp.y + dy - sp_orig_y) * depth / px_per_world
 				l.position = anchor - up * world_dy
 				l.visible = true
 				n_visible += 1

@@ -3,7 +3,8 @@ extends SceneTree
 ## 用法：godot --headless --path . -s tools/verify_fixes.gd
 ## 检查：P0 面板数值列/标题颜色、P1-1 HintLabel、P1-2 舒适带绿、P1-3 ABC 保供逻辑、
 ##      P2-3 标签色、P2-5 WxLabel、labels fixed_size、标题/时钟色、
-##      屋顶光伏/艺体馆标签净空（总览 + 冻结帧，1280×720）。
+##      屋顶光伏/艺体馆标签净空（总览 + 冻结帧，1280×720）、
+##      池塘标签不进场景栏（总览）+ 屏内标签栏带扫查（储能场景/总览/冻结帧）。
 ## 每项打印 PASS/FAIL，最后汇总。退出码 0=全过，1=有 FAIL。
 
 var _main: Node = null
@@ -103,6 +104,28 @@ func _labels_pair_detail(labels: Node) -> String:
 	return "pv=" + str(_labels_rect(labels, pv)) + " gym=" + str(_labels_rect(labels, gym))
 
 
+func _labels_band_detail(labels: Node) -> Array:
+	# [是否全部通过, 详情]：屏内可见标签的渲染中心不得落进顶栏带（y<72）或
+	# 场景栏带（y652–708）；留余量：要求 90≤y≤642。屏外标签（中心越界）不审——
+	# 它们不在画面内，x 钳制未折回的已知遗留也不在本轮范围。
+	# 口径与 labels.gd 的栏带守卫一致：顶栏守卫保盒顶 ≥80（中心 ≥95），
+	# 场景栏守卫保中心 ≤636；渲染中心 = rect 中心时两者即栏带外的保证。
+	var cam: Camera3D = labels.camera as Camera3D
+	var bad: Array[String] = []
+	var n := 0
+	for d in labels.defs:
+		var l: Label3D = d["label"]
+		if not l.visible:
+			continue
+		var sp: Vector2 = cam.unproject_position(l.position)
+		if sp.x < 0.0 or sp.x > 1280.0 or sp.y < 0.0 or sp.y > 720.0:
+			continue
+		n += 1
+		if sp.y < 90.0 or sp.y > 642.0:
+			bad.append(String(d["text"]) + " y=" + str(sp.y))
+	return [bad.is_empty(), "onscreen=" + str(n) + " bad=[" + ", ".join(bad) + "]"]
+
+
 func _process(_delta: float) -> bool:
 	_frames += 1
 	if _frames < 5:
@@ -133,6 +156,11 @@ func _process(_delta: float) -> bool:
 					_sto_sp = (_labels_st.camera as Camera3D).unproject_position(_sto_lab.position)
 			var _vp := _labels_st.get_viewport().get_visible_rect().size
 			_chk("储能标签渲染中心 y≈102（字盒顶 ≥80，不进顶栏）", _sto_lab != null and _sto_vis and absf(_vp.y - 720.0) < 1.0 and _sto_sp.y >= 97.0 and _sto_sp.y <= 107.0, "vp=" + str(_vp) + " visible=" + str(_sto_vis) + " y=" + str(_sto_sp.y))
+			# ---- 储能场景栏带扫查（本轮审计）：修前三号教学楼渲染中心 y≈48、
+			# 配电房 y≈70 落进顶栏带（钳制量未折回，与池塘同类）；修后三号 168、
+			# 配电房 102，屏内标签应全在 90≤y≤642 内。
+			var _band_st: Array = _labels_band_detail(_labels_st)
+			_chk("储能场景：屏内标签渲染中心都不进顶栏/场景栏（90≤y≤642）", bool(_band_st[0]), String(_band_st[1]))
 			_main.call("enter_scene", "dist")
 			_phase = 1
 		return false
@@ -177,6 +205,22 @@ func _process(_delta: float) -> bool:
 			# 竖屏下两标签横向不重叠，量不到本次修的去重叠路径。
 			var _labels_ov = _main.get_node("Labels")
 			_labels_ov.call("_update")
+			# ---- 池塘标签不被场景栏遮（本轮主修）：锚点原投影 y≈660，旧折回丢了
+			# 钳制量，渲染中心 659.7 落进场景栏带（y652–708）、被实白底盖住，
+			# 总览里看不见；修后渲染中心应与 rect 一致（钳后 636 + 0 档），
+			# 字盒底 651 在栏顶 652 之上。视口已是 1280×720（phase 0 末置起）。
+			var _pond_sp := Vector2.ZERO
+			var _pond_vis := false
+			for _d3 in _labels_ov.defs:
+				if String(_d3["text"]) == "池塘":
+					var _pl: Label3D = _d3["label"]
+					_pond_vis = _pl.visible
+					if _pond_vis:
+						_pond_sp = (_labels_ov.camera as Camera3D).unproject_position(_pl.position)
+			var _vp_ov: Vector2 = _labels_ov.get_viewport().get_visible_rect().size
+			_chk("总览：池塘标签渲染中心不在场景栏带（580≤y≤642，留 10px 余量）", _pond_vis and absf(_vp_ov.y - 720.0) < 1.0 and _pond_sp.y >= 580.0 and _pond_sp.y <= 642.0, "vp=" + str(_vp_ov) + " visible=" + str(_pond_vis) + " y=" + str(_pond_sp.y))
+			var _band_ov: Array = _labels_band_detail(_labels_ov)
+			_chk("总览：屏内标签渲染中心都不进顶栏/场景栏（90≤y≤642）", bool(_band_ov[0]), String(_band_ov[1]))
 			# 附加 dist 守卫：limits 没解除时总览机位会被钳成 dist 36 的储能近拍，
 			# 两标签盒不交就成了空通过；真总览 dist 235，target (−6,2,4)。
 			_chk("总览：屋顶光伏与艺体馆字盒不重叠（净空 ≥20px）", _labels_pair_clear(_labels_ov, 20.0) and absf(_main.rig.dist - 235.0) < 0.5, _labels_pair_detail(_labels_ov) + " dist=" + str(_main.rig.dist) + " target=" + str(_main.rig.target))
@@ -193,6 +237,8 @@ func _process(_delta: float) -> bool:
 			# dist = 235 + (38−235)×0.875 + sin(0.875π)×20 ≈ 70.3；若 limits
 			# 意外钳住会变成 36，盒不交就是空通过。
 			_chk("冻结帧：屋顶光伏与艺体馆字盒不重叠（净空 ≥20px）", _labels_pair_clear(_labels_fz, 20.0) and absf(_main.rig.dist - 70.28) < 1.0, _labels_pair_detail(_labels_fz) + " dist=" + str(_main.rig.dist))
+			var _band_fz: Array = _labels_band_detail(_labels_fz)
+			_chk("冻结帧：屏内标签渲染中心都不进顶栏/场景栏（90≤y≤642）", bool(_band_fz[0]), String(_band_fz[1]))
 			print("VERIFY-SUMMARY: PASS=", _passes, " FAIL=", _fails)
 			quit(1 if _fails > 0 else 0)
 		return false
