@@ -17,8 +17,8 @@ shot "scene=storage&shot=1&hour=12" 02-storage.png
 shot "scene=classroom&shot=1&hour=10" 03-classroom.png
 shot "scene=charge&shot=1&hour=18" 04-charge.png
 shot "scene=dist&shot=1&hour=15" 05-dist.png
-shot "scene=pv&shot=1&hour=12&weather=rain" 06-pv-rain.png
-shot "scene=overview&shot=1&hour=9&weather=storm" 07-overview-storm.png
+shot "scene=pv&shot=1&hour=12&wx=rain" 06-pv-rain.png
+shot "scene=overview&shot=1&hour=9&wx=storm" 07-overview-storm.png
 shot "shot=1&hour=9" 08-narrow.png 390 844 20000 3000
 shot "scene=classroom&shot=1&hour=10&freeze=0.5" 09-freeze.png
 if [ "$FAILED" -ne 0 ]; then echo "SHOTS FAILED"; exit 1; fi

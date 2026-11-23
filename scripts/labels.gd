@@ -13,8 +13,11 @@ var camera: Camera3D
 var font: Font # Label3D 不走 Control 主题，main.gd 启动时把中文字体直接赋过来
 var occluders: Array[Node3D] = []
 var defs: Array[Dictionary] = []
+var debug_shot := false # shot 模式才打印去重叠诊断（main.gd 据 _shot_mode 置位）
 var _last_ms := 0
 var _bottom_reserve := 84.0 # 底部场景栏高度 + 边距
+var _top_reserve := 80.0 # 顶栏底 72px + 8px：标签不得躲进半透明顶栏后面
+# （02-storage 实测：储能柜标签 y≈48 落在顶栏带内，隔着 93% 白面板只剩约 7% 可见度，白字压白底）
 var _ray: PhysicsRayQueryParameters3D
 
 func add_label(text: String, color: Color, prio: int, anchor: Vector3, dynamic: String = "") -> Dictionary:
@@ -93,9 +96,19 @@ func _update() -> void:
 			if not hit.is_empty():
 				d["occ"] = true
 	# 2) 按优先级排序，做屏幕空间去重叠
+	# 根因（Round 2 实测）：旧代码符号反了——判定用的 rect 是
+	#   Rect2(sp.x - w/2, sp.y - est_h + dy)（dy>0 表示 rect 向屏下移），
+	# 但折回 3D 却是 anchor + up * world_dy（沿相机上方向 = 向屏上移）。
+	# 判定以为标签被推下去了，实际却被推上去，正好压到上一行标签上，
+	# 两者错开 2*dy（第 3 档差 114px），所以实测分离只有约 5-12px。
+	# 本轮：rect 与 3D 位移同向（dy>0 = 向屏下 = anchor - up * world_dy），
+	# 且 Label3D 默认双向居中，rect 改为以锚点屏上点为中心；
+	# 候选档改为上下双向 6 档 × 22px，排不开才隐藏。
 	var sorted: Array = defs.duplicate()
 	sorted.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["prio"]) < int(b["prio"]))
 	var placed: Array[Rect2] = []
+	var dbg: Array[String] = []
+	var n_visible := 0
 	for d in sorted:
 		var l: Label3D = d["label"]
 		if bool(d["occ"]):
@@ -109,26 +122,26 @@ func _update() -> void:
 			l.visible = false
 			continue
 		var sp: Vector2 = camera.unproject_position(anchor)
-		# Estimate the on-screen box from the real font metrics at the target
-		# screen size. The old estimate (chars * 15 * 0.62 + 30) under-measured
-		# CJK text: one hanzi is ~1em wide, not 0.62em, so long labels overlapped
-		# even when the estimator thought they were clear. +12px covers the
-		# white outline + a small gap; est_h = text height + outline.
+		# 屏上盒估计：实测字宽仍被低估（描边 4px/边 + 字体 advance 取整 +
+		# Label3D 光栅化垫边），故实测串宽 ×1.25 再 +20px 裕量；
+		# est_h = 字高 + 描边上下 + 裕量 = 16+14=30px。
 		var est_w: float
-		var est_h: float = target_px + 10.0
+		var est_h: float = target_px + 14.0
 		if font != null:
 			var m := font.get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(target_px))
-			est_w = minf(220.0, m.x + 12.0)
+			est_w = minf(260.0, m.x * 1.25 + 20.0)
 		else:
-			est_w = minf(220.0, float(l.text.length()) * target_px + 30.0)
-		# 池塘修复：y 钳制在视口高 − 底部预留之上；x 钳制在屏内
+			est_w = minf(260.0, float(l.text.length()) * target_px * 1.25 + 20.0)
+		# 池塘修复：y 钳制在视口高 − 底部预留之上；x 钳制在屏内。
+		# 顶栏修复：y 下限 80px（顶栏底 72 + 8），不得躲进顶栏后面。
 		sp.x = clampf(sp.x, est_w / 2.0 + 4.0, vp.x - est_w / 2.0 - 4.0)
-		sp.y = clampf(sp.y, 48.0, vp.y - _bottom_reserve)
+		sp.y = clampf(sp.y, _top_reserve, vp.y - _bottom_reserve)
 		var done := false
-		var dy := 0.0
-		for step in range(4):
-			dy = step * 19.0
-			var r := Rect2(sp.x - est_w / 2.0, sp.y - est_h + dy, est_w, est_h)
+		# 双向 6 档：原位、上 22、下 22、上 44、下 44、上 66（px，屏上）。
+		var steps: Array[float] = [0.0, -22.0, 22.0, -44.0, 44.0, -66.0]
+		for dy in steps:
+			# Label3D 默认水平/垂直均居中：盒以屏上锚点为中心。
+			var r := Rect2(sp.x - est_w / 2.0, sp.y - est_h / 2.0 + dy, est_w, est_h)
 			var hit2 := false
 			for p in placed:
 				if r.intersects(p):
@@ -136,16 +149,22 @@ func _update() -> void:
 					break
 			if not hit2:
 				placed.append(r)
-				# 把微调量折回 3D：沿相机上方向移动锚点。19px 屏幕位移对应的世界位移
-				# 是 dy * dist / px_per_world（px_per_world = vp_h / (2*tan(fov/2))，
-				# 上面已算出；旧系数 0.0016 是 vp_h≈650 时的近似值，现用精确值）。
+				# 把微调量折回 3D：dy>0 是向屏下移，对应 anchor 沿相机上方向的
+				# 反方向（anchor - up * world_dy）；旧代码这里是 + 号，方向反了。
+				# px_per_world = vp_h / (2*tan(fov/2))，world_dy = dy*dist/px_per_world。
 				var up: Vector3 = camera.global_transform.basis.y
-				var fwd: Vector3 = -camera.global_transform.basis.z
 				var cam_dist := (anchor - camera.global_position).length()
 				var world_dy := dy * cam_dist / px_per_world
-				l.position = anchor + up * world_dy - fwd * 0.0
+				l.position = anchor - up * world_dy
 				l.visible = true
+				n_visible += 1
+				if debug_shot:
+					dbg.append("%s@%d,%d,%d,%d" % [String(l.text), int(r.position.x), int(r.position.y), int(r.size.x), int(r.size.y)])
 				done = true
 				break
 		if not done:
 			l.visible = false
+	if debug_shot:
+		# 每 0.15s 一行汇总：可见数 + 各可见标签屏上 rect（x,y,w,h，整数 px）。
+		# shot.mjs 抓 [console] 行，Actions 日志里可直接核对去重叠是否生效。
+		print("[labels] n=%d %s" % [n_visible, " ".join(dbg)])

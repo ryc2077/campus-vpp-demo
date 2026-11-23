@@ -130,13 +130,16 @@ func _apply_narrow_layout(w: float) -> void:
 		time_label.visible = true
 		title.add_theme_font_size_override("font_size", 16)
 	# 场景栏：672 以下按钮取消固定宽、均分整栏；恢复时还原因子。
+	# Round 2：栏宽 672 -> 720（±360，与 main.tscn 一致），内容实测需 660px，
+	# 旧栏内宽 648 < 660 已溢出 12px；按钮 96/116 -> 92/112、间距 8 -> 6，
+	# 内容合计 626px，内宽 696px，留 70px 裕量，不再顶出右缘。
 	var scene_bar := get_node("SceneBar") as Control
 	var scene_hbox := get_node("SceneBar/HBox") as HBoxContainer
 	var narrow_scene := w < 672.0
 	var half_w := maxf(0.0, w * 0.5 - 12.0)
-	scene_bar.offset_left = -half_w if narrow_scene else -336.0
-	scene_bar.offset_right = half_w if narrow_scene else 336.0
-	scene_hbox.add_theme_constant_override("separation", 4 if narrow_scene else 8)
+	scene_bar.offset_left = -half_w if narrow_scene else -360.0
+	scene_bar.offset_right = half_w if narrow_scene else 360.0
+	scene_hbox.add_theme_constant_override("separation", 4 if narrow_scene else 6)
 	for k in _scene_buttons:
 		var b: Button = _scene_buttons[k]
 		if narrow_scene:
@@ -144,7 +147,7 @@ func _apply_narrow_layout(w: float) -> void:
 			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			b.add_theme_font_size_override("font_size", 13)
 		else:
-			b.custom_minimum_size = Vector2(116 if k == "classroom" else 96, 44)
+			b.custom_minimum_size = Vector2(112 if k == "classroom" else 92, 44)
 			b.size_flags_horizontal = Control.SIZE_FILL
 			b.add_theme_font_size_override("font_size", 16)
 	# 天气胶囊：560 以下藏“天气”标签、按钮缩到 40px，胶囊随之收窄。

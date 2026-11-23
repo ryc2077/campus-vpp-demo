@@ -32,19 +32,20 @@ func setup(data: Dictionary, p_sun: DirectionalLight3D, p_env: WorldEnvironment)
 	var sky_mat := ProceduralSkyMaterial.new()
 	# 总览偏淡修复：天顶/地平加深一档（之前 #6db9f2/#dff2ff 洗得发白）
 	sky_mat.sky_top_color = Color("#4f9fe8")
-	sky_mat.sky_horizon_color = Color("#cfe8fb")
+	sky_mat.sky_horizon_color = Color("#bcd9f2")
 	sky_mat.ground_bottom_color = Color("#4a6b38")
-	sky_mat.ground_horizon_color = Color("#b7d2e8")
+	sky_mat.ground_horizon_color = Color("#a9c6e0")
 	_sky.sky_material = sky_mat
 	env.environment.background_mode = Environment.BG_SKY
 	env.environment.sky = _sky
 	env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.environment.ambient_light_energy = 0.6
+	env.environment.ambient_light_energy = 0.55
 	env.environment.fog_enabled = true
 	env.environment.fog_light_color = Color("#cfe0ee")
-	# Fog 0.0012 -> 0.0009: at overview distance 235m transmittance 0.75 -> 0.81,
-	# less white wash. Keep in sync with scenes/main.tscn Environment_main.
-	env.environment.fog_density = 0.0009
+	# Fog 0.0009 -> 0.0005 (Round 2)：总览距离 235m 处透过率
+	# exp(-0.0005*235) = 0.89（之前 0.81），地面不再被雾洗白。
+	# 与 scenes/main.tscn 的 Environment_main 保持同步。
+	env.environment.fog_density = 0.0005
 	_build_clouds()
 	_build_rain()
 	_build_shadows()
@@ -167,9 +168,11 @@ func update_frame(hour: float, delta: float) -> void:
 		sky_col = sky_col.lerp(Color("#5d7488"), (1.0 - float(current.get("pv_factor", 1.0))) * 0.30)
 	var sky_mat: ProceduralSkyMaterial = _sky.sky_material
 	sky_mat.sky_top_color = sky_col
-	sky_mat.sky_horizon_color = sky_col.lerp(Color.WHITE, 0.35)
-	env.environment.ambient_light_energy = 0.32 + 0.5 * daylight
-	env.environment.fog_light_color = sky_col.lerp(Color.WHITE, 0.15)
+	# 地平线混白 0.35 -> 0.22（Round 2：总览偏淡，天空下半再压一点）；
+	# 雾色混白 0.15 -> 0.08，雾本身也随之少泛白。
+	sky_mat.sky_horizon_color = sky_col.lerp(Color.WHITE, 0.22)
+	env.environment.ambient_light_energy = 0.28 + 0.45 * daylight
+	env.environment.fog_light_color = sky_col.lerp(Color.WHITE, 0.08)
 	# 云漂移 + 云影（减弱动效时冻结，P3-4）
 	if not reduced_motion:
 		var spd := 2.6 if current_key == "storm" else (1.5 if current_key == "cloudy" or current_key == "overcast" else 1.0)

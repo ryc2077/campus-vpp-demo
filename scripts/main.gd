@@ -106,6 +106,7 @@ func _ready() -> void:
 	_setup_ui()
 	_shell_mat = (campus.storage_shell[0].material_override as StandardMaterial3D) if not campus.storage_shell.is_empty() else null
 	_apply_url_params()
+	labels.debug_shot = _shot_mode # Round 2：shot 模式才打印标签去重叠诊断
 	_setup_glass()
 	if ui_font != null:
 		_apply_ui_font($UI)
@@ -221,7 +222,11 @@ func _apply_url_params() -> void:
 		rig.slowmo = clampf(float(params["slowmo"]), 1.0, 10.0)
 	if params.has("freeze"):
 		_freeze_u = clampf(float(params["freeze"]), 0.0, 1.0)
-	if params.has("wx"):
+	# 天气参数：wx 与 weather 两个名字都接受，weather 优先（Round 2：
+	# shots_all.sh 曾传 weather=rain 而这里只读 wx，导致 06/07 与晴天像素几乎相同）。
+	if params.has("weather"):
+		set_weather(str(params["weather"]))
+	elif params.has("wx"):
 		set_weather(str(params["wx"]))
 	if params.has("hour"):
 		hour = clampf(float(params["hour"]), 0.0, 24.0)
