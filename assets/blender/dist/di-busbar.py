@@ -1,8 +1,7 @@
-# 注意（2026-11-23 纹理升级）：本件 .blend 已挂外部 PBR 贴图
-# （染色贴图 assets/blender/tex/ + 原图 assets/external/，材质节点直连
-# Base Color/Roughness/Normal）。重跑本脚本会从零重建、丢失全部贴图，
-# 重跑前须先把纹理步骤补进脚本再跑；不要只重跑本脚本就推。
 # di-busbar v2 — 配电房母线线缆返工（局部坐标：房中心原点，x -8~+8，y -5~+5，z 0~8）
+# 纹理与线缆转网格已固化进脚本（见文件末尾，2026-11-23）：
+# 染色贴图 assets/blender/tex/ + 原图 assets/external/，材质节点直连
+# Base Color/Roughness/Normal；34 根线缆导出前由 CURVE 转 MESH；重跑不再丢贴图。
 # 返工目标（筛查结论）：旧版墙面线槽和引下线缆缺失、铜排悬空。
 # v2 内容：
 #  ① 墙面线槽（桥架）：北墙水平线槽 + 东西墙水平线槽 + 4 根竖向墙面线槽，盖板分缝
@@ -122,6 +121,7 @@ MAT_CABLE_K = cable_mat("Cable_Black", "#1A1A1A", "#101010", "#2E2E2E")
 PHASE_MATS = [MAT_CABLE_R, MAT_CABLE_Y, MAT_CABLE_G]  # A 红 / B 黄 / C 绿
 
 piece_objects = []
+cable_objs = []  # 34 根引下/馈线缆（CURVE 建，导出前转 MESH，见文末固化步骤）
 
 def add_box(name, dims, loc, mat, bevel=0.0):
     bpy.ops.mesh.primitive_cube_add(size=1.0, location=loc)
@@ -163,6 +163,7 @@ def add_cable(name, points, radius, mat):
     scene.collection.objects.link(obj)
     cu.materials.append(mat)
     piece_objects.append(obj)
+    cable_objs.append(obj)
     return obj
 
 CABINET_X = [-6.0, -3.6, -1.2, 1.2, 3.6, 6.0]   # 6 台配电柜中心 x
@@ -263,6 +264,149 @@ for t, tx in enumerate(TRANS_X):
 print(f"di-busbar counts: total={len(piece_objects)} busbars=3 insulators={n_insulator} "
       f"drop_cables={n_drop} feeder_cables={n_feeder}")
 
+# ---------- 10. 线缆 CURVE 转 MESH + PBR 贴图固化 (2026-11-23) ----------
+# 上一轮 .blend 里 34 根线缆已是 MESH；只改 .blend 不改 .py 的话重跑会恢复
+# CURVE（且无 UV，贴图也丢）。本步在导出前把 34 根引下/馈线缆转成 MESH
+# （名字、材质、倒角半径全部保留），转完再挂贴图、补 UV。
+if cable_objs:
+    bpy.ops.object.select_all(action="DESELECT")
+    for ob in cable_objs:
+        ob.select_set(True)
+    bpy.context.view_layer.objects.active = cable_objs[0]
+    bpy.ops.object.convert(target="MESH")
+    bpy.ops.object.select_all(action="DESELECT")
+    n_mesh = sum(1 for ob in piece_objects if ob.type == "MESH")
+    print("cables converted CURVE->MESH:", len(cable_objs),
+          "piece MESH objects: %d/%d" % (n_mesh, len(piece_objects)))
+    assert n_mesh == len(piece_objects), "cable convert failed"
+
+# ---- PBR 贴图固化：把上一轮挂在 .blend 上的外部贴图写进脚本 ----
+# color 图：assets/blender/tex/ 里的染色图（已按 SPEC §3 目标色染色，铜排
+# #B87333、柜体灰绿系等）；rough/normal 图：assets/external/ 原图（CC0）。
+# 节点只许 TexCoord→Mapping→Image Texture 直连 BSDF，不加 Hue/Sat/Mix，
+# 否则 glTF 导出器不认。Base Color 默认值须置白、Roughness 置 1.0（贴图
+# 本身带颜色与粗糙度），否则导出器会把旧纯色写成 baseColorFactor/
+# roughnessFactor 与贴图二次相乘；Metallic 保持脚本原值。
+# 没有 UV 的网格补 Smart UV Project（已有 UV 的不动）。
+TEX_DIR = os.path.join(BASE, "assets/blender/tex")
+EXT_DIR = os.path.join(BASE, "assets/external")
+# 材质名: (tex/ 染色 color 图, external rough 图, external normal 图, Mapping 缩放)
+PBR_TEXTURES = {
+    "CopperBusbar": ("corrugated_iron_02__B87333.jpg",
+        "polyhaven/corrugated_iron_02_rough_1k.jpg",
+        "polyhaven/corrugated_iron_02_nor_gl_1k.jpg", (4.0, 1.0)),
+    "CableClamp": ("corrugated_iron_02__8A8F94.jpg",
+        "polyhaven/corrugated_iron_02_rough_1k.jpg",
+        "polyhaven/corrugated_iron_02_nor_gl_1k.jpg", (1.0, 1.0)),
+    "InsulatorCeramic": ("Plaster001__E8E8E8.jpg",
+        "ambientcg/Plaster001/Plaster001_1K-JPG_Roughness.jpg",
+        "ambientcg/Plaster001/Plaster001_1K-JPG_NormalGL.jpg", (1.0, 1.0)),
+    "CableTray": ("white_stucco__C0C5C9.jpg",
+        "polyhaven/white_stucco_rough_1k.jpg",
+        "polyhaven/white_stucco_nor_gl_1k.jpg", (4.0, 1.0)),
+    "Trunking": ("white_stucco__AEB4B8.jpg",
+        "polyhaven/white_stucco_rough_1k.jpg",
+        "polyhaven/white_stucco_nor_gl_1k.jpg", (2.0, 1.0)),
+    "CoverSeam": ("concrete_wall_007__3A3F44.jpg",
+        "polyhaven/concrete_wall_007_rough_1k.jpg",
+        "polyhaven/concrete_wall_007_nor_gl_1k.jpg", (1.0, 1.0)),
+    "Cable_Red": ("white_stucco__B03A2E.jpg",
+        "polyhaven/white_stucco_rough_1k.jpg",
+        "polyhaven/white_stucco_nor_gl_1k.jpg", (1.0, 1.0)),
+    "Cable_Yellow": ("white_stucco__E8B400.jpg",
+        "polyhaven/white_stucco_rough_1k.jpg",
+        "polyhaven/white_stucco_nor_gl_1k.jpg", (1.0, 1.0)),
+    "Cable_Green": ("white_stucco__2E7D32.jpg",
+        "polyhaven/white_stucco_rough_1k.jpg",
+        "polyhaven/white_stucco_nor_gl_1k.jpg", (1.0, 1.0)),
+    "Cable_Black": ("concrete_wall_007__1A1A1A.jpg",
+        "polyhaven/concrete_wall_007_rough_1k.jpg",
+        "polyhaven/concrete_wall_007_nor_gl_1k.jpg", (1.0, 1.0)),
+}
+
+
+_IMG_CACHE = {}
+
+
+def _pbr_load_image(abs_path, colorspace):
+    # 同一文件只加载一次：filepath 改成相对路径后 check_existing 会按路径
+    # 字符串比对失效、重复建 .001 副本，故用自带缓存去重
+    img = _IMG_CACHE.get(abs_path)
+    if img is None:
+        img = bpy.data.images.load(abs_path, check_existing=True)
+        img.colorspace_settings.name = colorspace
+        # 存相对路径进 .blend（// 相对 .blend 所在目录），仓库检出后仍能找到
+        rel = os.path.relpath(abs_path, os.path.dirname(BLEND_PATH)).replace(os.sep, "/")
+        img.filepath = "//" + rel
+        _IMG_CACHE[abs_path] = img
+    return img
+
+
+def _apply_pbr_textures():
+    for mat_name, (color_f, rough_f, normal_f, scale) in PBR_TEXTURES.items():
+        mat = bpy.data.materials.get(mat_name)
+        if mat is None:
+            print("PBR SKIP missing material:", mat_name)
+            continue
+        nt = mat.node_tree
+        bsdf = nt.nodes["Principled BSDF"]
+        # 清掉旧程序化节点，只留 BSDF 与 Output
+        for node in list(nt.nodes):
+            if node.type not in ("BSDF_PRINCIPLED", "OUTPUT_MATERIAL"):
+                nt.nodes.remove(node)
+        bsdf.inputs["Base Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+        bsdf.inputs["Roughness"].default_value = 1.0
+        texcoord = nt.nodes.new("ShaderNodeTexCoord")
+        mapping = nt.nodes.new("ShaderNodeMapping")
+        mapping.inputs["Scale"].default_value = (scale[0], scale[1], 1.0)
+        nt.links.new(texcoord.outputs["UV"], mapping.inputs["Vector"])
+        tex_c = nt.nodes.new("ShaderNodeTexImage")
+        tex_c.image = _pbr_load_image(os.path.join(TEX_DIR, color_f), "sRGB")
+        nt.links.new(mapping.outputs["Vector"], tex_c.inputs["Vector"])
+        nt.links.new(tex_c.outputs["Color"], bsdf.inputs["Base Color"])
+        tex_r = nt.nodes.new("ShaderNodeTexImage")
+        tex_r.image = _pbr_load_image(os.path.join(EXT_DIR, rough_f), "Non-Color")
+        nt.links.new(mapping.outputs["Vector"], tex_r.inputs["Vector"])
+        nt.links.new(tex_r.outputs["Color"], bsdf.inputs["Roughness"])
+        tex_n = nt.nodes.new("ShaderNodeTexImage")
+        tex_n.image = _pbr_load_image(os.path.join(EXT_DIR, normal_f), "Non-Color")
+        nmap = nt.nodes.new("ShaderNodeNormalMap")
+        nt.links.new(mapping.outputs["Vector"], tex_n.inputs["Vector"])
+        nt.links.new(tex_n.outputs["Color"], nmap.inputs["Color"])
+        nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+        print("PBR textured:", mat_name, color_f, "scale", scale)
+
+
+def _ensure_uvs(objs):
+    """没有 UV 的网格补 Smart UV Project（已有 UV 的不动）。"""
+    todo = []
+    seen = set()
+    for ob in objs:
+        if ob.type != "MESH":
+            continue
+        if id(ob.data) in seen:
+            continue
+        seen.add(id(ob.data))
+        if len(ob.data.uv_layers) == 0:
+            todo.append(ob)
+    if not todo:
+        print("UV OK: all meshes have UVs")
+        return
+    bpy.ops.object.select_all(action="DESELECT")
+    for ob in todo:
+        ob.select_set(True)
+    bpy.context.view_layer.objects.active = todo[0]
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.uv.smart_project(angle_limit=math.radians(66.0), island_margin=0.02)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    bpy.ops.object.select_all(action="DESELECT")
+    print("UV smart-projected:", len(todo), [o.name for o in todo])
+
+
+_apply_pbr_textures()
+_ensure_uvs(piece_objects)
+
 # ---------- 存 .blend（落盘优先） ----------
 os.makedirs(os.path.dirname(BLEND_PATH), exist_ok=True)
 os.makedirs(os.path.dirname(GLB_PATH), exist_ok=True)
@@ -301,6 +445,11 @@ for _mesh in list(bpy.data.meshes):
 for _mat in list(bpy.data.materials):
     if _mat.users == 0:
         bpy.data.materials.remove(_mat)
+for _img in list(bpy.data.images):
+    # 回读导入的 .001 贴图是打包进来的孤儿（无使用者），不清除会随最终存盘
+    # 混进 .blend（上一轮的 .blend1 残留即此类）；本件外链贴图有材质引用，不受影响
+    if _img.users == 0:
+        bpy.data.images.remove(_img)
 
 # ---------- 光照/相机（SPEC §2；仅供 GitHub Actions 渲染用，本地默认不渲染） ----------
 sun_data = bpy.data.lights.new(name="Sun", type="SUN")
