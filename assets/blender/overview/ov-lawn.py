@@ -17,6 +17,7 @@ import bpy
 import math
 import os
 import random
+import numpy as np
 from mathutils import Vector, Matrix
 
 BLEND_PATH = os.path.expanduser(
@@ -115,6 +116,31 @@ def add_color_var(mat, dark_hex, light_hex, noise_scale, detail=3.0):
     return mat
 
 
+def _attach_grass_color(mat, key):
+    """草叶丢色修复：Noise->ColorRamp 不进 glTF（导出后既无 baseColorFactor
+    也无贴图，Godot 里是白色——教室/配电房丢色同根因，另路已按此修）。
+    改挂 Grass_<key>_color.png（绿斑纹理，均值即该色 SPEC 绿），保留双面。"""
+    texdir = os.path.join(os.path.dirname(BLEND_PATH), "ov-lawn_textures")
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    out = nt.nodes["Material Output"]
+    for n in list(nt.nodes):
+        if n not in (bsdf, out):
+            nt.nodes.remove(n)
+    for link in list(nt.links):
+        if link.to_node is bsdf:
+            nt.links.remove(link)
+    bsdf.inputs["Base Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+    bsdf.inputs["Roughness"].default_value = 0.95
+    p = os.path.join(texdir, "Grass_%s_color.png" % key)
+    img = bpy.data.images.load(p)
+    img.colorspace_settings.name = "sRGB"
+    t = nt.nodes.new("ShaderNodeTexImage")
+    t.image = img
+    nt.links.new(t.outputs["Color"], bsdf.inputs["Base Color"])
+    return mat
+
+
 def box(name, center, size, mat):
     bpy.ops.mesh.primitive_cube_add(size=1, location=center)
     o = bpy.context.active_object
@@ -185,8 +211,7 @@ GRASS_VAR = {
 }
 grass_mats = {k: make_mat("Grass_" + k, hx, 0.95) for k, hx, _ in GRASS_COLORS}
 for k, m in grass_mats.items():
-    d, l = GRASS_VAR[k]
-    add_color_var(m, d, l, noise_scale=3.0)
+    _attach_grass_color(m, k)
     # 草叶是单面三角面片：关闭背面剔除，glTF 导出 doubleSided=true；
     # 拼装进 Godot 时草材质仍须设为双面（关闭背面剔除），否则侧面看草会消失
     m.use_backface_culling = False
@@ -308,6 +333,17 @@ for lawn_name, (cx, cy), (sx, sy) in lawns:
         mesh = bpy.data.meshes.new(f"{lawn_name}_Grass_{ckey}")
         mesh.from_pydata(verts, [], faces)
         mesh.update()
+        # 草叶 UV：按世界坐标 0.5m 一重复（贴图绿斑随位置变化，不整片同色）
+        uvl = mesh.uv_layers.new(name="UVMap")
+        _co = np.empty(len(mesh.vertices) * 3, dtype=np.float64)
+        mesh.vertices.foreach_get("co", _co)
+        _co = _co.reshape(-1, 3)
+        _vi = np.empty(len(mesh.loops), dtype=np.int32)
+        mesh.loops.foreach_get("vertex_index", _vi)
+        _uv = np.empty(len(mesh.loops) * 2, dtype=np.float64)
+        _uv[0::2] = _co[_vi, 0] * 2.0
+        _uv[1::2] = _co[_vi, 1] * 2.0
+        uvl.data.foreach_set("uv", _uv)
         o = bpy.data.objects.new(f"{lawn_name}_Grass_{ckey}", mesh)
         bpy.context.collection.objects.link(o)
         o.data.materials.append(grass_mats[ckey])
@@ -526,6 +562,20 @@ def _rebuild_with_images(mat, imgs):
     nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
 
 
+def _load_baked(mat):
+    """复用已烘焙 PNG（上次跑的烘焙约 16 分钟）：3 张都存在且 >1KB 才复用，
+    否则返回 None 走烘焙。UV 打包是确定性的（同对象顺序），复用贴图对得上。"""
+    out = {}
+    for key, cs in (("color", "sRGB"), ("rough", "Non-Color"), ("normal", "Non-Color")):
+        p = os.path.join(TEX_DIR, "%s_%s.png" % (mat.name, key))
+        if not (os.path.exists(p) and os.path.getsize(p) > 1000):
+            return None
+        img = bpy.data.images.load(p)
+        img.colorspace_settings.name = cs
+        out[key] = img
+    return out
+
+
 _BAKE_MATS = {mat_lawn, mat_border, mat_soil, mat_shrub} | set(flower_mats)
 _by_mat = {}
 for _ob in objs:
@@ -537,11 +587,224 @@ for _mat, _m_objs in _by_mat.items():
     for _ob in _m_objs:
         _ensure_uv(_ob)
     _pack_uvs(_m_objs)
-    _baked[_mat.name] = _bake_images(_mat, _m_objs)
+    _loaded = _load_baked(_mat)
+    if _loaded is not None:
+        _baked[_mat.name] = _loaded
+        print("bake reused:", _mat.name)
+    else:
+        _baked[_mat.name] = _bake_images(_mat, _m_objs)
 for _mat in _by_mat:
     _rebuild_with_images(_mat, _baked[_mat.name])
 print("bake done, ground materials rebuilt with image textures, "
-      "grass kept procedural, elapsed %.1fs" % (time.time() - _bake_t0))
+      "grass now textured, elapsed %.1fs" % (time.time() - _bake_t0))
+
+# ---------- 新增草区（返工）：下载的真草素材实例化 ----------
+# 路线：Render-a-House 草叶 alpha 贴图做交叉面片（MASK 镂空）+ 两个下载
+# 草丛模型（RAH 草坪块 join 成 1 mesh、3DAssets 高草丛）作点缀；
+# tevy 野草丛因 meshopt 压缩、Blender 4.2 导不进，已跳过（见汇报）。
+# 已有的 22500 丛程序化草叶（v3）按“已手捏不返工”保留，只修丢色。
+# 草区：跑道外环、环路路缘、南门广场南沿；已有 3 块草坪与楼体/道路/
+# 池塘/停车场/充电区均排除，不重叠。采样用独立 Random(20261123)，
+# 在所有既有 random 消耗之后取用，既有草坪/花坛/灌木布局位不变。
+import random as _random
+GRASS_DIR = os.path.expanduser(
+    "~/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/external/grass")
+GRASS_STRIP_PNG = os.path.join(GRASS_DIR, "renderahouse-grass",
+                               "grass-side-colour.png")
+
+# alpha 交叉面片材质：贴图 RGB 进 Base Color，Alpha 经 ROUND 数学节点
+# 进 Alpha（导出器据此判 MASK、cutoff 0.5）；贴图打包进 .blend，
+# Render-a-House 文件不单独分发。
+mat_grass_alpha = bpy.data.materials.new("Grass_AlphaStrip")
+mat_grass_alpha.use_nodes = True
+_nt = mat_grass_alpha.node_tree
+_bsdf = _nt.nodes["Principled BSDF"]
+_bsdf.inputs["Roughness"].default_value = 0.9
+_bsdf.inputs["Metallic"].default_value = 0.0
+_tex = _nt.nodes.new("ShaderNodeTexImage")
+_img = bpy.data.images.load(GRASS_STRIP_PNG)
+_img.colorspace_settings.name = "sRGB"
+_img.pack()
+_tex.image = _img
+_tex.extension = "REPEAT"
+_nt.links.new(_tex.outputs["Color"], _bsdf.inputs["Base Color"])
+_rnd = _nt.nodes.new("ShaderNodeMath")
+_rnd.operation = "ROUND"
+_nt.links.new(_tex.outputs["Alpha"], _rnd.inputs[0])
+_nt.links.new(_rnd.outputs["Value"], _bsdf.inputs["Alpha"])
+mat_grass_alpha.use_backface_culling = False
+
+
+def _alpha_tuft_mesh():
+    """交叉面片草丛母版：2 片 0.8x0.22m 交叉面，UV 0-1 整张草叶条。"""
+    verts = [(-0.4, 0, 0), (0.4, 0, 0), (0.4, 0, 0.22), (-0.4, 0, 0.22),
+             (0, -0.4, 0), (0, 0.4, 0), (0, 0.4, 0.22), (0, -0.4, 0.22)]
+    faces = [(0, 1, 2, 3), (4, 5, 6, 7)]
+    mesh = bpy.data.meshes.new("GrassAlpha_Tuft")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    uvl = mesh.uv_layers.new(name="UVMap")
+    for li, uv in enumerate([(0, 0), (1, 0), (1, 1), (0, 1)] * 2):
+        uvl.data[li].uv = uv
+    mesh.materials.append(mat_grass_alpha)
+    return mesh
+
+
+def _recenter_mesh(mesh):
+    """把 mesh 顶点移到包围盒 XY 中心、Z 底 = 0，便于按采样点摆放实例。"""
+    n = len(mesh.vertices)
+    co = np.empty(n * 3, dtype=np.float64)
+    mesh.vertices.foreach_get("co", co)
+    co = co.reshape(-1, 3)
+    cx = (co[:, 0].min() + co[:, 0].max()) / 2
+    cy = (co[:, 1].min() + co[:, 1].max()) / 2
+    co[:, 0] -= cx
+    co[:, 1] -= cy
+    co[:, 2] -= co[:, 2].min()
+    mesh.vertices.foreach_set("co", co.ravel())
+
+
+def _import_clump_meshes():
+    """导入下载的草丛模型，只留 mesh 数据块（源对象随后删除，不进导出）。"""
+    out = {}
+    before = set(bpy.context.scene.objects)
+    bpy.ops.import_scene.gltf(filepath=os.path.join(GRASS_DIR, "renderahouse-grass.glb"))
+    new = [o for o in bpy.context.scene.objects if o not in before and o.type == "MESH"]
+    bpy.ops.object.select_all(action="DESELECT")
+    for o in new:
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = new[0]
+    bpy.ops.object.join()
+    joined = bpy.context.active_object
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+    _recenter_mesh(joined.data)
+    out["rah"] = joined.data
+    bpy.data.objects.remove(joined, do_unlink=True)
+    before = set(bpy.context.scene.objects)
+    bpy.ops.import_scene.gltf(filepath=os.path.join(GRASS_DIR, "3dassets-tall-grass-clump.glb"))
+    new = [o for o in bpy.context.scene.objects if o not in before and o.type == "MESH"]
+    tall = new[0]
+    bpy.ops.object.select_all(action="DESELECT")
+    tall.select_set(True)
+    bpy.context.view_layer.objects.active = tall
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+    _recenter_mesh(tall.data)
+    out["tall"] = tall.data
+    bpy.data.objects.remove(tall, do_unlink=True)
+    for o in list(bpy.context.scene.objects):
+        if o not in before and o.type == "EMPTY":
+            bpy.data.objects.remove(o, do_unlink=True)
+    print("clump meshes: rah verts=%d tris=%d, tall verts=%d tris=%d"
+          % (len(out["rah"].vertices), len(out["rah"].polygons),
+             len(out["tall"].vertices), len(out["tall"].polygons)))
+    return out
+
+
+# 排除区（Blender 坐标）：楼体 footprint（SPEC §4）、道路、跑道内圈、
+# 池塘、停车场、充电区、已有 3 块草坪与宿舍间草坪。
+BLOCK_RECTS = [
+    (-76, -36, 22.5, 37.5), (-28, 4, 23, 37), (15, 37, 23.5, 36.5),
+    (12, 36, -66, -50), (-88, -52, 52, 68), (-49, -7, 56, 68),
+    (3, 17, 47, 61), (44, 76, 49.5, 62.5), (40, 56, 25, 35),
+    (74, 94, -14, -2), (74, 94, -50, -38), (59.7, 68.3, 27.8, 32.2),
+    (-130, 130, -114, -102), (102, 114, -102, 110),
+    (-91, 91, 76, 84), (-91, 91, -84, -76),
+    (-99, -91, -76, 76), (91, 99, -76, 76),
+    (-40, -20, -96, -84), (69.5, 94.5, -87, -69),
+    (-50, 10, -5, 15), (-20, 20, -87.5, -72.5),
+    (36, 52, -80, -72), (74, 94, -38, -14),
+]
+
+
+def _blocked(x, y):
+    for (x0, x1, y0, y1) in BLOCK_RECTS:
+        if x0 <= x <= x1 and y0 <= y <= y1:
+            return True
+    if ((x + 80) / 41.0) ** 2 + ((y + 25) / 29.0) ** 2 <= 1.0:
+        return True  # 跑道内圈（含 1m 余量）
+    if ((x - 82) / 12.0) ** 2 + ((y + 78) / 9.0) ** 2 <= 1.0:
+        return True  # 池塘（含 1m 余量）
+    return False
+
+
+_VERGE_RECTS = [(-91, 91, 84, 88), (-91, 91, -88, -84),
+                (-103, -99, -76, 76), (99, 103, -76, 76)]
+_VERGE_W = [728, 728, 608, 608]
+
+
+def _sample_ring(rng):
+    x = rng.uniform(-125, -35)
+    y = rng.uniform(-58, 8)
+    e_in = ((x + 80) / 40.0) ** 2 + ((y + 25) / 28.0) ** 2
+    e_out = ((x + 80) / 45.0) ** 2 + ((y + 25) / 33.0) ** 2
+    if e_in <= 1.0 or e_out > 1.0 or _blocked(x, y):
+        return None
+    return (x, y)
+
+
+def _sample_verge(rng):
+    (x0, x1, y0, y1) = rng.choices(_VERGE_RECTS, weights=_VERGE_W, k=1)[0]
+    x = rng.uniform(x0, x1)
+    y = rng.uniform(y0, y1)
+    if _blocked(x, y):
+        return None
+    return (x, y)
+
+
+def _sample_gate(rng):
+    x = rng.uniform(-20, 20)
+    y = rng.uniform(-101, -98.5)
+    if _blocked(x, y):
+        return None
+    return (x, y)
+
+
+def _place_instances(mesh, target, sampler, rng, prefix,
+                     scale=(0.85, 1.2), zscale=(0.75, 1.05)):
+    made = 0
+    tries = 0
+    while made < target and tries < target * 30:
+        tries += 1
+        pt = sampler(rng)
+        if pt is None:
+            continue
+        x, y = pt
+        o = bpy.data.objects.new("%s_%05d" % (prefix, made), mesh)
+        bpy.context.collection.objects.link(o)
+        o.location = (x, y, 0.05)
+        o.rotation_euler = (0, 0, rng.uniform(0, math.tau))
+        s = rng.uniform(*scale)
+        o.scale = (s, s, rng.uniform(*zscale))
+        objs.append(o)
+        made += 1
+    return made
+
+
+_rng = _random.Random(20261123)
+_tuft_mesh = _alpha_tuft_mesh()
+_clumps = _import_clump_meshes()
+_n_alpha_ring = _place_instances(_tuft_mesh, 3440, _sample_ring, _rng,
+                                 "GrassEdgeAlphaRing", scale=(0.85, 1.25),
+                                 zscale=(0.75, 1.1))
+_n_alpha_verge = _place_instances(_tuft_mesh, 4000, _sample_verge, _rng,
+                                  "GrassEdgeAlphaVerge", scale=(0.85, 1.25),
+                                  zscale=(0.75, 1.1))
+_n_alpha_gate = _place_instances(_tuft_mesh, 400, _sample_gate, _rng,
+                                 "GrassEdgeAlphaGate", scale=(0.85, 1.25),
+                                 zscale=(0.75, 1.1))
+_n_rah = _place_instances(_clumps["rah"], 150, _sample_ring, _rng,
+                          "GrassClumpRAH", scale=(0.8, 1.3),
+                          zscale=(0.9, 1.2))
+_n_tall_verge = _place_instances(_clumps["tall"], 120, _sample_verge, _rng,
+                                 "GrassTallVerge", scale=(0.8, 1.2),
+                                 zscale=(0.8, 1.2))
+_n_tall_gate = _place_instances(_clumps["tall"], 30, _sample_gate, _rng,
+                                "GrassTallGate", scale=(0.8, 1.2),
+                                zscale=(0.8, 1.2))
+print("EDGE GRASS: alpha tufts ring=%d verge=%d gate=%d (target 3440/4000/400), "
+      "rah clumps=%d, tall grass verge=%d gate=%d, scene objects now %d"
+      % (_n_alpha_ring, _n_alpha_verge, _n_alpha_gate, _n_rah,
+         _n_tall_verge, _n_tall_gate, len(objs)))
 
 # ---- 存盘 ----
 os.makedirs(os.path.dirname(BLEND_PATH), exist_ok=True)
@@ -567,7 +830,7 @@ n_verts = sum(len(o.data.vertices) for o in imported
 print(f"GLB reimport OK: {len(imported)} objects, "
       f"{n_tris} tris, {n_verts} verts")
 # 回读验证 (di-walls 做法): 地面基底材质的贴图数 >= 3 (烘焙贴图齐全);
-# 草叶材质保持程序化, 不要求贴图。
+# 草叶材质已挂绿斑贴图，alpha 草丛材质带 MASK 镂空贴图，均要求有贴图。
 _BAKED_MAT_NAMES = {"Lawn_Green", "Bed_Border", "Bed_Soil",
                     "Flower_Red", "Flower_Yellow", "Flower_Pink",
                     "Shrub_DarkGreen"}
@@ -583,7 +846,7 @@ for ob in imported:
                 print("GLB reimport mat:", ob.name, m.name, "images:", imgs)
                 assert len(imgs) >= 3, "glb material lost baked textures: %s" % m.name
             else:
-                print("GLB reimport mat (procedural grass, kept):", ob.name,
+                print("GLB reimport mat (grass/alpha, textured):", ob.name,
                       m.name, "images:", imgs)
 assert len(imported) == len(objs), "glb reimport failed: expected %d objects, got %d" % (len(objs), len(imported))
 for o in imported:
