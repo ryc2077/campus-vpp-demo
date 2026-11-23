@@ -1,4 +1,4 @@
-# overview 场景拼装（总览场景，只拼 assets/blender/overview/ 的 19 件）
+# overview 场景拼装（总览场景，只拼 assets/blender/overview/ 的 20 件）
 # 用法（无头，不渲染）：
 #   xvfb-run -a -s "-screen 0 1280x720x24" <blender> -b --python overview.py
 # 做法：全局坐标直接 append，不移位置；只写本脚本、
@@ -14,7 +14,8 @@
 #   配电房外壳（campus.json buildings.dist [48,-30] 16x10 高 8m，
 #   Plaster001 映射到 #dfe9f2；屋顶 grey_roof_01 映射到深灰 #424A52）。
 #   拼装件贴图在 assets/blender/scenes/overview_textures/（返工挂图）。
-# 缺口：户外变压器（campus.json transformer [74,-30]）无 Blender 件，留空。
+# 缺口已补：户外变压器（campus.json transformer [74,-30]）由 ov-transformer
+# 件提供（Blender (74,30)，58 个对象），见 PARTS 末尾。
 # 绿地重叠：实测 ov-dorm 的 dorm_lawn_between 与 ov-lawn 在宿舍区无 XY
 #   重叠（见脚本内检查打印），不做高差调整，调整量 0。
 #   池塘处 ov-lawn 的 Lawn_Pond_Grass_* 草丛会穿出水面，场景副本内把
@@ -39,7 +40,7 @@ PARTS = [
     "ov-bldA", "ov-bldB", "ov-bldC", "ov-windows-roofs", "ov-lib",
     "ov-gym", "ov-lab", "ov-tower", "ov-canteen", "ov-dorm",
     "ov-road-main", "ov-road-walk", "ov-track", "ov-field", "ov-trees",
-    "ov-lawn", "ov-flag-lamp", "ov-gate", "ov-parking",
+    "ov-lawn", "ov-flag-lamp", "ov-gate", "ov-parking", "ov-transformer",
 ]
 
 os.makedirs(os.path.dirname(OUT_BLEND), exist_ok=True)
@@ -260,9 +261,9 @@ _scale_uvs_to_meters(dist, 2.0)
 _scale_uvs_to_meters(dist_roof, 2.0)
 print("ASSEMBLY UV scaled to meters (ground 4m, pond/dist/roof 2m)")
 
-# 缺口：户外变压器 campus.json transformer Godot [74,-30] -> Blender
-# (74,30)，无 Blender 件，留空，不编造。
-print("GAP transformer at Blender (74,30): no Blender part exists, left empty")
+# 户外变压器已拼入：campus.json transformer Godot [74,-30] -> Blender
+# (74,30)，ov-transformer 件（58 个对象，TF_* 前缀）。
+print("GAP transformer at Blender (74,30): included via ov-transformer")
 
 print("SCENE objects=%d (appended=%d + assembly=4)"
       % (len(bpy.context.scene.objects), total_kept))
