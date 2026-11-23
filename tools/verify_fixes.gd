@@ -111,7 +111,7 @@ func _process(_delta: float) -> bool:
 	var ccam = sc["classroom"]["cam"]
 	_chk("classroom cam inside room (dist<=8, target y<2.5)", float(ccam["dist"]) <= 8.0 and float(ccam["target"][1]) < 2.5, str(ccam))
 	var wsys2 = _main.get_node("Weather")
-	_chk("fog density 0.0009 (less haze)", absf(wsys2.env.environment.fog_density - 0.0009) < 0.00001, str(wsys2.env.environment.fog_density))
+	_chk("fog density 0.0005 (less haze, round 2)", absf(wsys2.env.environment.fog_density - 0.0005) < 0.00001, str(wsys2.env.environment.fog_density))
 	# ---- ABC 表格保供列 ----
 	var ui = _main.get_node("UI")
 	var grid = _main.get_node("UI/ABCPanel/VBox/ABCGrid") as GridContainer
