@@ -165,10 +165,23 @@ func _setup_labels() -> void:
 	labels.abc_panel_control = $UI/ABCPanel # ABC 面板实时 rect 作标签碰撞区，同一模式；关闭时不碰撞
 	for b in campus_data["buildings"]:
 		var pos: Array = b["pos"]
-		labels.add_label(String(b["name"]), DataLoader.color_from_hex("#17557f"), int(b["label_prio"]), Vector3(pos[0], float(b["height"]) + 2.0, pos[1]))
+		var anchor := Vector3(pos[0], float(b["height"]) + 2.0, pos[1])
+		if String(b["id"]) == "bldC":
+			# F3（三号教学楼总览标签缺失，run 45261531067）：楼顶锚点 (26,16,-30)
+			# 在总览屏上被配电房/SOC/餐厅九档全堵死（探针逐档复算），楼顶四个角
+			# 与楼顶边缘锚点全军覆没。楼南侧低位 (17,8,-20) 是总览唯一活口：
+			# 屏上 (724,346)，+88 档落到 (724,434)，楼南立面正下方空地，
+			# 不撞任何标签；但同锚点在 charge 会误现、storage 会落到屏外，
+			# 所以锚点按场景分（见 _apply_c3_anchor）：总览用 (17,8,-20)，
+			# 其余场景用楼顶 (26,16,-30)。启动即总览，先按总览锚点建。
+			anchor = Vector3(17, 8, -20)
+		labels.add_label(String(b["name"]), DataLoader.color_from_hex("#17557f"), int(b["label_prio"]), anchor)
 	for e in campus_data["labels_extra"]:
 		var pos: Array = e["pos"]
-		labels.add_label(String(e["text"]), DataLoader.color_from_hex(e["color"]), int(e["prio"]), Vector3(pos[0], pos[1], pos[2]))
+		# F2（配电变压器标签错位）：pin 见 labels.gd 规则 6——锚点本身没错，
+		# 投影距箱体顶面中心仅约 13px，是去重叠 +44 档把它顶到宿舍楼 A 屋顶。
+		var pin := String(e["text"]) == "配电变压器"
+		labels.add_label(String(e["text"]), DataLoader.color_from_hex(e["color"]), int(e["prio"]), Vector3(pos[0], pos[1], pos[2]), "", pin)
 	labels.add_label("操场 · 田径场", Color("#c2503f"), int(campus_data["playground"]["label_prio"]), Vector3(-80, 5, 25))
 	labels.add_label("池塘", Color("#2e7f86"), int(campus_data["pond"]["label_prio"]), Vector3(82, 2.5, 78))
 	labels.add_label("充电区 · V2G", Color("#9a3412"), int(campus_data["charge"]["label_prio"]), Vector3(44, 8.4, 76))
@@ -327,8 +340,25 @@ func _deferred_open_abc() -> void:
 		abc_panel.visible = true
 		ui.layout_panels()
 
+## 三号教学楼标签锚点按场景分（F3）：总览是 18 标签密排地图，楼顶锚点在
+## 总览屏上九档全堵死，改用楼南侧低位 (17,8,-20)；近景里同锚点会误现
+##（charge）或落到屏外（storage），所以进场景切回楼顶 (26,16,-30)。
+## 锚点是呈现锚点、随场景切，楼体本身不动。探针四场景矩阵（probe4）：
+## (17,8,-20)：总览可见 (724,434)、charge 误现、storage 屏外；
+## (26,16,-30)：总览藏、charge 藏、storage ABC 终态屏内可见。
+## 在每次切场景的入口调用（_enter_instant/_enter_frozen/enter_scene/
+## exit_scene），150ms 内下一轮 _update 即按新锚点重排。
+func _apply_c3_anchor(overview: bool) -> void:
+	for d in labels.defs:
+		if String(d["text"]) == "三号教学楼":
+			var a := Vector3(17, 8, -20) if overview else Vector3(26, 16, -30)
+			d["anchor"] = a
+			(d["label"] as Label3D).position = a
+			return
+
 ## 冻结帧：总览 → 目标机位的飞行在进度 u 处定格（内景取第一段：总览 → 楼前）。
 func _enter_frozen(key: String, u: float) -> void:
+	_apply_c3_anchor(key == "overview")
 	if key == "overview":
 		_snap_to(scenes_data["overview"]["cam"])
 		return
@@ -360,6 +390,7 @@ func _enter_instant(key: String) -> void:
 	# _enter_instant("storage") 即复现：机位回到配电房）。
 	_pending_entry = ""
 	_pending_exit = false
+	_apply_c3_anchor(key == "overview")
 	if key == "overview":
 		_snap_to(scenes_data["overview"]["cam"])
 		return
@@ -448,6 +479,7 @@ func enter_scene(key: String) -> void:
 		return
 	if not scenes_data["scenes"].has(key):
 		return
+	_apply_c3_anchor(false)
 	# 从一个场景直切另一个：先恢复上一个场景的剖切，避免两套内景叠加
 	_restore_scene_state()
 	_pending_entry = ""
@@ -501,6 +533,7 @@ func _on_landed(key: String) -> void:
 		rig.arm_limits(true)
 
 func exit_scene() -> void:
+	_apply_c3_anchor(true)
 	if active_scene == "" and not _pending_exit:
 		rig.fly_to(scenes_data["overview"]["cam"], 1000)
 		ui.set_scene_active("overview")

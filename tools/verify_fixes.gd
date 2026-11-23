@@ -6,6 +6,8 @@ extends SceneTree
 ##      屋顶光伏/艺体馆标签净空（总览 + 冻结帧，1280×720）、
 ##      池塘标签不进场景栏（总览）+ 屏内标签栏带扫查（储能场景/总览/冻结帧）、
 ##      总览池塘水面底缘 y<640（F1 取景修补：总览 dist 235→275）、
+##      F2/F3 标签锚点修补：总览变压器标签渲染中心距箱体顶面中心 ≤30px、
+##      三号教学楼总览屏内可见、屏内可见标签两两无新重叠（SOC/变压器有意叠放除外）、
 ##      ABC 面板遮挡（充电区 + 总览 ABC 打开态：屏内可见标签无一与 ABC 面板相交）、
 ##      冻结帧屏外标签审计（x 钳制不折回的基线：屏内 4 / 屏外 2，锚点在画面外）、
 ##      面板进场动效（场景面板 + ABC 面板 scale 0.95 中段：_final_rect = 终态 rect、
@@ -385,6 +387,48 @@ func _process(_delta: float) -> bool:
 			_chk("总览：池塘水面底缘 y<640（完整露出在场景栏之上）", _pond_bottom < 640.0 and absf(_main.rig.dist - 275.0) < 0.5, "bottom=" + str(_pond_bottom) + " dist=" + str(_main.rig.dist))
 			var _band_ov: Array = _labels_band_detail(_labels_ov)
 			_chk("总览：屏内标签渲染中心都不进顶栏/场景栏（90≤y≤642）", bool(_band_ov[0]), String(_band_ov[1]))
+			# ---- F2/F3 标签锚点修补（run 45261531067）----
+			# F2：变压器标签锚点 (74,8.8,-30) 投影距箱体顶面中心仅约 13px，
+			# 错位是去重叠 +44 档顶到宿舍楼 A 屋顶；修后 pin 原位叠放（dy 0，
+			# 仅撞 SOC 时放行，见 labels.gd 规则 6），渲染中心应贴在箱体上
+			#（距顶面中心 (74,3.6,-30) 投影 ≤30px）。
+			var _tf_sp := Vector2.ZERO
+			var _tf_vis := false
+			for _d8 in _labels_ov.defs:
+				if String(_d8["text"]) == "配电变压器":
+					var _tl: Label3D = _d8["label"]
+					_tf_vis = _tl.visible
+					if _tf_vis:
+						_tf_sp = (_labels_ov.camera as Camera3D).unproject_position(_tl.position)
+			var _box_sp: Vector2 = (_labels_ov.camera as Camera3D).unproject_position(Vector3(74, 3.6, -30))
+			_chk("总览：配电变压器标签渲染中心贴在箱体上（距箱体顶面中心 ≤30px）", _tf_vis and _tf_sp.distance_to(_box_sp) <= 30.0, "render=" + str(_tf_sp) + " box=" + str(_box_sp) + " dist=" + str(_tf_sp.distance_to(_box_sp)))
+			# F3：三号教学楼锚点总览用楼南侧低位 (17,8,-20)（其余场景楼顶原锚点，
+			# 见 main.gd _apply_c3_anchor），+88 档落到楼南立面正下方空地；
+			# 修后总览应屏内可见。
+			_chk("总览：三号教学楼标签屏内可见（F3 锚点修补）", _label_onscreen_visible(_labels_ov, "三号教学楼"), "visible=" + str(_label_visible(_labels_ov, "三号教学楼")))
+			# 无新重叠：屏内可见标签两两字盒不相交——SOC/变压器是 pin 有意叠放
+			# 的一对（F2），排除在外；其余任何一对相交即新重叠。
+			var _ov_bad: Array[String] = []
+			var _ov_defs: Array = []
+			for _d9 in _labels_ov.defs:
+				var _l9: Label3D = _d9["label"]
+				if not _l9.visible:
+					continue
+				var _spx: Vector2 = (_labels_ov.camera as Camera3D).unproject_position(_l9.position)
+				if _spx.x < 0.0 or _spx.x > 1280.0 or _spx.y < 0.0 or _spx.y > 720.0:
+					continue
+				_ov_defs.append(_d9)
+			for _k in range(_ov_defs.size()):
+				for _m in range(_k + 1, _ov_defs.size()):
+					var _a1: Dictionary = _ov_defs[_k]
+					var _a2: Dictionary = _ov_defs[_m]
+					var _t1 := String(_a1["text"])
+					var _t2 := String(_a2["text"])
+					if (_t1 == "配电变压器" and String(_a2["dynamic"]) == "soc") or (_t2 == "配电变压器" and String(_a1["dynamic"]) == "soc"):
+						continue
+					if _labels_rect(_labels_ov, _a1).intersects(_labels_rect(_labels_ov, _a2)):
+						_ov_bad.append(_t1 + "/" + _t2)
+			_chk("总览：除 SOC/变压器有意叠放外，屏内可见标签两两无重叠", _ov_bad.is_empty(), "bad=[" + ", ".join(_ov_bad) + "]")
 			# 附加 dist 守卫：limits 没解除时总览机位会被钳成 dist 36 的储能近拍，
 			# 两标签盒不交就成了空通过；真总览 dist 275，target (−6,2,4)。
 			_chk("总览：屋顶光伏与艺体馆字盒不重叠（净空 ≥20px）", _labels_pair_clear(_labels_ov, 20.0) and absf(_main.rig.dist - 275.0) < 0.5, _labels_pair_detail(_labels_ov) + " dist=" + str(_main.rig.dist) + " target=" + str(_main.rig.target))
@@ -551,8 +595,8 @@ func _process(_delta: float) -> bool:
 			_chk("总览 ABC 打开：宿舍楼 A 仍屏内可见（被 SOC 顶下 +22，仍在面板外）", _label_onscreen_visible(_labels_ov2, "宿舍楼 A"), "visible=" + str(_label_visible(_labels_ov2, "宿舍楼 A")))
 			var _band_ov2: Array = _labels_band_detail(_labels_ov2)
 			_chk("总览 ABC 打开：屏内标签渲染中心都不进顶栏/场景栏（90≤y≤642）", bool(_band_ov2[0]), String(_band_ov2[1]))
-			# 关闭 ABC：总览应恢复 16 条（F1 取景后一号教学楼藏掉，见上条；三号同 baseline 已藏掉；
-			# 关上面板不误藏的回归对照，17→16 只差这一号）。
+			# 关闭 ABC：总览应恢复 17 条（一号因 F1 取景藏掉，见上条；三号本轮
+			# F3 已修回；关上面板不误藏的回归对照，18→17 只差这一号）。
 			(_main.get_node("UI/ABCPanel") as Control).visible = false
 			_main.get_node("UI").call("layout_panels")
 			_labels_ov2.call("_update")
@@ -564,7 +608,7 @@ func _process(_delta: float) -> bool:
 				var _sp4: Vector2 = (_labels_ov2.camera as Camera3D).unproject_position(_l4.position)
 				if _sp4.x >= 0.0 and _sp4.x <= 1280.0 and _sp4.y >= 0.0 and _sp4.y <= 720.0:
 					_n_back += 1
-			_chk("总览 ABC 关闭后：屏内可见恢复 16 条（一号因 F1 取景藏掉，三号同 baseline）", _n_back == 16, "onscreen=" + str(_n_back))
+			_chk("总览 ABC 关闭后：屏内可见恢复 17 条（一号因 F1 取景藏掉，三号 F3 已修回）", _n_back == 17, "onscreen=" + str(_n_back))
 			# 动效闪现放到新 phase 再量：进储能场景、等 4 帧让面板排版定型。
 			_main.call("_restore_scene_state")
 			(_main.get_node("UI/ABCPanel") as Control).visible = false
@@ -681,7 +725,8 @@ func _process(_delta: float) -> bool:
 	var ccam = sc["classroom"]["cam"]
 	_chk("classroom cam inside room (dist<=8, target y<2.5)", float(ccam["dist"]) <= 8.0 and float(ccam["target"][1]) < 2.5, str(ccam))
 	var wsys2 = _main.get_node("Weather")
-	_chk("fog density 0.0005 (less haze, round 2)", absf(wsys2.env.environment.fog_density - 0.0005) < 0.00001, str(wsys2.env.environment.fog_density))
+	# F4（2026-11-24）：雾 0.0005→0.0002——晴天总览地面偏淡，雾色偏蓝是其中一份。
+	_chk("fog density 0.0002 (F4: less blue haze)", absf(wsys2.env.environment.fog_density - 0.0002) < 0.00001, str(wsys2.env.environment.fog_density))
 	# ---- ABC 表格保供列 ----
 	var ui = _main.get_node("UI")
 	var grid = _main.get_node("UI/ABCPanel/VBox/ABCGrid") as GridContainer

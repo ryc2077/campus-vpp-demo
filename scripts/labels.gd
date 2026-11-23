@@ -20,6 +20,12 @@ extends Node3D
 ##    用“动效结束后的终态 rect”（_final_rect 按 scale 关于 pivot 反推），
 ##    动效本身与时长一行不动；ABC 面板同理（储能 ABC 打开态 SOC 标签
 ##    终态 overlap 仅 0.09，动效中段实测会闪现，见 verify 检查）。
+## 6) 锚点钉住（pin）：配电变压器与储能 SOC 锚点在总览屏上只差约 32px，
+##    两字盒（高 30px）无论如何排不开——0/±22/±44 档全撞 SOC，+44 落到
+##    宿舍楼 A 屋顶、−66 落到餐厅屋顶（探针：箱体附近 18 组锚点全量扫查，
+##    无一落在箱体上）。故变压器标签允许在锚点原位（dy 0）与 SOC 标签叠放
+##    一行（字距约 3px，两色区分）：仅 dy 0、仅撞 SOC 时放行，顶栏/场景栏/
+##    面板守卫一律不绕过，全局净空规则与档位表一行不动。
 
 var camera: Camera3D
 var font: Font # Label3D 不走 Control 主题，main.gd 启动时把中文字体直接赋过来
@@ -40,7 +46,7 @@ var _min_gap := 20.0 # 去重叠最小净空（屏上 px，720p 口径）：候�
 # （02-storage 实测：储能柜标签 y≈48 落在顶栏带内，隔着 93% 白面板只剩约 7% 可见度，白字压白底）
 var _ray: PhysicsRayQueryParameters3D
 
-func add_label(text: String, color: Color, prio: int, anchor: Vector3, dynamic: String = "") -> Dictionary:
+func add_label(text: String, color: Color, prio: int, anchor: Vector3, dynamic: String = "", pin: bool = false) -> Dictionary:
 	var l := Label3D.new()
 	l.text = text
 	if font != null:
@@ -68,7 +74,7 @@ func add_label(text: String, color: Color, prio: int, anchor: Vector3, dynamic: 
 	l.position = anchor
 	l.visible = false
 	add_child(l)
-	var d := {"label": l, "text": text, "color": color, "prio": prio, "anchor": anchor, "dynamic": dynamic, "occ": false}
+	var d := {"label": l, "text": text, "color": color, "prio": prio, "anchor": anchor, "dynamic": dynamic, "occ": false, "pin": pin}
 	defs.append(d)
 	return d
 
@@ -166,6 +172,7 @@ func _update() -> void:
 	var sorted: Array = defs.duplicate()
 	sorted.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["prio"]) < int(b["prio"]))
 	var placed: Array[Rect2] = []
+	var placed_defs: Array = [] # 与 placed 一一对应：pin 判定要知道撞上的是谁（只撞 SOC 才放行）
 	var dbg: Array[String] = []
 	var n_visible := 0
 	for d in sorted:
@@ -236,36 +243,43 @@ func _update() -> void:
 			#（总览屋顶光伏/艺体馆曾只差 6px、冻结帧只差 16px）也算撞上，
 			# 继续试下一档。扩的是判定用的盒，est_h 与顶栏检查口径不变。
 			var hit2 := false
+			var hit_soc_only := true # 撞上的是否全是 SOC 标签（pin 放行的前提）
 			var rg := r.grow_individual(0.0, _min_gap, 0.0, _min_gap)
-			for p in placed:
-				if rg.intersects(p):
+			for k in range(placed.size()):
+				if rg.intersects(placed[k]):
 					hit2 = true
-					break
-			if not hit2:
-				placed.append(r)
-				# 把微调量折回 3D：dy>0 是向屏下移，对应 anchor 沿相机上方向的
-				# 反方向（anchor - up * world_dy）；旧代码这里是 + 号，方向反了。
-				# px_per_world = vp_h / (2*tan(fov/2))。
-				var up: Vector3 = camera.global_transform.basis.y
-				# 钳制折回（全标签通用；原先只修了 dynamic=="soc" 的储能标签，
-				# run 45226479162）：sp 经顶栏/场景栏钳制后与锚点原投影 sp_orig_y
-				# 脱节，旧折回只用了 dy，丢了钳制量，渲染中心与判定 rect 差几十 px——
-				# 池塘总览锚点 y≈660 被钳到 636、取 0 档，渲染仍在 659.7 落进场景栏带；
-				# 储能场景三号教学楼锚点 y≈−78 被钳到 80、取 +88 档，渲染只到 48.3
-				# 落进顶栏带；配电房锚点 y≈43 被钳到 80、取 +22 档，渲染只到 69.7
-				# 压在顶栏底边上。这里把钳制量也折回去，并用视线深度（非相机距离）
-				# 换算：沿相机上方向位移 w 时屏上位移恰为 w*px_per_world/depth，
-				# 渲染中心与 rect 一致（= sp.y + dy）。
-				var fwd: Vector3 = -camera.global_transform.basis.z
-				var depth: float = (anchor - camera.global_position).dot(fwd)
-				var world_dy: float = (sp.y + dy - sp_orig_y) * depth / px_per_world
-				l.position = anchor - up * world_dy
-				l.visible = true
-				n_visible += 1
-				if debug_shot:
-					dbg.append("%s@%d,%d,%d,%d" % [String(l.text), int(r.position.x), int(r.position.y), int(r.size.x), int(r.size.y)])
-				done = true
-				break
+					if String(placed_defs[k].get("dynamic", "")) != "soc":
+						hit_soc_only = false
+			# pin（规则 6，配电变压器专用）：dy 0 是箱体上唯一位置，撞的又只有
+			# SOC 时原位叠放；顶栏/场景栏/面板守卫在上面已 continue，不绕过；
+			# 其余档位、其余标签一律走原规则。
+			if hit2 and not (bool(d.get("pin", false)) and dy == 0.0 and hit_soc_only):
+				continue
+			placed.append(r)
+			placed_defs.append(d)
+			# 把微调量折回 3D：dy>0 是向屏下移，对应 anchor 沿相机上方向的
+			# 反方向（anchor - up * world_dy）；旧代码这里是 + 号，方向反了。
+			# px_per_world = vp_h / (2*tan(fov/2))。
+			var up: Vector3 = camera.global_transform.basis.y
+			# 钳制折回（全标签通用；原先只修了 dynamic=="soc" 的储能标签，
+			# run 45226479162）：sp 经顶栏/场景栏钳制后与锚点原投影 sp_orig_y
+			# 脱节，旧折回只用了 dy，丢了钳制量，渲染中心与判定 rect 差几十 px——
+			# 池塘总览锚点 y≈660 被钳到 636、取 0 档，渲染仍在 659.7 落进场景栏带；
+			# 储能场景三号教学楼锚点 y≈−78 被钳到 80、取 +88 档，渲染只到 48.3
+			# 落进顶栏带；配电房锚点 y≈43 被钳到 80、取 +22 档，渲染只到 69.7
+			# 压在顶栏底边上。这里把钳制量也折回去，并用视线深度（非相机距离）
+			# 换算：沿相机上方向位移 w 时屏上位移恰为 w*px_per_world/depth，
+			# 渲染中心与 rect 一致（= sp.y + dy）。
+			var fwd: Vector3 = -camera.global_transform.basis.z
+			var depth: float = (anchor - camera.global_position).dot(fwd)
+			var world_dy: float = (sp.y + dy - sp_orig_y) * depth / px_per_world
+			l.position = anchor - up * world_dy
+			l.visible = true
+			n_visible += 1
+			if debug_shot:
+				dbg.append("%s@%d,%d,%d,%d" % [String(l.text), int(r.position.x), int(r.position.y), int(r.size.x), int(r.size.y)])
+			done = true
+			break
 		if not done:
 			l.visible = false
 	if debug_shot:
