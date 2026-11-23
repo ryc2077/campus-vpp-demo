@@ -503,3 +503,17 @@ CPU 与内存，负载一度 31，内存只剩约 300MB–1GB，期间还发生�
 - 未修：S2 PCS 柜埋入；S4 SOC 条悬空 0.06m；流光点与格栅条 ≤0.014m 微相交；SOC 条与流光点 Y 2.025–2.375 段短暂重叠。
 - 未修（20:45 清单保留）：GLB 材质丢色（需 Blender 返工，非 Godot 能修：教室与配电房关键材质无 baseColorFactor 且无贴图，教室偏蓝、黑板白色、配电房柜体/变压器白色，天花板发绿是天空材质 ground_bottom_color #4a6b38 照在白色天花板下表面所致）；总览仍偏淡（宽屏总览地面仍偏白）；缺 3 张单件预览图（di-cabinets、ov-flag-lamp、ov-trees）；诊断日志 `[labels]` 未出现在 Actions 日志里；04-charge 里“三号教学楼”标签一半被场景面板挡住；09-freeze 里“艺体馆 / 一号教学楼”轻微相邻；Assessment A 仍缺失；P3-2/P3-4/P3-6/P3-7 文档类小项仍记录在案未改。
 - 已修（commit ed7c8479，Actions run 45219977015 success，VERIFY-SUMMARY PASS=94 FAIL=0；新检查“10 次 lerp 后壳 alpha 仍 0.22”在 Actions 日志里通过）：_shell_mat 的 SOC lerp 推 alpha 回 1.0（见上节已知风险，现已修）；视觉验收待 Actions 截图（本次修补的 SOC 变色在 GLB 壳上是否可见，需看截图确认，本地无渲染）。
+
+### SOC 条与外壳开关修补（2026-11-24 01:xx，run 45219977015 的 02-storage.png 目视三处不通过）
+- 调查结论（GLB JSON 实测 + 截图放大）：
+  - ① 柜门上的小橙贴片就是 SOC 条（3 条，`campus_builder.gd` 1.1×0.35×0.15，X −2.4/−0.8/0.8、Y 2.2、Z 0.65）：橙色因为 `main.gd:508` 旧逻辑 `soc ≤ 0.556+0.02` 就判红 `#e2574c`，12:00 SOC 0.56 正好落进红档；小因为 `scale.x = soc ≈ 0.56` 把 1.1m 居中缩成 0.62m、无底槽、无左锚定，看着像贴片；三条一致因为同 SOC、±0.03 sin 抖动肉眼不可见。截图放大核实只有 3 块贴片，第 4 台 PCS 柜门上没有——PCS 柜只有 GLB 原生深色屏/绿 LED/风扇盘，SOC 条本来就不该挂 PCS 柜。
+  - ② 大盒子半透明是 GLB `Storage_Shell` 材质本身：`storage.glb` material 37 baseColor alpha 0.35、alphaMode BLEND，常驻半透明；`set_shell_translucent(false)` 的 GLB 分支是“恢复原始值”，关 = 回到 0.35，开关语义上失灵。另有一层：进储能场景自动开壳（`_enter_instant`/`enter_scene` 的 `shell_open=true`）发生在面板 `build()` 之后，面板按钮文案一直滞后为“关”——截图里“关 + 半透明盒”是两层原因叠加。
+  - ③ SOC 56% 时条子应是绿色、填充 56%：三色口径以壳体为准（绿 >50%、黄 >28%、红 ≤28%），56% 绿；旧条子拿保留线当变色阈值，56% 时壳绿条红自相矛盾。保留线 56% 是放电保留概念，不是变色阈值。
+- 改动：
+  - `campus_builder.gd`：每台电池柜门加固定底槽（`storage_rack_tracks`，1.24×0.47×0.10 深色 `#1f2937`，Z 0.60，填充条前面 0.725 比槽面凸出 0.075、无共面）；新增 `storage_rack_bar_cx` 基准中心数组；`set_shell_translucent()` GLB 分支关态改不透明（alpha 1.0、透明关、深度不透明），与程序化路一致，原始 0.35 只作记录；`_move_soc_bars_to_proc()` 同步改写基准中心并移底槽（2.14 宽、Z −0.22）。
+  - `main.gd`：新增 `_soc_color()`（绿/黄/红三色口径，壳与条共用）；`_update_visuals` 填充条改左锚定（`scale.x = f`，`position.x = cx − 宽×(1−f)/2`，与充电区车顶条同 pattern），删 ±0.03 sin 抖动；两处入场自动开壳后加 `panel.set_shell_open(true)` 同步文案。
+  - `scene_panel.gd`：记 `_shell_btn`，新增 `set_shell_open()`（`set_pressed_no_signal` + 改文案，不触发 toggled、不重复调开关）。
+  - `tools/verify_fixes.gd`：新增/改 9 项检查（GLB 关态 alpha 1.0 + 透明关 ×4、左锚定填充、底槽 GLB/回退两路、条色与壳同口径、面板文案同步 ×2；GLB 关态旧期望 0.35 已改）。
+- 验证（本地，Godot 4.4）：4 脚本 `--check-only` 零报错；`verify_fixes.gd` 无头跑 **PASS=89 FAIL=0**（回退分支；GLB 分支本地未执行，GLB 材质未导入，以 Actions 为准）。
+- 推送：（待补 commit + run）
+- 还剩：视觉验收待下次 Actions 截图（开壳 0.22 下条子是否像条、56% 是否绿 + 56% 填充、关态盒子是否不透明、面板文案是否与壳态一致）；S2 PCS 柜埋入、S4 SOC 条悬空 0.06m、流光点与条子 Y 2.025–2.375 段重叠仍未修。

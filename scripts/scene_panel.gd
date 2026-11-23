@@ -29,6 +29,7 @@ var chart: Charts
 var min_btn: Button
 var _minimized := false
 var _cls_sel: OptionButton
+var _shell_btn: Button # 储能外壳开关按钮：进场自动开壳时 main.gd 靠它同步文案
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(330, 0)
@@ -79,6 +80,7 @@ func build(title: String, extra_kind: String, shell_open: bool) -> void:
 	for c in extra_box.get_children():
 		c.queue_free()
 	_cls_sel = null
+	_shell_btn = null
 	if extra_kind == "classroom":
 		var lab := Label.new()
 		lab.text = "演示策略"
@@ -114,8 +116,18 @@ func build(title: String, extra_kind: String, shell_open: bool) -> void:
 			shell_toggled.emit(on)
 		)
 		extra_box.add_child(btn)
+		_shell_btn = btn
 		_springs.attach(btn)
 		btn.custom_minimum_size = Vector2(0, 44)
+
+## 进场自动开壳时同步开关文案（build() 是进场前按旧 shell_open 建的，
+## 不调这里文案会一直滞后）。用 set_pressed_no_signal，不再触发 toggled，
+## 避免与 main.gd 的 shell_toggled 处理重复调用 set_shell_translucent。
+func set_shell_open(open: bool) -> void:
+	if _shell_btn == null:
+		return
+	_shell_btn.set_pressed_no_signal(open)
+	_shell_btn.text = "外壳半透明：" + ("开" if open else "关")
 
 func set_strategy_sel(value: String) -> void:
 	if _cls_sel != null:

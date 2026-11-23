@@ -15,6 +15,8 @@ var window_mats: Array[StandardMaterial3D] = []
 var tree_canopies: Array[Node3D] = []
 var storage_shell: Array[MeshInstance3D] = []
 var storage_rack_bars: Array[MeshInstance3D] = []
+var storage_rack_tracks: Array[MeshInstance3D] = [] # SOC 条底槽：固定不动的深色轨道，填充条左锚定在槽内伸缩
+var storage_rack_bar_cx: Array[float] = [] # 填充条左锚定的基准中心 X（GLB 模式 −2.4/−0.8/0.8，回退时随 _move_soc_bars_to_proc 改写）
 var car_fills: Array[Dictionary] = [] # {fill: MeshInstance3D, base_soc, v2g}
 var storage_group: Node3D
 var storage_soc_group: Node3D # SOC 条组：GLB 成功时 storage_group 隐藏，条子留在组外才可见
@@ -226,9 +228,12 @@ func _build_storage() -> void:
 	# SOC 条单独成组（与 storage_group 同原点 (64,0,-30)）：storage.glb 加载成功时
 	# storage_group 整体隐藏，条子留在组外才可见。条子位置按 GLB 实测对齐
 	# （storage.glb）：3 台电池柜局部中心 X −2.4/−0.8/0.8、柜顶 2.55、前脸 Z 0.5；
-	# 条宽 1.1（柜宽 1.3，左右各留 0.1）、中心 Z 0.65（厚 0.15，背面 0.575，
+	# 填充条宽 1.1（柜宽 1.3，左右各留 0.1）、中心 Z 0.65（厚 0.15，背面 0.575，
 	# 距门板前脸 0.545 留 0.03，不埋进柜体）、Y 2.2（顶 2.375 < 柜顶 2.55，不悬空）。
-	# GLB 加载失败走回退时，_load_scene_glbs() 把条子移回程序化机架位置。
+	# 每台柜门上另有一条固定底槽（1.24×0.47×0.10，深色 #1f2937，Z 0.60）：
+	# 填充条左锚定在槽内按 SOC 伸缩（main.gd _update_visuals），空槽部分可见，
+	# 肉眼才能读出“条 + 填充比例”；旧版只有居中缩放的实心块，看着像贴片。
+	# GLB 加载失败走回退时，_load_scene_glbs() 把条子与底槽移回程序化机架位置。
 	var soc_group := Node3D.new()
 	soc_group.name = "storageSocGroup"
 	soc_group.position = Vector3(pos[0], 0, pos[1])
@@ -238,6 +243,10 @@ func _build_storage() -> void:
 	while i < 3:
 		var x := -2.6 + i * 2.6
 		_box(storage_group, Vector3(x, 2.2, -0.6), Vector3(2.2, 3.6, 0.7), _mat(Color("#2b3a46"), 0.5, 0.4))
+		# 底槽：固定不动（Z 0.60，厚 0.10，背面 0.55 距门板前脸 0.545 留 0.005，
+		# 前面 0.65；填充条前面 0.725，比槽面凸出 0.075，无共面、不 z-fight）
+		var track := _box(soc_group, Vector3(-2.4 + i * 1.6, 2.2, 0.60), Vector3(1.24, 0.47, 0.10), _mat(Color("#1f2937"), 0.6, 0.0))
+		storage_rack_tracks.append(track)
 		var bar_mat := StandardMaterial3D.new()
 		bar_mat.albedo_color = Color("#34d399")
 		bar_mat.emission_enabled = true
@@ -245,6 +254,7 @@ func _build_storage() -> void:
 		bar_mat.emission_energy_multiplier = 0.6
 		var bar := _box(soc_group, Vector3(-2.4 + i * 1.6, 2.2, 0.65), Vector3(1.1, 0.35, 0.15), bar_mat)
 		storage_rack_bars.append(bar)
+		storage_rack_bar_cx.append(-2.4 + i * 1.6)
 		# 风扇
 		var fan := _cyl(storage_group, Vector3(x, 4.3, 0.4), 0.55, 0.55, 0.15, _mat(Color("#d7dde3"), 0.4, 0.5), 12)
 		fan.rotation_degrees.x = 90
@@ -359,8 +369,11 @@ func _build_flag_and_gate() -> void:
 
 func set_shell_translucent(open: bool) -> void:
 	# GLB 已接管：改 GLB 壳/顶材质——程序化组已隐藏，改它无可见效果。
-	# 开：与程序化路同款半透明（alpha 0.22）；关：恢复导入时的原始值
-	# （壳 alpha 0.35 半透明、顶不透明），不是一律改回不透明。
+	# 开：与程序化路同款半透明（alpha 0.22）；关：不透明（alpha 1.0、透明关、
+	# 深度不透明），与程序化路一致。注意 GLB 壳原生 alpha 就是 0.35 半透明，
+	# 所以“关”不能恢复原始值——恢复 0.35 等于开关失灵（面板写“关”、盒子
+	# 仍半透明，run 45219977015 的 02-storage.png 正是此状）；原始值只作
+	# 记录（storage_glb_shell_base_*），不再作为关态。
 	if not storage_glb_shell_mats.is_empty():
 		for i in range(storage_glb_shell_mats.size()):
 			var mat: StandardMaterial3D = storage_glb_shell_mats[i]
@@ -369,9 +382,9 @@ func set_shell_translucent(open: bool) -> void:
 				mat.albedo_color.a = 0.22
 				mat.depth_draw_mode = 2 # BaseMaterial3D.DEPTH_DRAW_DISABLED
 			else:
-				mat.transparency = storage_glb_shell_base_transp[i]
-				mat.albedo_color.a = storage_glb_shell_base_alpha[i]
-				mat.depth_draw_mode = storage_glb_shell_base_depth[i]
+				mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+				mat.albedo_color.a = 1.0
+				mat.depth_draw_mode = 0 # BaseMaterial3D.DEPTH_DRAW_OPAQUE
 		return
 	for m in storage_shell:
 		var mat: StandardMaterial3D = m.material_override as StandardMaterial3D
@@ -410,8 +423,10 @@ func _collect_glb_shell_named(root: Node, prefix: String) -> void:
 		for ch in n.get_children():
 			stack.append(ch)
 
-## GLB 加载失败回退：SOC 条移回程序化机架位置（x −2.6/0/+2.6，z −0.2，宽 2.0，
-## 与 _build_storage() 原值一致），否则条子会悬在机架前方 0.9m 空中。
+## GLB 加载失败回退：SOC 条与底槽移回程序化机架位置（x −2.6/0/+2.6，条宽 2.0、
+## 槽宽 2.14，条 z −0.2、槽 z −0.22，条前面 −0.125 比槽面 −0.17 凸出 0.045），
+## 否则条子会悬在机架前方空中；基准中心 storage_rack_bar_cx 同步改写，
+## main.gd 的左锚定填充才不会按 GLB 中心错位。
 func _move_soc_bars_to_proc() -> void:
 	var i := 0
 	for bar in storage_rack_bars:
@@ -419,7 +434,16 @@ func _move_soc_bars_to_proc() -> void:
 		var bm := bar.mesh as BoxMesh
 		if bm != null:
 			bm.size = Vector3(2.0, 0.35, 0.15)
+		if i < storage_rack_bar_cx.size():
+			storage_rack_bar_cx[i] = -2.6 + i * 2.6
 		i += 1
+	var j := 0
+	for track in storage_rack_tracks:
+		track.position = Vector3(-2.6 + j * 2.6, 2.2, -0.22)
+		var tm := track.mesh as BoxMesh
+		if tm != null:
+			tm.size = Vector3(2.14, 0.47, 0.10)
+		j += 1
 
 func set_host_visible(id: String, visible: bool) -> void:
 	# overview.glb 已接管时，程序化宿主不恢复可见（否则与 GLB 楼体重叠成双份）；

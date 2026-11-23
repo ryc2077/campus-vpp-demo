@@ -302,6 +302,10 @@ func _process(_delta: float) -> bool:
 						win_bad += 1
 	_chk("S5 全部窗顶 ≤ 墙顶（无埋入屋顶板）", win_bad == 0, "checked=" + str(win_n) + " bad=" + str(win_bad))
 	# ---- 储能外壳开关 + SOC 条（GLB/回退两路，分支感知：GLB 未载入时验回退路） ----
+	# 实时 SOC 与填充比：_process 每帧调 _update_visuals，条子中心/缩放都由它定，
+	# 检查必须按同一 soc 算期望值，不能写死位置。
+	var _vsoc: float = float((_main.sim.state_at(_main.hour) as Dictionary)["soc"])
+	var _vf: float = clampf(_vsoc, 0.02, 1.0)
 	if cb.storage_glb_active:
 		_chk("GLB 模式：储能壳/顶材质已收集 2 个", cb.storage_glb_shell_mats.size() == 2, str(cb.storage_glb_shell_mats.size()))
 		_chk("GLB 模式：壳原始 alpha 0.35（半透明）", cb.storage_glb_shell_mats.size() == 2 and absf(cb.storage_glb_shell_base_alpha[0] - 0.35) < 0.001, str(cb.storage_glb_shell_base_alpha) if cb.storage_glb_shell_mats.size() == 2 else "未收集")
@@ -311,27 +315,47 @@ func _process(_delta: float) -> bool:
 			_chk("GLB 模式：开关开壳 alpha 0.22", absf((cb.storage_glb_shell_mats[0] as StandardMaterial3D).albedo_color.a - 0.22) < 0.001, str((cb.storage_glb_shell_mats[0] as StandardMaterial3D).albedo_color.a))
 			_chk("GLB 模式：开关开顶 alpha 0.22", absf((cb.storage_glb_shell_mats[1] as StandardMaterial3D).albedo_color.a - 0.22) < 0.001, str((cb.storage_glb_shell_mats[1] as StandardMaterial3D).albedo_color.a))
 			cb.call("set_shell_translucent", false)
-			_chk("GLB 模式：开关关壳 alpha 恢复 0.35", absf((cb.storage_glb_shell_mats[0] as StandardMaterial3D).albedo_color.a - 0.35) < 0.001, str((cb.storage_glb_shell_mats[0] as StandardMaterial3D).albedo_color.a))
-			_chk("GLB 模式：开关关顶 alpha 恢复 1.0", absf((cb.storage_glb_shell_mats[1] as StandardMaterial3D).albedo_color.a - 1.0) < 0.001, str((cb.storage_glb_shell_mats[1] as StandardMaterial3D).albedo_color.a))
+			_chk("GLB 模式：开关关壳 alpha 1.0（不透明，与面板“关”一致）", absf((cb.storage_glb_shell_mats[0] as StandardMaterial3D).albedo_color.a - 1.0) < 0.001, str((cb.storage_glb_shell_mats[0] as StandardMaterial3D).albedo_color.a))
+			_chk("GLB 模式：开关关顶 alpha 1.0（不透明）", absf((cb.storage_glb_shell_mats[1] as StandardMaterial3D).albedo_color.a - 1.0) < 0.001, str((cb.storage_glb_shell_mats[1] as StandardMaterial3D).albedo_color.a))
+			_chk("GLB 模式：开关关壳透明模式已关（不是恢复原生 0.35 半透明）", (cb.storage_glb_shell_mats[0] as StandardMaterial3D).transparency == BaseMaterial3D.TRANSPARENCY_DISABLED, str((cb.storage_glb_shell_mats[0] as StandardMaterial3D).transparency))
+			_chk("GLB 模式：开关关顶透明模式已关", (cb.storage_glb_shell_mats[1] as StandardMaterial3D).transparency == BaseMaterial3D.TRANSPARENCY_DISABLED, str((cb.storage_glb_shell_mats[1] as StandardMaterial3D).transparency))
 		_chk("GLB 模式：_shell_mat 指 GLB 壳材质 [0]（SOC 变色可见，非已隐藏的程序化壳）", _main._shell_mat != null and cb.storage_glb_shell_mats.size() >= 1 and _main._shell_mat == cb.storage_glb_shell_mats[0], str(_main._shell_mat))
 		var bars_ok: bool = cb.storage_rack_bars.size() == 3
 		var bars_vis := true
-		var bars_pos_ok := true
+		var bars_fill_ok := true # 左锚定填充：中心 = 柜中心 − 宽×(1−f)/2，scale.x = f（f = SOC）
 		var bars_size_ok := true
+		var bars_col_ok := true # 颜色与壳体同口径（_soc_color），同一 SOC 绝不两色
 		var bx := [-2.4, -0.8, 0.8]
 		for k in range(cb.storage_rack_bars.size()):
 			var bb := cb.storage_rack_bars[k] as MeshInstance3D
 			if not bb.is_visible_in_tree():
 				bars_vis = false
-			if absf(bb.position.x - bx[k]) >= 0.001 or absf(bb.position.y - 2.2) >= 0.001 or absf(bb.position.z - 0.65) >= 0.001:
-				bars_pos_ok = false
+			var exp_cx: float = bx[k] - 1.1 * (1.0 - _vf) / 2.0
+			if absf(bb.position.x - exp_cx) >= 0.001 or absf(bb.position.y - 2.2) >= 0.001 or absf(bb.position.z - 0.65) >= 0.001 or absf(bb.scale.x - _vf) >= 0.001:
+				bars_fill_ok = false
 			if not (bb.mesh is BoxMesh and (bb.mesh as BoxMesh).size.is_equal_approx(Vector3(1.1, 0.35, 0.15))):
 				bars_size_ok = false
+			var bmat := bb.material_override as StandardMaterial3D
+			if bmat == null or _col(bmat.albedo_color) != _col(_main.call("_soc_color", _vsoc)):
+				bars_col_ok = false
 		_chk("GLB 模式：SOC 条 3 条", bars_ok, str(cb.storage_rack_bars.size()))
 		_chk("GLB 模式：SOC 条在树上可见（未随程序化组隐藏）", bars_ok and bars_vis, "")
-		_chk("GLB 模式：SOC 条 X −2.4/−0.8/0.8、Y 2.2、Z 0.65（对齐 GLB 柜）", bars_ok and bars_pos_ok, str([(cb.storage_rack_bars[0] as MeshInstance3D).position, (cb.storage_rack_bars[1] as MeshInstance3D).position, (cb.storage_rack_bars[2] as MeshInstance3D).position]) if bars_ok else "")
+		_chk("GLB 模式：SOC 条左锚定填充（中心 = 柜中心 − 1.1×(1−f)/2，scale.x = f）", bars_ok and bars_fill_ok, str([(cb.storage_rack_bars[0] as MeshInstance3D).position, (cb.storage_rack_bars[1] as MeshInstance3D).position, (cb.storage_rack_bars[2] as MeshInstance3D).position]) if bars_ok else "")
 		_chk("GLB 模式：SOC 条 1.1×0.35×0.15（柜宽 1.3 内，不埋柜）", bars_ok and bars_size_ok, "")
+		_chk("GLB 模式：SOC 条颜色与壳体同口径", bars_ok and bars_col_ok, "soc=" + str(_vsoc) + " expect=" + _col(_main.call("_soc_color", _vsoc)))
 		_chk("GLB 模式：SOC 条组在 storage_group 外", cb.storage_soc_group != null and cb.storage_soc_group != cb.storage_group, str(cb.storage_soc_group))
+		var tr_ok: bool = cb.storage_rack_tracks.size() == 3
+		var tr_pos_ok := true
+		var tr_size_ok := true
+		for k in range(cb.storage_rack_tracks.size()):
+			var tt := cb.storage_rack_tracks[k] as MeshInstance3D
+			if absf(tt.position.x - bx[k]) >= 0.001 or absf(tt.position.y - 2.2) >= 0.001 or absf(tt.position.z - 0.60) >= 0.001:
+				tr_pos_ok = false
+			if not (tt.mesh is BoxMesh and (tt.mesh as BoxMesh).size.is_equal_approx(Vector3(1.24, 0.47, 0.10))):
+				tr_size_ok = false
+		_chk("GLB 模式：SOC 条底槽 3 条（只在 3 台电池柜上，PCS 柜无）", tr_ok, str(cb.storage_rack_tracks.size()))
+		_chk("GLB 模式：SOC 条底槽 X −2.4/−0.8/0.8、Y 2.2、Z 0.60（柜门前）", tr_ok and tr_pos_ok, "")
+		_chk("GLB 模式：SOC 条底槽 1.24×0.47×0.10（比填充条宽一圈，空槽可见）", tr_ok and tr_size_ok, "")
 	else:
 		# 回退路：程序化壳仍受开关控制，条子在程序化机架位置
 		cb.call("set_shell_translucent", true)
@@ -345,9 +369,17 @@ func _process(_delta: float) -> bool:
 		var pb_ok: bool = cb.storage_rack_bars.size() == 3
 		for k in range(cb.storage_rack_bars.size()):
 			var bb2 := cb.storage_rack_bars[k] as MeshInstance3D
-			if absf(bb2.position.x - pbx[k]) >= 0.001 or absf(bb2.position.z - (-0.2)) >= 0.001:
+			var exp2: float = pbx[k] - 2.0 * (1.0 - _vf) / 2.0
+			if absf(bb2.position.x - exp2) >= 0.001 or absf(bb2.position.z - (-0.2)) >= 0.001 or absf(bb2.scale.x - _vf) >= 0.001:
 				pb_ok = false
-		_chk("回退模式：SOC 条在程序化机架位置 X −2.6/0/2.6、Z −0.2", pb_ok, "")
+		_chk("回退模式：SOC 条左锚定填充（中心 = 柜中心 − 2.0×(1−f)/2，scale.x = f）", pb_ok, "")
+		var pt_ok: bool = cb.storage_rack_tracks.size() == 3
+		var pt_pos_ok := true
+		for k in range(cb.storage_rack_tracks.size()):
+			var tt2 := cb.storage_rack_tracks[k] as MeshInstance3D
+			if absf(tt2.position.x - pbx[k]) >= 0.001 or absf(tt2.position.z - (-0.22)) >= 0.001:
+				pt_pos_ok = false
+		_chk("回退模式：SOC 条底槽随条子移回程序化机架位置 X −2.6/0/2.6、Z −0.22", pt_ok and pt_pos_ok, "")
 	# ---- SOC 变色 lerp 保留 alpha（回归）：先开壳到 0.22，再连调 10 次 _update_visuals，
 	# alpha 必须仍是 0.22（修前会被推向 1.0）；GLB 与回退两路共用 _shell_mat，同一处验证。
 	cb.call("set_shell_translucent", true)
@@ -356,6 +388,23 @@ func _process(_delta: float) -> bool:
 		_main.call("_update_visuals", _main.sim.state_at(_main.hour), 0.016)
 	_chk("SOC 变色：10 次 lerp 后壳 alpha 不变（仍 0.22）", _main._shell_mat != null and absf(_main._shell_mat.albedo_color.a - a0) < 0.001 and absf(a0 - 0.22) < 0.001, str(a0) + " -> " + str(_main._shell_mat.albedo_color.a))
 	cb.call("set_shell_translucent", false)
+	# ---- 面板外壳开关文案与实际壳态同步（回归）：进储能场景自动开壳时，
+	# 面板是进场前按 shell_open=false 建的，修前文案一直滞后为“关”，
+	# 与实际已开的半透明壳矛盾（run 45219977015 的 02-storage.png）。
+	_main.call("_show_panel_for", "storage")
+	var _sp = _main.get_node("UI/ScenePanel")
+	_sp.call("set_shell_open", true)
+	var _shell_txt := ""
+	for _c in (_sp.get_node("VBox/SPExtra") as HBoxContainer).get_children():
+		if _c is Button:
+			_shell_txt = (_c as Button).text
+	_chk("储能面板：自动开壳后开关文案为“开”", _shell_txt == "外壳半透明：开", _shell_txt)
+	_sp.call("set_shell_open", false)
+	_shell_txt = ""
+	for _c in (_sp.get_node("VBox/SPExtra") as HBoxContainer).get_children():
+		if _c is Button:
+			_shell_txt = (_c as Button).text
+	_chk("储能面板：set_shell_open(false) 后文案为“关”", _shell_txt == "外壳半透明：关", _shell_txt)
 	# ---- 池塘遮挡（run 45219977015）：总览时场景栏须走实色 fallback（白 0.93），
 	# 玻璃须关，否则亮蓝池塘水面透进导航栏压住“教室舒适度”等文字。
 	var _bar_glass = _main.get_node("UI/SceneBar/BarGlass")

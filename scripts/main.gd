@@ -330,6 +330,7 @@ func _enter_instant(key: String) -> void:
 	elif key == "storage":
 		shell_open = true
 		campus.set_shell_translucent(true)
+		panel.set_shell_open(true) # 面板是进场前按 shell_open=false 建的，不同步文案会一直写“关”
 		sto_interior.visible = true
 	elif key == "pv":
 		pv_detail.visible = true
@@ -405,6 +406,7 @@ func enter_scene(key: String) -> void:
 	elif key == "storage":
 		shell_open = true
 		campus.set_shell_translucent(true)
+		panel.set_shell_open(true) # 面板是进场前按 shell_open=false 建的，不同步文案会一直写“关”
 		sto_interior.visible = true
 		rig.fly_to(sc["cam"], 1000, Callable(self, "_on_landed").bind(key))
 	elif key == "pv":
@@ -505,20 +507,33 @@ func _update_clock(st: Dictionary) -> void:
 		mode = "谷段模式"
 	ui.set_clock(hour, mode + " · B 平急两用")
 
+## SOC 三色口径（壳体变色与机架 SOC 条共用，同一 SOC 绝不两色）：
+## 绿 >50%、黄 >28%、红 ≤28%。面板/图表里的“应急保留线 56%”是放电
+## 保留概念，不是变色阈值——旧版条子拿保留线当变色阈值（≤0.576 红），
+## 56% 时壳绿条红，正是 run 45219977015 截图里贴片全橙的根因之一。
+func _soc_color(soc: float) -> Color:
+	return Color("#1d9e63") if soc > 0.5 else (Color("#d9a514") if soc > 0.28 else Color("#c23b3b"))
+
 func _update_visuals(st: Dictionary, delta: float) -> void:
 	var soc: float = st["soc"]
 	# 储能柜颜色随 SOC（绿/黄/红）
 	if _shell_mat != null:
-		var target_col := Color("#1d9e63") if soc > 0.5 else (Color("#d9a514") if soc > 0.28 else Color("#c23b3b"))
+		var target_col := _soc_color(soc)
 		var c := _shell_mat.albedo_color.lerp(target_col, 0.08)
 		c.a = _shell_mat.albedo_color.a
 		_shell_mat.albedo_color = c
-	# 机架 SOC 条
+	# 机架 SOC 条：填充条左锚定在底槽内伸缩（fill = SOC，左缘固定），颜色与
+	# 壳体同口径；旧版是居中缩放 + 两色（SOC ≤ 保留线+0.02 就红），56% 时
+	# 壳是绿、条是红，自相矛盾，且无底槽、无黄档，肉眼认不出是条。
 	for i in range(campus.storage_rack_bars.size()):
 		var bar: MeshInstance3D = campus.storage_rack_bars[i]
-		bar.scale.x = clampf(soc + 0.03 * sin(i * 2.1), 0.02, 1.0)
+		var f := clampf(soc, 0.02, 1.0)
+		var bm := bar.mesh as BoxMesh
+		var full_w: float = bm.size.x if bm != null else 1.1
+		bar.scale.x = f
+		bar.position.x = campus.storage_rack_bar_cx[i] - full_w * (1.0 - f) / 2.0
 		var m: StandardMaterial3D = bar.material_override
-		var col := Color("#e2574c") if soc <= 0.556 + 0.02 else Color("#34d399")
+		var col := _soc_color(soc)
 		m.albedo_color = col
 		m.emission = col
 	# 车辆 SOC 条
