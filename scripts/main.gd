@@ -532,7 +532,7 @@ func _update_visuals(st: Dictionary, delta: float) -> void:
 		sto_interior.update_frame(float(st["batt"]), _t, delta)
 	if pv_detail.visible:
 		pv_detail.update_frame(float(st["pv"]), float(current_wx.get("pv_factor", 1.0)), _t)
-	chg_detail.update_frame(float(st["ev"]), hour, _t)
+	chg_detail.update_frame(float(st["ev"]), hour, _t, float(current_wx.get("pv_factor", 1.0)))
 	if dist_interior.visible:
 		dist_interior.set_load_rate(float(st["grid"]) / 3000.0)
 

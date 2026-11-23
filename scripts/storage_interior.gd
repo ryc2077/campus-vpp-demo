@@ -29,6 +29,10 @@ func _box(pos: Vector3, size: Vector3, mat: Material) -> MeshInstance3D:
 
 func _build() -> void:
 	# PCS 风扇（立式圆盘 + 叶片）
+	# 高度换算（Blender st-doors 实测）：柜顶 2.55m、风扇盘底 2.555m（高出柜顶 0.005m
+	# 防 z-fighting）；Godot Y = Blender Z（同原点、1:1，储能内景置于 (64,0,-30)
+	# 与柜体同原点），盘半径 0.55m，故中心 y = 2.555 + 0.55 = 3.105m，盘底恰为 2.555m。
+	# （原 y=3.4 时盘底为 2.85m，盘底偏高 0.30m；3.4-2.55=0.85m 是中心到柜顶之差。）
 	var hub := MeshInstance3D.new()
 	var cm := CylinderMesh.new()
 	cm.top_radius = 0.55
@@ -36,7 +40,7 @@ func _build() -> void:
 	cm.height = 0.12
 	cm.radial_segments = 16
 	hub.mesh = cm
-	hub.position = Vector3(4.6, 3.4, 0.2)
+	hub.position = Vector3(4.6, 3.105, 0.2)
 	hub.rotation_degrees.x = 90
 	hub.material_override = _mat(Color("#37424c"), 0.4, 0.5)
 	add_child(hub)
@@ -44,7 +48,7 @@ func _build() -> void:
 	var fm := BoxMesh.new()
 	fm.size = Vector3(0.9, 0.12, 0.18)
 	fan.mesh = fm
-	fan.position = Vector3(4.6, 3.4, 0.28)
+	fan.position = Vector3(4.6, 3.105, 0.28)
 	fan.material_override = _mat(Color("#d7dde3"), 0.4, 0.5)
 	add_child(fan)
 	# 能量流光点：沿机架竖向 3 条

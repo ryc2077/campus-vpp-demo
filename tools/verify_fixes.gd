@@ -205,6 +205,26 @@ func _process(_delta: float) -> bool:
 	var main_src := FileAccess.get_file_as_string("res://scripts/main.gd")
 	_chk("界面文字无 DC→AC 箭头", main_src.find("DC→AC") < 0, "")
 	_chk("逆变器状态改文字 DC 转 AC", main_src.find("DC 转 AC") >= 0, "")
+	# ---- 本轮三处修复：储能风扇高度 / 雨天阳光射线 / 雨天 V2G 弧线 ----
+	var sto = _main.sto_interior
+	_chk("储能风扇中心 y=3.105（盘底 2.555=柜顶 2.55+0.005）", sto != null and absf(sto.fan.position.y - 3.105) < 0.001, str(sto.fan.position.y) if sto != null else "null")
+	_chk("储能风扇盘底 2.555m", sto != null and absf((sto.fan.position.y - 0.55) - 2.555) < 0.001, str(sto.fan.position.y - 0.55) if sto != null else "null")
+	var pv = _main.pv_detail
+	pv.call("update_frame", 100.0, 0.30, 0.0)
+	_chk("雨天 pv_factor=0.30 阳光射线隐藏", not (pv.ray_planes[0] as MeshInstance3D).visible, str((pv.ray_planes[0] as MeshInstance3D).visible))
+	pv.call("update_frame", 100.0, 0.45, 0.0)
+	_chk("阴天 pv_factor=0.45 阳光射线显示", (pv.ray_planes[0] as MeshInstance3D).visible, str((pv.ray_planes[0] as MeshInstance3D).visible))
+	pv.call("update_frame", 100.0, 0.15, 0.0)
+	_chk("暴雨 pv_factor=0.15 阳光射线隐藏", not (pv.ray_planes[0] as MeshInstance3D).visible, str((pv.ray_planes[0] as MeshInstance3D).visible))
+	var chg = _main.chg_detail
+	chg.call("update_frame", 10.0, 12.0, 0.0, 0.30)
+	_chk("雨天 V2G 弧线流光点隐藏", not (chg.arc_dots[0] as MeshInstance3D).visible, str((chg.arc_dots[0] as MeshInstance3D).visible))
+	_chk("雨天 V2G 弧线基线隐藏", not (chg.arc_segs[0] as MeshInstance3D).visible, str((chg.arc_segs[0] as MeshInstance3D).visible))
+	chg.call("update_frame", 10.0, 12.0, 0.0, 0.45)
+	_chk("阴天 V2G 弧线流光点显示", (chg.arc_dots[0] as MeshInstance3D).visible, str((chg.arc_dots[0] as MeshInstance3D).visible))
+	_chk("阴天 V2G 弧线基线显示", (chg.arc_segs[0] as MeshInstance3D).visible, str((chg.arc_segs[0] as MeshInstance3D).visible))
+	chg.call("update_frame", 10.0, 12.0, 0.0, 0.15)
+	_chk("暴雨 V2G 弧线隐藏", not (chg.arc_dots[0] as MeshInstance3D).visible, str((chg.arc_dots[0] as MeshInstance3D).visible))
 	# ---- 场景面板不撑出屏（回归检查）：进配电房（修前最宽 511px），
 	# 等几帧让容器排完版再量宽。
 	_main.call("enter_scene", "dist")

@@ -90,4 +90,7 @@ func update_frame(pv_kw: float, pv_factor: float, t: float) -> void:
 	for p in ray_planes:
 		var m: StandardMaterial3D = p.material_override
 		m.albedo_color.a = 0.04 + 0.20 * pv_factor
-		p.visible = pv_factor > 0.18
+		# 天气门控：与 data/weather.json 的 pv_factor 同口径——雨天 0.30、暴雨 0.15
+		# 均不显示；阴天 0.45、多云 0.75、晴天 1.00 仍显示。（原阈值 0.18 时雨天 0.30
+		# 仍通过，雨天阳光射线残留。）
+		p.visible = pv_factor > 0.30

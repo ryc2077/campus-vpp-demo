@@ -5,6 +5,7 @@ extends Node3D
 
 var arc_dots: Array[MeshInstance3D] = []
 var arc_mats: Array[StandardMaterial3D] = []
+var arc_segs: Array[MeshInstance3D] = []
 var arc_from := Vector3(44, 2.0, 76)
 var arc_mid := Vector3(54, 9.0, 20)
 var arc_to := Vector3(64, 3.0, -30)
@@ -55,6 +56,7 @@ func _build() -> void:
 		lm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		seg.material_override = lm
 		add_child(seg)
+		arc_segs.append(seg)
 		prev = p
 		s += 1
 
@@ -63,10 +65,15 @@ func _bezier(u: float) -> Vector3:
 	var b := arc_mid.lerp(arc_to, u)
 	return a.lerp(b, u)
 
-func update_frame(ev_kw: float, hour: float, t: float) -> void:
+func update_frame(ev_kw: float, hour: float, t: float, pv_factor: float = 1.0) -> void:
 	var discharging := ev_kw > 1.0
-	var active := discharging or (hour > 7.5 and hour < 17.5)
+	# 天气门控：与 pv_detail 阳光射线同口径（data/weather.json：雨天 pv_factor=0.30、
+	# 暴雨 0.15，阴天 0.45 仍显示）——雨天/暴雨隐藏整条弧线（流光点 + 基线），
+	# 晴/多云/阴天不受影响。pv_factor 由 main.gd 从 current_wx 传入，默认 1.0 保兼容。
+	var active := (discharging or (hour > 7.5 and hour < 17.5)) and pv_factor > 0.30
 	var col := Color("#fb923c") if discharging else Color("#38bdf8")
+	for s in arc_segs:
+		s.visible = active
 	for i in range(arc_dots.size()):
 		var d: MeshInstance3D = arc_dots[i]
 		var m: StandardMaterial3D = arc_mats[i]
