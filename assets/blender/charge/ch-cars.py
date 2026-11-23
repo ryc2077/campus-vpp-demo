@@ -60,7 +60,11 @@ def make_paint(name, hexstr):
     """Car paint: Principled, Roughness 0.35 solid + light bump.
     2026-11-23 返工：旧版 Roughness 连 Noise->MapRange（0.27~0.43），glTF 丢
     roughnessFactor，Godot 里车漆粗糙度归 1（全哑光）；改回区间中值 0.35
-    固定值，只留 Bump。Base Color 本就未链接，不动。"""
+    固定值，只留 Bump。Base Color 本就未链接，不动。
+    2026-11-24 返工：参数化车漆——Metallic 0.15 / Roughness 0.35 不变（仍不
+    链接，保证 glTF factor 保留），加清漆层 Coat Weight 1.0 / Coat Roughness
+    0.15（glTF KHR_materials_clearcoat），珠光片只走细颗粒 Bump（scale 40、
+    strength 0.10）。不贴平铺纹理：碎砖式平铺会毁车漆面。"""
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
     ntree = mat.node_tree
@@ -68,7 +72,9 @@ def make_paint(name, hexstr):
     bsdf.inputs["Base Color"].default_value = srgb_to_linear(hexstr)
     bsdf.inputs["Metallic"].default_value = 0.15
     bsdf.inputs["Roughness"].default_value = 0.35
-    _noise_bump(ntree, bsdf, scale=18.0, strength=0.06)
+    bsdf.inputs["Coat Weight"].default_value = 1.0
+    bsdf.inputs["Coat Roughness"].default_value = 0.15
+    _noise_bump(ntree, bsdf, scale=40.0, strength=0.10)
     return mat
 
 
@@ -280,7 +286,13 @@ for _m in [m for m in bpy.data.materials
     _bsdf = _m.node_tree.nodes["Principled BSDF"]
     assert not _bsdf.inputs["Base Color"].is_linked, f"{_m.name}: Base Color linked!"
     assert not _bsdf.inputs["Roughness"].is_linked, f"{_m.name}: Roughness linked!"
-print("MATERIAL CHECK PASS: car paint + hub have solid Base Color + Roughness")
+    if _m.name.startswith("ch-cars_body_"):
+        assert abs(_bsdf.inputs["Coat Weight"].default_value - 1.0) < 1e-6, \
+            f"{_m.name}: Coat Weight != 1.0"
+        assert abs(_bsdf.inputs["Coat Roughness"].default_value - 0.15) < 1e-6, \
+            f"{_m.name}: Coat Roughness != 0.15"
+print("MATERIAL CHECK PASS: car paint + hub have solid Base Color + Roughness; "
+      "car paint clearcoat Coat Weight 1.0 / Coat Roughness 0.15")
 
 # ---- lighting / world (SPEC section 2) ----
 world = bpy.data.worlds.new("ch-cars_world")

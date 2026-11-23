@@ -79,10 +79,19 @@ LED_MAT = make_material("Cabinet_LED", "#3FAE5A", 0.4, 0.0)
 # 底色图已用 PIL 按 SPEC 色调过（assets/blender/tint_textures.py），直接连
 # Base Color；rough/normal 用原图（Non-Color）。路径存 // 相对路径，随仓库推送。
 # 柜体用 blue_metal_plate 三图；旧程序化 Bump 已断开 Normal，由 normal 图替代。
-# 尺寸适配：柜体 UV 按实尺缩放（tile 约 2m）。顶檐/踢脚/缝/格栅/把手/屏/灯保持纯色。
+# 尺寸适配：柜体 UV 按实尺缩放（tile 约 2m）。顶檐/踢脚同口径（tile 约 2m）；
+# 缝/格栅/把手/屏/灯保持纯色。
 TEX_DIR = os.path.join(os.path.dirname(BLEND_PATH), "st-cabinet_textures")
 
 def _load_tex(fname, colorspace):
+    # 同一文件被多个材质复用时（cap/kick 复用 cabinet rough/nor）必须复用已载入
+    # 的 image 数据块：bpy.data.images.load(check_existing=True) 只按传入路径串
+    # 匹配，绝对路径与已存的 // 相对路径对不上，会造出 .001/.002 重复块，GLB 里
+    # 同一张图嵌三份。先按 basename 找已载入的。
+    for img in bpy.data.images:
+        if img.filepath and os.path.basename(img.filepath) == fname:
+            img.colorspace_settings.name = colorspace
+            return img
     path = os.path.join(TEX_DIR, fname)
     img = bpy.data.images.load(path, check_existing=True)
     img.colorspace_settings.name = colorspace
@@ -135,6 +144,12 @@ def _check_pbr(mat):
 # v3: 柜体挂真实 PBR 贴图（blue_metal_plate 染 #3E5A50）
 add_pbr(CABINET_MAT, "cabinet_color.jpg", "cabinet_rough.jpg", "cabinet_nor.jpg")
 _check_pbr(CABINET_MAT)
+# v3b (2026-11-24): 顶檐/踢脚挂真实 PBR 贴图（blue_metal_plate 染 #35483F/#2E3F38，
+# 复用 cabinet rough/nor；三件套节点直连 BSDF）。缝/格栅/把手/屏/灯保持纯色。
+add_pbr(CAP_MAT, "cap_color.jpg", "cabinet_rough.jpg", "cabinet_nor.jpg")
+_check_pbr(CAP_MAT)
+add_pbr(KICK_MAT, "kick_color.jpg", "cabinet_rough.jpg", "cabinet_nor.jpg")
+_check_pbr(KICK_MAT)
 
 
 def add_box(name, loc, dims, mat, bevel=None, bevel_segments=2, uv_scale=None):
@@ -181,14 +196,16 @@ for i in range(4):
     cap = add_box(name + "_TopCap",
                   (cx, CY, BASE_Z + CAB_H + 0.05),
                   (CAB_W + 0.12, CAB_D + 0.12, 0.10), CAP_MAT,
-                  bevel=0.03, bevel_segments=2)
+                  bevel=0.03, bevel_segments=2,
+                  uv_scale=((CAB_W + 0.12) / 2.0, (CAB_D + 0.12) / 2.0))
     cabinet_objs.append(cap)
 
     # ③ 底座踢脚：内收 0.04 m 的底座，高 0.15 m（与留高齐平），倒角 0.03
     kick = add_box(name + "_Kick",
                    (cx, CY, BASE_Z / 2.0),
                    (CAB_W - 0.08, CAB_D - 0.08, BASE_Z), KICK_MAT,
-                   bevel=0.03, bevel_segments=2)
+                   bevel=0.03, bevel_segments=2,
+                   uv_scale=((CAB_W - 0.08) / 2.0, (CAB_D - 0.08) / 2.0))
     cabinet_objs.append(kick)
 
     # ④ 侧板分缝：左右侧面各一条竖缝 + 一条横缝（薄暗条，微凸 0.004）

@@ -88,6 +88,60 @@ MAT_BOLT = brushed_metal("PV_BoltBright", "C0C5C9", 0.90, 0.30,
 MATS = [MAT_RAIL, MAT_LEG, MAT_CLAMP, MAT_BOLT]
 I_RAIL, I_LEG, I_CLAMP, I_BOLT = 0, 1, 2, 3
 
+# ---------- PBR 贴图（2026-11-24 v3b：挂下载的 CC0 贴图，替代纯色） ----------
+# blue_metal_plate 按 SPEC 色染色（rail #B9BEC2 / leg #6E7478），Base Color+
+# Roughness+Normal 三件套节点直连 BSDF；旧 Noise 拉丝 Bump 链接由 add_pbr 断开
+# （孤节点留在 .blend 里，不进 glTF）。CLAMP/BOLT 不在本次 8 材质内，保持纯色。
+TEX_DIR = os.path.join(BASE, "assets/blender/pv/pv-mount_textures")
+
+def _load_tex(fname, colorspace):
+    path = os.path.join(TEX_DIR, fname)
+    img = bpy.data.images.load(path, check_existing=True)
+    img.colorspace_settings.name = colorspace
+    img.filepath = "//" + os.path.basename(TEX_DIR) + "/" + fname
+    return img
+
+def add_pbr(mat, color=None, rough=None, normal=None):
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    for sock in ("Base Color", "Roughness", "Normal"):
+        for link in list(bsdf.inputs[sock].links):
+            nt.links.remove(link)
+    if color:
+        bsdf.inputs["Base Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = _load_tex(color, "sRGB")
+        nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    if rough:
+        bsdf.inputs["Roughness"].default_value = 1.0
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = _load_tex(rough, "Non-Color")
+        nt.links.new(tex.outputs["Color"], bsdf.inputs["Roughness"])
+    if normal:
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = _load_tex(normal, "Non-Color")
+        nmap = nt.nodes.new("ShaderNodeNormalMap")
+        nmap.space = "TANGENT"
+        nt.links.new(tex.outputs["Color"], nmap.inputs["Color"])
+        nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+    return mat
+
+def _check_pbr(mat):
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    texs = [n for n in nt.nodes if n.type == "TEX_IMAGE"]
+    assert len(texs) >= 3, f"{mat.name}: expected 3 texture nodes, got {len(texs)}"
+    assert bsdf.inputs["Base Color"].is_linked, f"{mat.name}: Base Color not linked"
+    assert bsdf.inputs["Roughness"].is_linked, f"{mat.name}: Roughness not linked"
+    assert bsdf.inputs["Normal"].is_linked, f"{mat.name}: Normal not linked"
+    print(f"PBR CHECK PASS: {mat.name} color/rough/normal -> "
+          f"{[t.image.name if t.image else '?' for t in texs]}")
+
+add_pbr(MAT_RAIL, "rail_color.jpg", "rail_rough.jpg", "rail_nor.jpg")
+_check_pbr(MAT_RAIL)
+add_pbr(MAT_LEG, "leg_color.jpg", "leg_rough.jpg", "leg_nor.jpg")
+_check_pbr(MAT_LEG)
+
 # ---- 与 pv-panels.py 相同的板参数与布阵 ----
 PW, PL, PT = 1.134, 1.762, 0.035
 TILT = math.radians(15.0)
@@ -255,6 +309,16 @@ def build_roof(name, cx, cy, roof_z, ncols, nrows, row_dy=None):
                     n_bolt += 1
     bm.to_mesh(mesh)
     bm.free()
+    # UV：bmesh 建的 mesh 没有 UV 层；按米制盒式投影补一层（每 1m 一贴图 tile，
+    # 与 pv-panels.py 同口径），供 PBR 贴图使用（横梁最长约 37m，沿长度方向出拉丝变化）。
+    _uv = mesh.uv_layers.new(name="UVMap")
+    for _poly in mesh.polygons:
+        _n = _poly.normal
+        _ax = max(range(3), key=lambda i: abs(_n[i]))
+        _ua, _va = [i for i in range(3) if i != _ax]
+        for _li in _poly.loop_indices:
+            _co = mesh.vertices[mesh.loops[_li].vertex_index].co
+            _uv.data[_li].uv = (_co[_ua], _co[_va])
     for m in MATS:
         mesh.materials.append(m)
     obj = bpy.data.objects.new(f"PV_Mount_{name}", mesh)

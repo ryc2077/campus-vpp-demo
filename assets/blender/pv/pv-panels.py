@@ -77,6 +77,14 @@ def srgb(hexstr):
 TEX_DIR = os.path.join(BASE, "assets/blender/pv/pv-panels_textures")
 
 def _load_tex(fname, colorspace):
+    # 同一文件被多个材质复用时（frame/busbar 复用 panel rough/nor）必须复用已载入
+    # 的 image 数据块：bpy.data.images.load(check_existing=True) 只按传入路径串
+    # 匹配，绝对路径与已存的 // 相对路径对不上，会造出 .001/.002 重复块，GLB 里
+    # 同一张图嵌三份。先按 basename 找已载入的。
+    for img in bpy.data.images:
+        if img.filepath and os.path.basename(img.filepath) == fname:
+            img.colorspace_settings.name = colorspace
+            return img
     path = os.path.join(TEX_DIR, fname)
     img = bpy.data.images.load(path, check_existing=True)
     img.colorspace_settings.name = colorspace
@@ -194,6 +202,12 @@ print("MATERIAL PV_PanelBlue: Bump chain = Noise + Voronoi cells + Brick gridlin
 # v3: 挂真实 PBR 贴图（blue_metal_plate 染 #2C4A68），normal 图替代程序化 Bump
 add_pbr(MAT_PANEL, "panel_color.jpg", "panel_rough.jpg", "panel_nor.jpg")
 _check_pbr(MAT_PANEL)
+# v3b (2026-11-24): 边框/汇流条挂真实 PBR 贴图（blue_metal_plate 染 SPEC 色
+# #C0C5C9/#7E93A8，复用 panel rough/nor；三件套节点直连 BSDF）
+add_pbr(MAT_FRAME, "frame_color.jpg", "panel_rough.jpg", "panel_nor.jpg")
+_check_pbr(MAT_FRAME)
+add_pbr(MAT_BUS, "busbar_color.jpg", "panel_rough.jpg", "panel_nor.jpg")
+_check_pbr(MAT_BUS)
 
 # ---- 主板 mesh: 1.134 x 1.762 x 0.035, 银框 + 4 条横向汇流条
 #      + 玻璃盖板 + 背面接线盒 (同 mesh, 548 块实例共享, 不增对象数) ----
