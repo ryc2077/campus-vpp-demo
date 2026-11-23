@@ -379,3 +379,122 @@ CPU 与内存，负载一度 31，内存只剩约 300MB–1GB，期间还发生�
   起不来/OOM 被杀多次失败；截屏验收至此停止，不再重复尝试，待机器空闲后用 `tools/shots_all.sh` 重拍。
 
 
+
+## 2026-11-23 18:15–22:10 Godot 整合（Blender 模型替换 + 已知问题修复）
+
+### Blender 交付核对（18:15，实测）
+- .blend 49 个齐全（43 单件 + 6 场景拼装），.glb 49 个齐全（assets/models/*.glb 43 个 + assets/models/scenes/*.glb 6 个），BLENDER_MODELS.md 在。
+- 缺 3 张单件预览图：di-cabinets、ov-flag-lamp、ov-trees（screenshots/blender/ 共 40 张；本地图是旧图，新渲染图在 GitHub Actions 产物里）。不影响 Godot 整合。
+- 总览场景 glb：本地完整版 102,672,808 B；仓库是瘦身版 37,833,636 B（只缩贴图 1024→512、几何未动，commit 4765d7b）。整合用瘦身版（见下）。
+- 缺口（§6）：户外变压器组 [74,-30] 无 Blender 件，整合保留程序化；池塘/地面/配电房外壳/储能外壳由 overview/storage 拼装补的简单几何覆盖。
+
+### 模型替换（子任务 A，18:20–18:27）
+- 新增 `scripts/glb_loader.gd`：6 个场景 GLB 集中加载（路径表 + load_glb + attach + was_loaded），失败返回 null 并 push_warning，调用方回退程序化，互不影响。
+- `campus_builder.gd`：build() 末尾 `_load_scene_glbs()`；overview/storage/pv/charge 四个全局坐标场景挂校园原点；成功后隐藏 23 个程序化总览节点 + hosts 全部 11 个宿主楼体及碰撞体；`set_host_visible()` 加守卫（GLB 接管后不恢复程序化宿主可见，防重叠）。
+- 内景：classroom/dist 的 `_build()` 改为 GLB 优先、失败走原程序化体（局部坐标放内景原点）；pv_detail 只换静态程序化逆变器箱（流光点/阳光射线动态效果保留）；storage_interior / charge_detail 未改——其 `_build()` 全是仿真驱动动态效果（风扇、流光点、V2G 弧线），无静态模型可换，换掉会删仿真可视化。
+- 总览瘦身版核对通过：仓库 HEAD 7070732a，overview.glb blob SHA 793d5ae9…、37,833,636 B；curl 下 raw，sha256 3348f8b3…，本地已替换；完整版备份在工程外 `hidden_files/overview-full-102MB.glb.bak`（不在工程里，不进导出包）。
+- `.github/workflows/godot-verify.yml`：push 触发路径加 `assets/models/**`（否则推 .glb 不触发工作流）。
+- 轻量验证：8 个脚本 `godot --headless --check-only` 全部零错；中间出过一次 `GlbLoader` 未声明（本地 .godot 类缓存陈旧，与 UITokens 同因），已改各消费方 `preload`；未做全量 --import（本地内存不足）。
+- 已知副作用：①储能外壳开关操作的是已隐藏的程序化壳体材质，无可见效果（GLB 壳体本身已 Alpha 0.35 半透明；如需开关恢复作用，需后续任务接到 GLB 壳体材质上）；②储能机架 SOC 条随程序化组一起隐藏（SOC 数值仍在面板/图表里）；③教室空调百叶/LED 室内动画在 GLB 模式下消失（set_ac 已判空不报错）；④储能内景风扇 y=3.4 在 GLB 柜顶 2.55 之上约 0.85m，小偏差未调；⑤宿主碰撞体同步禁用，标签遮挡行为可能变化。
+
+### 标签/相机/画面修复（子任务 B，18:20–18:25）
+- ① 标签巨大模糊根因已定位（查官方文档）：`fixed_size` 不是“屏上 = font_size px”，而是屏上尺寸等于“相机在 1.0 米处看到的尺寸”。旧值 16 × pixel_size 0.012 = 0.192 世界单位，在 fov 55°、720p 下屏上 ≈ 132.8px，描边 4 ≈ 33px——与截图“上百 px、模糊”完全吻合。修法（`labels.gd`，保留 fixed_size）：font_size 16→64（保清晰度），pixel_size 0.012→0.0003615（720p 参考值），outline 4→16（等比，屏上仍约 4px）；`_update()` 每 0.15s 按实测视口高重算 pixel_size，目标 16px（窄屏 13px）；去重叠估算改用 `font.get_string_size` 实测字宽（旧公式汉字按 0.62em 算严重低估致重叠）；世界位移系数 0.0016 改为精确值 `2·tan(fov/2)/vp_h`。待截图验收；若仍大，备用方案是改走“不用 fixed_size、按距离动态算 pixel_size”。
+- ② 配电房/教室相机（只改 `data/scenes.json` 两组 cam/limits，权威数字未动）：配电房旧相机实位 (48, 4.35, -21.80) 在南墙外、视线贴 2.4m 门洞上沿挤入，满屏空白墙；新机位 az -0.55、dist 6.8、el 0.15、target [48, 1.7, -32.5]，实位 (44.49, 2.72, -26.77) 在室内西南角，看北墙 4 台开关柜 + 母线铜排。教室旧目标点 y=6.0 在天花板（3.5m）之上，相机实位 y=10.23 从屋顶上方俯视；新机位 az 0.7、dist 7.0、el 0.18、target [-57, 1.4, -32]，实位 (-52.56, 2.65, -26.73) 在室内东南角，看黑板 + 两侧空调 + 6 排课桌。两处限位盒均收紧到室内；新机位已验算落进限位盒内、无钳制。
+- ③ 偏淡/雾感：补漏加深在位（白天顶 #63a9e6、地面绿 #4f9d43），主色未再动；追加 fog_density 0.0012→0.0009（weather_system.gd 与 main.tscn 两处同步；总览 235m 透过率 0.75→0.81）、雾色混白 0.25→0.15、地平线混白 0.45→0.35。窄屏雾感偏重未定位：grep 全工程，雾只有两处常量，无任何代码按视口改雾；雾是纯距离函数，全局降密度是目前唯一有依据的缓解。
+- ④⑤ P2-1/P2-4 复核在位，未改：`_apply_narrow_layout`（<975/<672/<560 三档）、`apply_narrow_layout`、`layout_panels()` 双开下移、`ui_tokens.gd` 两套按钮共用 token + 焦点环 2px #2563eb 均在。
+- ⑥ 字体复核在位：`labels.gd` 的 `l.font = font` 仍在；main.gd 三重兜底未动；本次未新增任何渲染用汉字，无方框风险。
+- 无头验证 `tools/verify_fixes.gd`：**PASS=55 FAIL=0**（跑两次一致；50→55 项，含 Label3D font_size 64、pixel_size 实测 0.0002033——headless 视口高 1280 下自适应值，反推正好 16px，证明逐帧重算在工作）。
+
+### 数据口径复核（18:30，grep 实测）
+- 权威数字在 data/*.json 里：1344000、2868、D-09（3 处）、0.5483/0.5583/0.3583、0.5827。
+- 旧数字 1969/1877/1805、D-10、168000/183250 只出现在 strategies.json / bill.json 的“已废弃，不得使用”note 里；scripts/ 与 scenes/ 里旧数字零命中（已排除废弃注释）。
+
+### 推送与 Actions（18:28–，进行中）
+- 两批 push-files 全部建出 commit 并核对 HEAD：`a5a6e69d`（模型替换 6 文件）→ `6cd05b72`（标签/相机/雾/验证 5 文件），HEAD 已确认在 6cd05b72。
+- 触发 godot-verify run [45156487907](https://github.com/ryc2077/campus-vpp-demo/actions/runs/45156487907)（run 26，push 事件，head_sha 6cd05b72），in_progress，watch 中。
+- （待补：run 结论、VERIFY-SUMMARY、导出大小、10 张截图逐张目视结果）
+
+### 第一轮 Actions 验收（run 45156487907，success，约 8.5 分钟）
+- VERIFY-SUMMARY: **PASS=55 FAIL=0**（Actions 日志实测）。Web 导出 artifact 114,417,454 B（index.pck 104MB，含 GLB 模型；之前程序化版 362KB）。10/10 张 PNG 真实产出（1280×720，08-narrow 390×844），像素统计 dark% 全 0.0，无黑帧。
+- 目视结论（逐张看过）：中文无方框；标签已从上百 px 缩到约 16–20px；光伏屋顶场景很好（板阵列带纹理、逆变器箱、面板数据与图表全可读）；充电区很好（雨棚、3 辆车、充电桩、宿舍楼砖纹）；储能站可用（柜体 + 围栏 + 半透明壳体）；窄屏无溢出；冻结帧按预期停在飞行中段（室外看一号教学楼）。
+- 发现的问题（诚实记）：①总览标签中央簇仍重叠（屋顶光伏/一号/二号/实验楼互相压着，右侧三号教学楼与配电房同基线重叠）；②配电房内景大半空白浅蓝墙面（相机问题，见下）；③教室偏蓝、天花板发绿；④总览偏淡、地面近白；⑤雨/暴雨截图与晴天像素几乎相同（mean abs diff 0.01/0.00，天气参数未生效）；⑥储能顶栏“储能站 · SOC 56%”白字看不清；⑦光伏场景底部场景栏最右“配电房”被右缘裁掉。以上全部进入修复轮次 2。
+
+### 修复轮次 2（18:55–19:05，两路并行）
+- **C：标签/天气/偏淡**——①标签主根因找到：符号反了，判定 rect 用 dy 向屏下移、折回 3D 却是 `anchor + up * world_dy`（向屏上移），判定与实际错开 2×dy；已改 `anchor - up * world_dy`，rect 改以锚点为中心，候选档改为上下双向 6 档 ×22px，est_w = 实测串宽×1.25+20（上限 260）、est_h 26→30px；另加 shot 模式诊断日志 `[labels] n=… 文本@x,y,w,h`（main.gd 置 `labels.debug_shot = _shot_mode`）。③天气参数：确认 main.gd 只读 `wx`、shots_all.sh 传 `weather=`，参数名对不上；双保险两处都改（main.gd 接受 weather 优先与 wx；shots_all.sh 的 06/07 改 wx=）。④偏淡：fog 0.0009→0.0005（235m 透过率 0.81→0.89），地平线混白 0.35→0.22、雾色混白 0.15→0.08，环境光略降。⑤a 储能顶栏白字：放大核实是 3D 标签“储能柜 · SOC 56%”（深绿 #047857）锚点投到 y≈48 落在顶栏带内、隔着 93% 白面板只剩约 7% 可见度；已把标签 y 钳制下限 48→80px。⑤b 场景栏裁切：栏宽 672→720px、按钮 96/116→92/112、间距 8→6，内容合计 626px；机制未完全定死，复验重点看 01/06。
+- **D：内景诊断**——只改 `data/scenes.json`。坐标坑证实一半：target 坐标系与相机公式都没错，错的是机位落点。Python 直读 GLB JSON + POSITION min/max 实测：配电房房间 X±8、Y 0–8.1、Z±5，开关柜沿北墙 Y 0.10–2.20、Z −4.90–−4.10，母线 Y 2.52–2.67，变压器 Y 0.15–2.60、Z 1.75–3.25；旧机位实位世界 (44.49, 2.72, −26.77)、局部 (−3.51, 2.72, +3.23)——**在 T1 变压器包围盒内，距表面仅 0.20m**，视锥模拟旧帧变压器占 89.5%，与 05-dist.png 完全一致（前景浅蓝平面就是 T1 顶盖）。新机位 D2：cam az 0.0、dist 3.45、el 0.294、target [48, 1.6, −34.3]，实位 (48.00, 2.60, −31.00)，在变压器与柜面之间的 5.7m 通道内；模拟开关柜 36.6%、母线全宽 4.5%、变压器 0%；limits.target_box z 下限 −33.5→−34.6。教室：黑板在西墙（局部 X −4.82–−4.78），旧机位距天花板仅 0.35m、模拟天花板占 27.0%、黑板仅 5.5%；新机位 C8 高位陡俯 az 1.352、dist 4.96、el 0.382、target [−59.0, 0.9, −30.2]，实位 (−54.51, 2.75, −29.20)，模拟天花板 27.0%→5.6%、黑板 9.3%、课桌 22.4%。
+- **颜色问题（本次修不了，已查明根因）**：两 GLB 关键材质丢色——教室墙/地面/天花板/desk_wood/chair_wood/BoardGreen（黑板）等 7 个材质无 baseColorFactor（glTF 缺省纯白）且无贴图；配电房柜体/变压器/母线同样是白。偏蓝 = 白材质 + 蓝色天光（weather_system 改环境为 BG_SKY + AMBIENT_SOURCE_SKY，天空 #4f9fe8/#cfe8fb）；绿天花板不是 GLB 材质本身绿，是天空材质 ground_bottom_color #4a6b38 照在白色天花板下表面上的颜色（截图绿带采样 RGB (69,101,60) 吻合）。根治需 Blender 补材质 baseColor 和/或改室内光照；本次只能用取景压小绿带占比，不能消除偏蓝/绿色。
+- 推送：`8f316a28`（C 的 6 文件）→ `b3eadb54`（D 的 scenes.json），HEAD 已确认在 b3eadb54。触发 godot-verify run [45161198204](https://github.com/ryc2077/campus-vpp-demo/actions/runs/45161198204)，watch 中。
+- （待补：第二轮 run 结论、VERIFY-SUMMARY、10 张截图逐张目视复验结果）
+
+### 第二轮 Actions 验收（run 45161656111，success，约 8.4 分钟）
+- 第一次跑 45161198204 约 2 分钟失败：Headless verify 54/55，唯一失败是验证脚本里的雾密度期望值仍是旧的 0.0009、代码已是 0.0005。已把验证脚本同步为 0.0005（commit `41e669a4`），重跑 45161656111 success，VERIFY-SUMMARY: **PASS=55 FAIL=0**。Web 导出 artifact 114,417,947 B（index.pck 104MB）。10/10 张 PNG 真实产出，无黑帧。
+- 天气参数已通：06-pv-rain 与 01-pv 的 mean abs diff 0.01→**18.97**（雨天 ×0.30、光伏 231kW，面板数据联动），07-overview-storm 与 00-overview 的 diff 0.00→**66.46**（暴雨选中、雨幕可见、画面明显变暗）。
+- 总览偏淡好转：天空明显变蓝、草地/跑道颜色回来（07 暴雨图里地面绿很正）；但宽屏总览地面仍偏白（窄屏同块草地是绿的，距离雾 + 强光仍有洗白）。
+- 标签去重叠大改善：中央簇已分行（屋顶光伏/二号教学楼/实验楼、餐厅/配电房、储能柜/配电变压器均分开），但仍有残留——“一号教学楼 / 二号教学楼”只露出“一号 / 二号”两个字，其余被自家楼体深度裁掉（下移避让的标签沉进楼面）；07 里“宿舍楼 A”同样只剩一个字。诊断日志 `[labels]` 未出现在 job 日志里（shots_all.sh 每张只留前 8 行 console 输出，诊断行被截掉；目视验收已足够，不再追）。
+- 配电房内景修好：05-dist.png 现以开关柜（编号 3、4）+ 顶部母线排 +“高压危险”红牌为主体，不再是大面积空白墙；但只看到 2 台柜、画面偏蓝（GLB 白材质 + 蓝天光，见下）。
+- 教室内景修好：03-classroom.png 现以黑板 + 讲台 + 6 排课桌 + 空调为主体，天花板绿带基本出画；但整体仍偏蓝、黑板是白色不是墨绿（GLB 材质丢色，见下）。
+- 场景栏裁切已解决：01/06 底部栏放大核实，“配电房”完整在屏内（之前是半透明玻璃压在亮色光伏板上造成的错觉）。
+- 储能顶栏白字未修好：02-storage.png 顶栏中央“储能柜 · SOC 56%”仍是白字。C 的判断（3D 标签躲进顶栏、钳制下限 48→80）没起效：钳制只管锚点中心，不管盒顶，负档 dy 会把盒顶再拉进顶栏；且该文案确为 3D 标签（main.gd _storage_label，动态 SOC），顶栏 UI 里没有同名文案。
+
+### 修复轮次 3（19:45–20:00，协调人直接改，只动 labels.gd）
+- 标签深度裁剪：`l.no_depth_test = false` → `true`。锚点被别的楼挡住时仍由 _update 的射线检测隐藏；文字本身不参与深度裁剪，下移避让的标签不再被自家楼面裁掉只剩两个字。
+- 盒顶进顶栏：dy 循环里盒顶 y < 80 按“撞上”处理、继续试下一档，都进顶栏则隐藏。储能标签会被推到顶栏下方完整显示（或隐藏），不再出现顶栏内白字。
+- 语法检查 `godot --headless --check-only` 通过；推 commit `d9f08f9e`，触发 run [45163625617](https://github.com/ryc2077/campus-vpp-demo/actions/runs/45163625617)，watch 中。
+- （待补：第三轮 run 结论、00/02/05/03 复验结果）
+
+### 第三轮 Actions 验收（run 45163625617，success，VERIFY-SUMMARY: PASS=55 FAIL=0）
+- 中途 watch 进程被 SIGTERM 杀掉一次（运行环境重启，run 本身未受影响），重启 watch 后等到 success。最终导出 artifact 114,418,106 B（index.pck 104MB），已拷回工程 `export/web/`（本地冒烟测试：`python3 serve_web.py` 起 127.0.0.1:8931，index.html 200、index.pck 200、108,285,376 B、COOP/COEP 头齐全；测完已停服务）。最终 10 张截图已拷回工程 `screenshots/`（00-overview、01-pv、02-storage、03-classroom、04-charge、05-dist、06-pv-rain、07-overview-storm、08-narrow、09-freeze）。
+- 复验结论（逐张看过）：①总览标签全部完整可读——“一号教学楼 / 二号教学楼”不再只剩两个字，中央簇与右侧均分行；②储能顶栏白字消失——“储能柜 · SOC 56%”已移到顶栏下方、深绿字完整显示；③09 冻结帧里“艺体馆 / 一号教学楼”均可读（轻微相邻，不影响阅读）；④04 充电区无回归（雨棚、3 辆车、充电桩、宿舍楼砖纹均在；“三号教学楼”标签一半被场景面板挡住，小瑕疵）。
+- 本轮交付状态（2026-11-23 约 20:45，4 小时任务提前约 1.5 小时收工——三轮 Actions 均一次通过，无需第四轮）：Web 导出可用、6 场景截图逐张通过、中文无方框、标签正常大小不重叠、面板不溢出、数据口径已复核。还剩的问题见下节，如实记。
+
+### 还剩的问题（截至 2026-11-23 20:45，诚实写）
+- GLB 材质丢色（需 Blender 返工，非 Godot 能修）：教室与配电房关键材质无 baseColorFactor 且无贴图（glTF 缺省纯白），导致教室整体偏蓝、黑板是白色不是墨绿、配电房柜体/变压器是白色；教室天花板发绿是天空材质 ground_bottom_color #4a6b38 照在白色天花板下表面所致。取景已把影响压到最小，但颜色本身未根治。
+- 总览仍偏淡：雾已降到 0.0005、天空已加深，但宽屏总览地面仍偏白（窄屏同块草地是绿的）；再降雾或改光照需权衡，不宜在交付前夜继续调。
+- 储能外壳开关失效：操作的是已隐藏的程序化壳体材质，无可见效果（GLB 壳体本身已 Alpha 0.35 半透明）；如需开关恢复作用，需后续任务接到 GLB 壳体材质上。
+- 储能机架 SOC 条随程序化组一起隐藏（SOC 数值仍在面板/图表里）；教室空调百叶/LED 室内动画在 GLB 模式下消失；储能内景风扇 y=3.4 在 GLB 柜顶 2.55 之上约 0.85m（小偏差未调）。
+- 储能场景里阳光射线（斜向橙色光带 + 黄色光球）横穿画面，看着像激光束，是旧有效果、不是本次引入的；雨天仍有该光带。
+- 缺 3 张单件预览图：di-cabinets、ov-flag-lamp、ov-trees（不影响 Godot 使用）。
+- 诊断日志 `[labels]` 未出现在 Actions 日志里（shots_all.sh 每张只留前 8 行 console 输出，诊断行被截掉）；目视验收已足够。
+- 04-charge 里“三号教学楼”标签一半被场景面板挡住；09-freeze 里“艺体馆 / 一号教学楼”轻微相邻。均为小瑕疵。
+- Assessment A（impeccable 设计评审）仍缺失；P3-2/P3-4/P3-6/P3-7 文档类小项仍记录在案未改。
+
+## 2026-11-23 晚间 Godot 修补（20:45 后，四轮 + _shell_mat 收尾）
+
+### 风扇/射线/V2G 修补（commit 31a52648，verify 65/65）
+- 储能风扇对齐 GLB：风扇中心 y=3.105（盘底 2.555 = GLB 柜顶 2.55 + 0.005），20:45 遗留的“风扇 y=3.4 在柜顶 2.55 之上约 0.85m”已修。
+- 雨天阳光射线：pv_factor=0.30（雨）/0.15（暴雨）时射线隐藏，0.45（阴）时显示——20:45 遗留的“雨天仍有该光带”已修。
+- 雨天 V2G 弧线：pv_factor=0.30/0.15 时弧线流光点与基线隐藏，0.45 时显示。
+
+### 回退分支 S1/S3/S5 修补（commit 013e1369，verify 70/70）
+- S1 储能壳落底：外壳底 0.40 落在基座顶（壳中心 y=2.60），屋顶随壳同降到 y=4.95。
+- S3 车落底 + 车轮：3 辆车身底 0.10 落在地面垫顶，12 个车轮轮底 0.10 落地。
+- S5 顶层窗不埋屋顶：全部窗顶 ≤ 墙顶（共查 263 扇窗，bad=0）。
+
+### 内景对齐修补（commit 49549323，verify 80/80）
+- 储能内景按 storage.glb 实测对齐：风扇盘中心 X=2.4（GLB PCS 柜中心）、东缘 2.95 在壳东墙 4.3 内、Z 0.26–0.38 与 GLB PCS_FanDisc（Z≤0.2）留隙、叶片 Z 0.31–0.49 在柜前脸 0.5 内。
+- 流光点 9 个：X 列 −2.4/−0.8/0.8（3 台电池柜中心）、Z=0.64（球后缘恰贴柜前脸 0.5）、静态行 Y 0.3/1.4/2.5、动画行程 Y 0.3–2.5。
+- 检修灯带中心 y=5.415（底面 5.375 恰贴 GLB 屋顶顶，不埋入屋顶）。
+
+### 外壳开关 + SOC 条修补（commit d8e87e56，Actions run 45213116345 success，VERIFY-SUMMARY PASS=92 FAIL=0）
+- `campus_builder.gd` 新增 `storage_glb_shell_mats` 收集（`_collect_glb_shell_mats` / `_collect_glb_shell_named`）：节点名 Storage_Shell / Storage_Roof（storage.glb 实测），`get_active_material(0)` 取表面材质，顺序固定 [0]=壳、[1]=顶，并记原始 alpha/透明/深度模式供开关恢复。
+- `set_shell_translucent()`：GLB 已接管时改 GLB 壳/顶材质（开 alpha 0.22，关恢复壳 0.35、顶 1.0），不再只改已隐藏的程序化壳——20:45 遗留的“储能外壳开关失效”已修。
+- SOC 条移出 `storage_group` 成独立 `storage_soc_group`：GLB 成功时程序化组隐藏、条子仍可见并对齐 GLB 柜（X −2.4/−0.8/0.8、Y 2.2、Z 0.65、1.1×0.35×0.15）；GLB 失败走回退时 `_move_soc_bars_to_proc()` 移回程序化机架位置（X −2.6/0/2.6、Z −0.2）——20:45 遗留的“储能机架 SOC 条随程序化组一起隐藏”已修。
+- 遗留一个小项给收尾：`main.gd` 的 `_shell_mat` 仍指向程序化壳材质做 SOC 变色，GLB 模式下该变色不可见（见下节）。
+
+### _shell_mat 收尾修补（本次，2026-11-24 00:23 前后）
+- 改动（只改指向逻辑一处）：`scripts/main.gd` `_ready()` 原第 107 行
+  `_shell_mat = (campus.storage_shell[0].material_override as StandardMaterial3D) if not campus.storage_shell.is_empty() else null`
+  改为：`storage_glb_shell_mats` 非空时 `_shell_mat = campus.storage_glb_shell_mats[0]`（Storage_Shell），为空（GLB 加载失败走回退）时仍指程序化壳材质。`_update_visuals()` 的 SOC 变色逻辑（`main.gd:492-494`，每帧向绿/黄/红 lerp 0.08）一行未动。
+  时序安全：`campus.build()`（末尾 `_load_scene_glbs()` 收集 GLB 壳材质）在 `_shell_mat` 赋值之前执行。
+- `tools/verify_fixes.gd` 新检查 2 项（分支感知）：GLB 模式 `_shell_mat` 就是 `storage_glb_shell_mats[0]`；回退模式 `_shell_mat` 就是程序化壳 `material_override`。
+- 验证（本地，Godot 4.4 `4.4.stable.official.4c311cbee`）：`--check-only` 对 main.gd / campus_builder.gd / verify_fixes.gd 三脚本零报错；`verify_fixes.gd` 无头跑 **PASS=84 FAIL=0**（回退分支；新加的回退检查已执行通过）。
+  本地 GLB 分支未执行：本地 `.godot/imported/` 只有 14 个文件、0 个 .scn，6 个场景 GLB 均报 `No loader found for resource` 而回退（已知本地限制：全量 --import 在本机极慢且内存只剩约 450MB 可用；已在后台起一次 `--import` 尝试，若完成则重跑验证走 GLB 分支，否则以 Actions 为准）。
+  Actions 预期：GLB 模式总检查数 93（92 + 本次 GLB 新检查 1 项），待 push 后核对 run 结论。
+- 已知风险（未修，留作后续一处修补，需另行授权）：`_update_visuals()` 的 SOC 变色是整 `Color` lerp（含 alpha 通道，目标色 alpha=1.0），每帧把壳材质 alpha 向 1.0 推——GLB 壳的半透明（关 0.35 / 开 0.22）会被几秒内推回不透明，与 d8e87e56 的外壳开关效果冲突。
+  这是程序化模式就已有的行为（同一行 lerp 一直作用于程序化壳材质，开壳半透明同样会被推回），本次只改指向、未动 lerp 行；根治需在 lerp 时保留原 alpha（`_update_visuals` 里一处改动），不在本次“只改指向”范围内。
+
+### 还剩的问题（截至 2026-11-24 00:23 刷新，20:45 清单已修项已删）
+- 已修（从 20:45 清单删掉）：储能外壳开关失效（d8e87e56）、储能机架 SOC 条随程序化组隐藏（d8e87e56）、储能内景风扇 y=3.4 偏高（31a52648）、雨天仍有阳光射线（31a52648）。
+- 未修：S2 PCS 柜埋入；S4 SOC 条悬空 0.06m；流光点与格栅条 ≤0.014m 微相交；SOC 条与流光点 Y 2.025–2.375 段短暂重叠。
+- 未修（20:45 清单保留）：GLB 材质丢色（需 Blender 返工，非 Godot 能修：教室与配电房关键材质无 baseColorFactor 且无贴图，教室偏蓝、黑板白色、配电房柜体/变压器白色，天花板发绿是天空材质 ground_bottom_color #4a6b38 照在白色天花板下表面所致）；总览仍偏淡（宽屏总览地面仍偏白）；缺 3 张单件预览图（di-cabinets、ov-flag-lamp、ov-trees）；诊断日志 `[labels]` 未出现在 Actions 日志里；04-charge 里“三号教学楼”标签一半被场景面板挡住；09-freeze 里“艺体馆 / 一号教学楼”轻微相邻；Assessment A 仍缺失；P3-2/P3-4/P3-6/P3-7 文档类小项仍记录在案未改。
+- 新增：_shell_mat 的 SOC lerp 推 alpha 回 1.0（见上节已知风险）；视觉验收待 Actions 截图（本次修补的 SOC 变色在 GLB 壳上是否可见，需看截图确认，本地无渲染）。

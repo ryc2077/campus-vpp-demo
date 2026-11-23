@@ -104,7 +104,13 @@ func _ready() -> void:
 	_setup_labels()
 	_setup_interiors()
 	_setup_ui()
-	_shell_mat = (campus.storage_shell[0].material_override as StandardMaterial3D) if not campus.storage_shell.is_empty() else null
+	# _shell_mat：GLB 已接管时指 GLB 壳材质（storage_glb_shell_mats[0]=Storage_Shell），
+	# SOC 变色（_update_visuals）才在可见的 GLB 壳上生效；GLB 加载失败走回退时
+	# storage_glb_shell_mats 为空，仍指程序化壳材质（storage_group 未隐藏）。
+	if not campus.storage_glb_shell_mats.is_empty():
+		_shell_mat = campus.storage_glb_shell_mats[0]
+	else:
+		_shell_mat = (campus.storage_shell[0].material_override as StandardMaterial3D) if not campus.storage_shell.is_empty() else null
 	_apply_url_params()
 	labels.debug_shot = _shot_mode # Round 2：shot 模式才打印标签去重叠诊断
 	_setup_glass()

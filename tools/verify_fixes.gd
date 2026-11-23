@@ -313,6 +313,7 @@ func _process(_delta: float) -> bool:
 			cb.call("set_shell_translucent", false)
 			_chk("GLB 模式：开关关壳 alpha 恢复 0.35", absf((cb.storage_glb_shell_mats[0] as StandardMaterial3D).albedo_color.a - 0.35) < 0.001, str((cb.storage_glb_shell_mats[0] as StandardMaterial3D).albedo_color.a))
 			_chk("GLB 模式：开关关顶 alpha 恢复 1.0", absf((cb.storage_glb_shell_mats[1] as StandardMaterial3D).albedo_color.a - 1.0) < 0.001, str((cb.storage_glb_shell_mats[1] as StandardMaterial3D).albedo_color.a))
+		_chk("GLB 模式：_shell_mat 指 GLB 壳材质 [0]（SOC 变色可见，非已隐藏的程序化壳）", _main._shell_mat != null and cb.storage_glb_shell_mats.size() >= 1 and _main._shell_mat == cb.storage_glb_shell_mats[0], str(_main._shell_mat))
 		var bars_ok: bool = cb.storage_rack_bars.size() == 3
 		var bars_vis := true
 		var bars_pos_ok := true
@@ -339,6 +340,7 @@ func _process(_delta: float) -> bool:
 		cb.call("set_shell_translucent", false)
 		var proc_a2 := (cb.storage_shell[0].material_override as StandardMaterial3D).albedo_color.a
 		_chk("回退模式：开关关程序化壳 alpha 恢复 1.0", absf(proc_a2 - 1.0) < 0.001, str(proc_a2))
+		_chk("回退模式：_shell_mat 指程序化壳材质（GLB 未接管，SOC 变色仍走程序化壳）", _main._shell_mat == (cb.storage_shell[0].material_override as StandardMaterial3D), str(_main._shell_mat))
 		var pbx := [-2.6, 0.0, 2.6]
 		var pb_ok: bool = cb.storage_rack_bars.size() == 3
 		for k in range(cb.storage_rack_bars.size()):
