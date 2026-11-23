@@ -40,7 +40,10 @@ func add_label(text: String, color: Color, prio: int, anchor: Vector3, dynamic: 
 	l.outline_size = 16
 	l.outline_modulate = Color(1, 1, 1, 0.92)
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	l.no_depth_test = false
+	# Round 3：标签不做 3D 深度测试。锚点被别的楼挡住时仍由 _update 的射线检测隐藏；
+	# 但下移避让的标签若留在自家楼体前会被楼面深度裁掉、只剩“一号/二号”两个字
+	# （Round 2 总览截图实测），所以文字本身不参与深度裁剪。
+	l.no_depth_test = true
 	l.pixel_size = 0.0003615
 	l.position = anchor
 	l.visible = false
@@ -142,6 +145,12 @@ func _update() -> void:
 		for dy in steps:
 			# Label3D 默认水平/垂直均居中：盒以屏上锚点为中心。
 			var r := Rect2(sp.x - est_w / 2.0, sp.y - est_h / 2.0 + dy, est_w, est_h)
+			# Round 3：盒顶不得进顶栏（y < 80）。只钳制锚点中心不够——
+			# dy 取负档时会把盒顶再拉进顶栏后面，绿字隔着 93% 白面板只剩约 7%
+			# 可见度（Round 2 储能截图顶栏“储能柜 · SOC 56%”白字实测）。
+			# 盒顶进顶栏按“撞上”处理，继续试下一档；都进顶栏则隐藏。
+			if r.position.y < _top_reserve:
+				continue
 			var hit2 := false
 			for p in placed:
 				if r.intersects(p):
