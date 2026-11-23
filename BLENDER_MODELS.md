@@ -334,6 +334,11 @@
 
 - 2026-11-24 04:4x CST 返工 R1 推送完成（commit `d74ab2a6`，32 文件一次提交）：di-walls（.py/.blend/.glb + 15 张重烘焙图：天花板顶面与墙面纹理加重）、ch-cars（.py/.blend/.glb：Coat Roughness 0.15→0.05、底漆 0.35→0.25）、ov-parking（.py/.blend/.glb：补 Coat Weight 1.0 / Coat Roughness 0.05、车窗 Bump）、st-fence（.py/.blend/.glb：柜体复用 st-cabinet 锈蚀贴图、地面复用 st-base 混凝土贴图，无新素材）、dist/charge 场景（.blend/.glb 重刷：dist 回读 375、charge 回读 306，逐件与上次一致）、BLENDER_MODELS.md。仓库 HEAD 与 dist.glb（16,192,560 B）/ ov-parking.glb（3,645,908 B）大小核对一致。推送触发新的 blender-previews run，最终渲染验收盯新 run，只看返工 4 件 + 回归（di-signs 字形、st-cabinet 锈蚀、pv 车漆对照）。遗留：overview 场景未重刷（ov-parking 车漆未进总览场景 GLB；瘦身脚本 /tmp/slim_glb.py 已丢，需重写，见 §10 口径）。
 
+- 2026-11-24 04:36 CST 总览停车返工重刷 + 瘦身脚本重写入仓（commit `54fad3d3`；首推遇 HEAD 前进 422 not fast-forward，重读 HEAD e49d2d00 后重试成功。注：BLENDER_MODELS.md 与父提交 e49d2d00 的同文件字节一致，故 commit 文件清单只列其余 4 件，文档内容已在树内）：
+  - 总览重刷：重跑 `assets/blender/scenes/overview.py`（脚本本身未改动，与仓库字节一致，append 的就是最新 R1 ov-parking.blend），20 件 kept 数与上次逐件相同（ov-parking 233/233，R1 只改材质参数），回读 13,036，零 Error/Traceback（`assets/blender/scenes/overview-refresh-parking-20261124.log`）；完整版 .glb 121,570,548 B / .blend 64,546,472 B 留本地（Godot 整合输入，不推仓）；GLB JSON 实测 202 种材质、427 贴图 0 缺失、KHR_materials_clearcoat 在列（3 种车漆）。
+  - 瘦身脚本重写：`/tmp/slim_glb.py` 已丢，重写为 `assets/blender/tools/slim_glb.py`（+ `assets/blender/tools/verify_slim.py`），口径见 §10（color 512px JPEG q80、normal/mr 256px PNG、草叶 alpha 永不 JPEG、双槽贴图按 normal）；瘦身版 .glb **36,044,776 B** / .blend **9,093,786 B** 已入仓，仓库核对大小/SHA 一致（glb `bff6e1e3…`、blend `4ce13bc2…`）；瘦身 GLB JSON 对比（节点/访问器/材质槽全同）+ Blender 回读 13,036 对象、0 无材质 primitive；瘦身 .blend 原目录打开 13,036 对象、465 贴图、缺失 0。临时瘦身文件推完已删，本地完整版未动。
+  - 推送触发新的 blender-previews run，最终渲染验收盯新 run（总览车漆 + 回归）。
+
 - 2026-11-24 04:2x CST di-signs 板面凹凸调弱（run 45227196322 最终渲染验收非阻塞观察：板面波浪状凹凸过重、像皱箔，字形本身完整）：
   - **根因**：`make_material` 里 4 种牌面材质（Sign_Red/White/Yellow/Blue）共用同一 Bump 节点，Strength 1.0 / Distance 0.1，由 scale 2.5~3.5 的粗噪波驱动；Distance 0.1m 对 0.6m 的牌面太大，粗噪波被放大成肉眼可见的波浪起伏；文字对象共用同材质，字形表面也被带皱。无 normal 贴图、无置换，只有 Bump。
   - **改动**：只改 Bump 两值 Strength 1.0→0.3、Distance 0.1→0.02（凹凸幅度约为旧值 1/17）；噪波尺度、粗糙度映射、字体、字形、字号、板面尺寸与颜色全不动。
