@@ -196,13 +196,16 @@ add_noise_tex(mat_shrub, "#2A4F26", "#5A8A48", noise_scale=6.0, detail=4.0,
 flower_mats = [mat_flower_r, mat_flower_y, mat_flower_p]
 
 # 草丛六色（深绿→黄绿 6 种变体，混搭比例：中间绿为主，深/浅为辅）
+# 2026-11-24 F4 收尾：Lime/YellowGreen 两档亮黄绿压暗 ×0.80（贴图
+#   Grass_Lime/YellowGreen_color.png 均值同步改，见下；_attach_grass_color
+#   以贴图为准，此处 hex 只作初始值、渲染以贴图为准）
 GRASS_COLORS = [
     ("DarkGreen", "#3E6B2E", 0.12),
     ("Dark", "#4E8A3F", 0.20),
     ("Green", "#69B45E", 0.28),
     ("Light", "#7FC46A", 0.18),
-    ("YellowGreen", "#8AA84A", 0.14),
-    ("Lime", "#A8C25E", 0.08),
+    ("YellowGreen", "#6E863B", 0.14),
+    ("Lime", "#869B4B", 0.08),
 ]
 # 草丛六色深浅对（仅轻微颜色不均，混搭比例不变）
 GRASS_VAR = {
