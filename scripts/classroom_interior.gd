@@ -3,6 +3,8 @@ extends Node3D
 ## 教室內景（模型一 · 一号教学楼）：实测 7.26m × 9.68m，约 70.3㎡，层高 3.5m。
 ## 南墙留 3m 剖切口（相机经此飞入）；黑板在北墙；2 台 5 匹空调挂北墙两侧；
 ## 课桌椅 6 排；墙面温度计；冷气/热浪用半透明气流板表示。
+## （GlbLoader 用 preload：见 campus_builder.gd 注释。）
+const GlbLoader = preload("res://scripts/glb_loader.gd")
 
 var ac_louvers: Array[MeshInstance3D] = []
 var ac_leds: Array[MeshInstance3D] = []
@@ -34,6 +36,15 @@ func _box(pos: Vector3, size: Vector3, mat: Material) -> MeshInstance3D:
 	return mi
 
 func _build() -> void:
+	# 教室 GLB（局部坐标，房间中心原点）优先；加载失败回退程序化并警告
+	var inst := GlbLoader.load_glb(GlbLoader.SCENES["classroom"])
+	if inst != null:
+		inst.name = "ClassroomGLB"
+		add_child(inst)
+		return
+	_build_procedural()
+
+func _build_procedural() -> void:
 	# 地面 / 天花
 	_box(Vector3(0, 0.05, 0), Vector3(W, 0.1, D), _mat(Color("#cbb894")))
 	_box(Vector3(0, H + 0.05, 0), Vector3(W, 0.1, D), _mat(Color("#f5f2ea")))
@@ -123,5 +134,8 @@ func set_ac(on: bool, temp_c: float, t: float) -> void:
 		var col := Color("#3b82c4") if temp_c < 24.0 else (Color("#e2574c") if temp_c > 28.0 else Color("#2fbf71"))
 		m2.albedo_color = col
 		m2.emission = col
-	cool_fx.visible = on
-	warm_fx.visible = (not on) and temp_c > 26.3
+	# GLB 模式下程序化气流板不存在（_build 已整体换成 GLB），判空避免报错
+	if cool_fx != null:
+		cool_fx.visible = on
+	if warm_fx != null:
+		warm_fx.visible = (not on) and temp_c > 26.3

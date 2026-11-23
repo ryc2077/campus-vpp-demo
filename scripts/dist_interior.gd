@@ -2,6 +2,8 @@ class_name DistInterior
 extends Node3D
 ## 配电房内景（调度中心）：10kV 总变电所示意。
 ## 开关柜一排、母线铜排、计量表盘、电缆沟；南墙留门洞。
+## （GlbLoader 用 preload：见 campus_builder.gd 注释。）
+const GlbLoader = preload("res://scripts/glb_loader.gd")
 
 var meter_needles: Array[MeshInstance3D] = []
 var busbar_mat: StandardMaterial3D
@@ -31,6 +33,15 @@ func _box(pos: Vector3, size: Vector3, mat: Material) -> MeshInstance3D:
 	return mi
 
 func _build() -> void:
+	# 配电房 GLB（局部坐标，房中心原点）优先；加载失败回退程序化并警告
+	var inst := GlbLoader.load_glb(GlbLoader.SCENES["dist"])
+	if inst != null:
+		inst.name = "DistGLB"
+		add_child(inst)
+		return
+	_build_procedural()
+
+func _build_procedural() -> void:
 	_box(Vector3(0, 0.05, 0), Vector3(W, 0.1, D), _mat(Color("#9aa5ad")))
 	_box(Vector3(0, H + 0.05, 0), Vector3(W, 0.1, D), _mat(Color("#e8e2d4")))
 	_box(Vector3(0, H / 2, -D / 2), Vector3(W, H, 0.15), _mat(Color("#dfe9f2")))

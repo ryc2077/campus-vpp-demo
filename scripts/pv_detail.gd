@@ -2,6 +2,8 @@ class_name PvDetail
 extends Node3D
 ## 光伏屋顶细节组：置于一号教学楼屋顶，入口光伏场景时显示。
 ## 含逆变器箱、直流/交流流光点（随出力联动）。
+## （GlbLoader 用 preload：见 campus_builder.gd 注释。）
+const GlbLoader = preload("res://scripts/glb_loader.gd")
 
 var flow_dots: Array[MeshInstance3D] = []
 var flow_mats: Array[StandardMaterial3D] = []
@@ -28,14 +30,18 @@ func _box(pos: Vector3, size: Vector3, mat: Material) -> MeshInstance3D:
 	return mi
 
 func _build() -> void:
-	# 逆变器箱（屋顶东侧）
-	_box(Vector3(14, 1.0, 0), Vector3(2.4, 2.0, 1.4), _mat(Color("#5b7186"), 0.45, 0.4))
-	var led_mat := StandardMaterial3D.new()
-	led_mat.albedo_color = Color("#38f27a")
-	led_mat.emission_enabled = true
-	led_mat.emission = Color("#38f27a")
-	led_mat.emission_energy_multiplier = 1.4
-	_box(Vector3(14, 1.6, 0.75), Vector3(0.3, 0.3, 0.06), led_mat)
+	# 逆变器箱：pv.glb 里已有三台真实逆变器（A1/A2/LAB），程序化箱子只在
+	# pv.glb 加载失败时保留作回退，避免与 GLB 逆变器重叠。
+	# （main._ready 里 campus.build() 先于内景实例化，was_loaded 此时已有结果；
+	#  standalone 实例化时未尝试过则返回 false，默认保留箱子。）
+	if not GlbLoader.was_loaded("pv"):
+		_box(Vector3(14, 1.0, 0), Vector3(2.4, 2.0, 1.4), _mat(Color("#5b7186"), 0.45, 0.4))
+		var led_mat := StandardMaterial3D.new()
+		led_mat.albedo_color = Color("#38f27a")
+		led_mat.emission_enabled = true
+		led_mat.emission = Color("#38f27a")
+		led_mat.emission_energy_multiplier = 1.4
+		_box(Vector3(14, 1.6, 0.75), Vector3(0.3, 0.3, 0.06), led_mat)
 	# 直流流光点：沿阵列排布 8 个
 	var i := 0
 	while i < 8:

@@ -3,6 +3,9 @@ extends Node3D
 ## 校园 3D 建模：按 campus.json 的平面坐标与尺寸程序化搭建。
 ## 配色按航拍图：米色教学楼、红艺体馆、绿草地、红跑道、蓝灰配电。
 ## 坐标：米制，x 向东、z 向南（与原 Three.js Demo 同一套平面坐标）。
+## （GlbLoader 用 preload 而不用全局 class_name：新文件进不了本地陈旧的
+##  .godot 类缓存，headless 报未声明；见 ui_controller.gd 的 UITokens 注释。）
+const GlbLoader = preload("res://scripts/glb_loader.gd")
 
 var campus: Dictionary = {}
 var hosts: Dictionary = {} # id -> Node3D（剖切时隐藏的宿主楼体）
@@ -15,6 +18,9 @@ var storage_rack_bars: Array[MeshInstance3D] = []
 var car_fills: Array[Dictionary] = [] # {fill: MeshInstance3D, base_soc, v2g}
 var storage_group: Node3D
 var transformer_group: Node3D
+var charge_group: Node3D
+var overview_glb_active := false # overview.glb 已接管总览时，程序化宿主保持隐藏
+var _proc_overview_nodes: Array[Node] = [] # 程序化总览件（地面/道路/操场/池塘/树/旗门），overview.glb 成功后隐藏
 
 func build(data: Dictionary) -> void:
 	campus = data
@@ -29,6 +35,7 @@ func build(data: Dictionary) -> void:
 	_build_transformer()
 	_build_trees()
 	_build_flag_and_gate()
+	_load_scene_glbs()
 
 func _mat(color: Color, rough: float = 0.85, metal: float = 0.0) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
@@ -67,14 +74,15 @@ func _build_ground() -> void:
 	ground.mesh = pm
 	ground.material_override = _mat(DataLoader.color_from_hex(campus["ground"]["color"]))
 	add_child(ground)
+	_proc_overview_nodes.append(ground)
 	# 中央广场（浅灰）
-	_box(self, Vector3(-6, 0.03, -4), Vector3(150, 0.06, 26), _mat(Color("#d7dee3")))
+	_proc_overview_nodes.append(_box(self, Vector3(-6, 0.03, -4), Vector3(150, 0.06, 26), _mat(Color("#d7dee3"))))
 
 func _build_roads() -> void:
 	var road_mat := _mat(DataLoader.color_from_hex(campus["ground"]["road_color"]))
-	_box(self, Vector3(0, 0.05, 42), Vector3(10, 0.1, 110), road_mat) # 南北主路
-	_box(self, Vector3(2, 0.05, -44), Vector3(200, 0.1, 7), road_mat) # 东西主路
-	_box(self, Vector3(0, 0.05, 116), Vector3(340, 0.1, 26), road_mat) # 南门外道路
+	_proc_overview_nodes.append(_box(self, Vector3(0, 0.05, 42), Vector3(10, 0.1, 110), road_mat)) # 南北主路
+	_proc_overview_nodes.append(_box(self, Vector3(2, 0.05, -44), Vector3(200, 0.1, 7), road_mat)) # 东西主路
+	_proc_overview_nodes.append(_box(self, Vector3(0, 0.05, 116), Vector3(340, 0.1, 26), road_mat)) # 南门外道路
 
 func _build_building(b: Dictionary) -> void:
 	var pos: Array = b["pos"]
@@ -152,6 +160,7 @@ func _build_playground() -> void:
 	g.name = "playground"
 	g.position = Vector3(pos[0], 0, pos[1])
 	add_child(g)
+	_proc_overview_nodes.append(g)
 	var track_mat := _mat(DataLoader.color_from_hex(campus["ground"]["track_color"]))
 	var field_mat := _mat(DataLoader.color_from_hex(campus["ground"]["field_color"]))
 	# 跑道：扁圆柱；内场：略小的绿扁圆柱
@@ -169,6 +178,7 @@ func _build_pond() -> void:
 	g.name = "pond"
 	g.position = Vector3(pos[0], 0, pos[1])
 	add_child(g)
+	_proc_overview_nodes.append(g)
 	_cyl(g, Vector3(0, 0.05, 0), float(pd["rx"]), float(pd["rx"]), 0.1, _mat(Color("#8a9a6b")), 32)
 	_cyl(g, Vector3(0, 0.1, 0), float(pd["rx"]) * 0.9, float(pd["rx"]) * 0.9, 0.12, _mat(Color("#9fd8d0"), 0.15, 0.1), 32)
 	g.scale.z = float(pd["rz"]) / float(pd["rx"])
@@ -236,6 +246,7 @@ func _build_charge() -> void:
 	g.name = "chargeGroup"
 	g.position = Vector3(pos[0], 0, pos[1])
 	add_child(g)
+	charge_group = g
 	_box(g, Vector3(0, 0.05, 0), Vector3(30, 0.1, 18), _mat(Color("#3a4550")))
 	var cars: Array = ch["cars"]
 	var i := 0
@@ -292,6 +303,7 @@ func _build_trees() -> void:
 		var t := Node3D.new()
 		t.position = Vector3(s[0], 0, s[1])
 		add_child(t)
+		_proc_overview_nodes.append(t)
 		_cyl(t, Vector3(0, 1.0, 0), 0.28, 0.35, 2.0, _mat(Color("#7a5a38")), 8)
 		var canopy := MeshInstance3D.new()
 		var sm := SphereMesh.new()
@@ -308,11 +320,13 @@ func _build_flag_and_gate() -> void:
 	_cyl(self, Vector3(-6, 6.0, 8), 0.12, 0.15, 12.0, _mat(Color("#c8d2dc"), 0.4, 0.6), 10)
 	var flag := _box(self, Vector3(-4.4, 10.6, 8), Vector3(3.0, 1.8, 0.08), _mat(Color("#de2910")))
 	flag.name = "flag"
+	_proc_overview_nodes.append(flag)
 	# 南门：门柱 + 横梁（校门原位置，近景组常驻）
 	var gate := Node3D.new()
 	gate.name = "gateGroup"
 	gate.position = Vector3(0, 0, 98)
 	add_child(gate)
+	_proc_overview_nodes.append(gate)
 	_box(gate, Vector3(-7, 3.0, 0), Vector3(1.2, 6.0, 1.2), _mat(Color("#17557f")))
 	_box(gate, Vector3(7, 3.0, 0), Vector3(1.2, 6.0, 1.2), _mat(Color("#17557f")))
 	_box(gate, Vector3(0, 6.2, 0), Vector3(15.2, 1.0, 1.0), _mat(Color("#17557f")))
@@ -333,6 +347,10 @@ func set_shell_translucent(open: bool) -> void:
 			mat.depth_draw_mode = 0 # BaseMaterial3D.DEPTH_DRAW_OPAQUE
 
 func set_host_visible(id: String, visible: bool) -> void:
+	# overview.glb 已接管时，程序化宿主不恢复可见（否则与 GLB 楼体重叠成双份）；
+	# 隐藏方向不受影响（进教室/配电房时仍可调 false）。
+	if visible and overview_glb_active and hosts.has(id):
+		return
 	var g: Node3D = hosts.get(id)
 	if g != null:
 		g.visible = visible
@@ -343,3 +361,26 @@ func set_host_visible(id: String, visible: bool) -> void:
 func set_night_windows(night_f: float) -> void:
 	for m in window_mats:
 		m.emission_energy_multiplier = 0.15 + night_f * 1.6
+
+## 场景 GLB 接线（BLENDER_MODELS.md §7）：全局坐标场景一律挂 Campus 原点，
+## 不移位置、不旋转；加载成功就隐藏对应的程序化模型（不要双份），
+## 失败则保留程序化作回退（GlbLoader 已打印警告）。
+## 户外变压器组 [74,-30] 无 Blender 件（§6 缺口），始终保留程序化。
+func _load_scene_glbs() -> void:
+	# 总览：地面/道路/操场/池塘/树/旗门 + 全部宿主楼体（含配电房外壳）
+	if GlbLoader.attach(self, "overview", "OverviewGLB") != null:
+		overview_glb_active = true
+		for n in _proc_overview_nodes:
+			n.visible = false
+		for id in hosts.keys():
+			set_host_visible(id, false)
+	# 储能站（全局坐标，Blender 中心 (64,30)；含拼装补的半透明壳体）
+	if GlbLoader.attach(self, "storage", "StorageGLB") != null and storage_group != null:
+		storage_group.visible = false
+	# 光伏屋顶（全局坐标，A/B/实验楼屋顶机位）
+	if GlbLoader.attach(self, "pv", "PvGLB") != null:
+		for arr in pv_arrays.values():
+			(arr as Node3D).visible = false
+	# 充电区（全局坐标，Blender 中心 (44,-76)）
+	if GlbLoader.attach(self, "charge", "ChargeGLB") != null and charge_group != null:
+		charge_group.visible = false
