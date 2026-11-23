@@ -50,6 +50,11 @@ func _process(_delta: float) -> bool:
 		return true
 	if _phase == 1:
 		if _frames >= 10:
+			# 场景页导航栏与总览同一口径：进配电房后玻璃仍关、实色 fallback 仍开
+			#（run 45226479162：旧逻辑进场景恢复玻璃，半透明深色底压住深色字）。
+			var _bar_glass2 = _main.get_node("UI/SceneBar/BarGlass")
+			var _bar_fb2 = _main.get_node("UI/SceneBar/BarGlassFallback")
+			_chk("场景页（配电房）：场景栏玻璃关、实色 fallback 开", not _bar_glass2.visible and _bar_fb2.visible, str(_bar_glass2.visible) + "/" + str(_bar_fb2.visible))
 			var panel2 = _main.get_node("UI/ScenePanel")
 			_chk("配电房面板宽 ≤372（不撑出屏）", panel2.size.x <= 372.0, str(panel2.size))
 			print("VERIFY-SUMMARY: PASS=", _passes, " FAIL=", _fails)
@@ -405,6 +410,34 @@ func _process(_delta: float) -> bool:
 		if _c is Button:
 			_shell_txt = (_c as Button).text
 	_chk("储能面板：set_shell_open(false) 后文案为“关”", _shell_txt == "外壳半透明：关", _shell_txt)
+	# ---- 面板 SOC 条颜色（run 45226479162 回归）：截图里 y339–348 的红条是
+	# 面板 ProgressBar，不是 3D 机架条也不是保留线条；旧版它的颜色在
+	# _refresh_panel 里用保留线阈值（≤0.58 红）内联写死，_soc_color() 根本
+	# 没作用到它身上，56% 时面板条红、壳与 3D 条绿，同一 SOC 两色。
+	# 修后面板条与壳/3D 条共用 _soc_color；保留线仍是条下独立红字 Label，
+	# 面板里只有这一根 ProgressBar，不得与保留线共用一根条。
+	_chk("SOC 56% 时 _soc_color 为绿 #1d9e63（不再判红）", _col(_main.call("_soc_color", 0.56)) == "#1d9e63", _col(_main.call("_soc_color", 0.56)))
+	_main.active_scene = "storage"
+	_main.call("_refresh_panel")
+	var _live = _main.get_node("UI/ScenePanel/VBox/SPLive")
+	var _pbar: ProgressBar = null
+	var _pbar_n := 0
+	var _resv_lab: Label = null
+	for _lc in _live.get_children():
+		if _lc is ProgressBar:
+			_pbar = _lc as ProgressBar
+			_pbar_n += 1
+		if _lc is Label and (_lc as Label).text.begins_with("应急保留线"):
+			_resv_lab = _lc as Label
+	var _fill_col := ""
+	if _pbar != null:
+		var _fsb := _pbar.get_theme_stylebox("fill") as StyleBoxFlat
+		if _fsb != null:
+			_fill_col = _col(_fsb.bg_color)
+	_chk("储能面板：SOC 条只有 1 根 ProgressBar（保留线不另画条）", _pbar_n == 1, str(_pbar_n))
+	_chk("储能面板：SOC 条填充色 = _soc_color(soc)（与壳/3D 条同口径）", _pbar != null and _fill_col == _col(_main.call("_soc_color", _vsoc)), "soc=" + str(_vsoc) + " fill=" + _fill_col + " expect=" + _col(_main.call("_soc_color", _vsoc)))
+	_chk("储能面板：SOC 条填充值 = SOC%（value 与 pct 一致）", _pbar != null and absf(_pbar.value - _vsoc * 100.0) < 0.01, str(_pbar.value) if _pbar != null else "无条")
+	_chk("储能面板：保留线是条下独立红字 Label（#dc2626）", _resv_lab != null and _col(_label_color(_resv_lab)) == "#dc2626", _resv_lab.text if _resv_lab != null else "无保留线 Label")
 	# ---- 池塘遮挡（run 45219977015）：总览时场景栏须走实色 fallback（白 0.93），
 	# 玻璃须关，否则亮蓝池塘水面透进导航栏压住“教室舒适度”等文字。
 	var _bar_glass = _main.get_node("UI/SceneBar/BarGlass")

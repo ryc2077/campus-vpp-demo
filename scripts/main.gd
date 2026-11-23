@@ -260,12 +260,17 @@ func _setup_glass() -> void:
 	var on := _glass_mode != "off"
 	# 池塘遮挡（run 45219977015 目视）：总览视角下池塘水面（overview.glb 的
 	# OV_ASSEMBLY_pond；程序化池塘在 GLB 接管时已隐藏）投影落在底部场景栏上；
-	# BarGlass 是半透明液态玻璃（tint_alpha 0.42），亮蓝水面透进来压住了
-	# “教室舒适度”等导航文字。总览时场景栏改走实色 fallback（白 0.93，
-	# 已有降级件），文字底色不再透池塘；进其它场景恢复玻璃。WxPill 不受影响。
+	# BarGlass 是半透明液态玻璃（tint_alpha 0.42）。run 45226479162 目视：
+	# 总览改实色后可读，但场景页仍是半透明深色——按钮字是深色 #1e293b，
+	# 透进来的光伏板/草地/柜体把非当前项压得几乎看不见，只有绿 pill 可读。
+	# 旧逻辑只在总览关玻璃（active_scene == ""）、进场景又恢复玻璃，
+	# 错把池塘当成唯一干扰源；场景画面本身同样 busy。所以场景栏全页
+	# 走实色 fallback（白 0.93，已有降级件），与总览同一口径；改浅色字
+	# 不行：玻璃底色随背景变（深蓝板/亮绿草），没有一种字色能处处达标，
+	# 且要动 6 个按钮 + 悬停/按下态，改动远大于关玻璃。WxPill 不受影响。
 	# 不移池塘/不改相机：池塘在 GLB 内、相机在 data/scenes.json（禁碰）；
 	# 只抬高导航栏也盖不住椭圆（720p 下椭圆约 y 615–710、栏 652–708）。
-	var bar_on := on and active_scene != ""
+	var bar_on := false
 	for path in ["UI/SceneBar/BarGlass", "UI/WxPill/WxGlass"]:
 		var g: GlassSurface = get_node_or_null(path)
 		if g != null:
@@ -301,7 +306,7 @@ func _enter_frozen(key: String, u: float) -> void:
 	if scenes_data["scenes"][key].has("front"):
 		to_cam = scenes_data["scenes"][key]["front"]
 	rig.apply_eased_between(from_cam, to_cam, u)
-	_setup_glass() # 离开总览：场景栏玻璃恢复
+	_setup_glass() # 场景栏仍走实色底（不恢复玻璃）
 	_refresh_panel()
 
 func _snap_to(cam: Dictionary) -> void:
@@ -339,7 +344,7 @@ func _enter_instant(key: String) -> void:
 		rig.set_limits(sc["limits"])
 		rig.arm_limits(true)
 	ui.set_scene_active(key)
-	_setup_glass() # 离开总览：场景栏玻璃恢复
+	_setup_glass() # 场景栏仍走实色底（不恢复玻璃）
 	_refresh_panel()
 
 func set_weather(key: String) -> void:
@@ -414,7 +419,7 @@ func enter_scene(key: String) -> void:
 		rig.fly_to(sc["cam"], 1000, Callable(self, "_on_landed").bind(key))
 	else:
 		rig.fly_to(sc["cam"], 1000, Callable(self, "_on_landed").bind(key))
-	_setup_glass() # 离开总览：场景栏玻璃恢复
+	_setup_glass() # 场景栏仍走实色底（不恢复玻璃）
 	_refresh_panel()
 
 func _on_entry_phase2(key: String) -> void:
@@ -589,6 +594,11 @@ func _refresh_panel() -> void:
 			panel.chart.set_day(sim.plan, hour, 0.556)
 		"storage":
 			var b: float = st["batt"]
+			# 面板 SOC 条与壳体/3D 机架条共用 _soc_color（绿 >50%）：56% 为绿。
+			# 旧版这里用保留线阈值（≤0.58 红），56% 时面板条红、壳与 3D 条绿，
+			# 同一 SOC 两色——run 45226479162 的 02-storage.png 里 y339–348 那条
+			# #dc2626 红条就是这根面板 ProgressBar，不是保留线条。
+			# 保留线仍是独立元素：条下红字 Label + 图表里红色虚线，不另画条。
 			panel.set_live([
 				["储能 SOC", "%d%% · %s / 215 kWh" % [int(round(float(st["soc"]) * 100.0)), _fmt_num(float(st["soc"]) * 215.0)]],
 				["应急保留线（红区）", "56% · 120 kWh"],
@@ -596,7 +606,7 @@ func _refresh_panel() -> void:
 				["散热风扇", "高速运转" if absf(b) > 1.0 else "低速待机"],
 				["日常放电", "条件触发：充电全部由午间光伏富余承担时才放电"],
 			], [
-				{"pct": float(st["soc"]) * 100.0, "color": "#dc2626" if float(st["soc"]) <= 0.58 else "#059669", "resv_pct": 55.6, "resv_kwh": "120"},
+				{"pct": float(st["soc"]) * 100.0, "color": "#" + _soc_color(float(st["soc"])).to_html(false), "resv_pct": 55.6, "resv_kwh": "120"},
 			])
 			panel.chart.set_day(sim.plan, hour, 0.556)
 		"classroom":
