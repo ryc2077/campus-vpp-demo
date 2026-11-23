@@ -55,7 +55,7 @@ jobs:
             echo "=== $name ==="
             rm -f "/tmp/render/${name}_0001.png" /tmp/render/${name}-*.png
             rc=0
-            xvfb-run -a /tmp/blender-4.2.0-linux-x64/blender -b "$f" -E BLENDER_EEVEE_NEXT --python tools/render_max.py -o "/tmp/render/${name}_" -f 1 || rc=$?
+            xvfb-run -a /tmp/blender-4.2.0-linux-x64/blender -b "$f" -E BLENDER_EEVEE_NEXT -o "/tmp/render/${name}_" --python tools/render_max.py -f 1 || rc=$?
             if [ "$rc" -ne 0 ]; then
               echo "FAILED: $name (blender exit $rc)"
               failed=1

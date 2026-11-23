@@ -1,9 +1,13 @@
 # Max-quality Eevee render settings (Actions only; never render locally).
-# Usage: blender -b file.blend -E BLENDER_EEVEE_NEXT --python tools/render_max.py -o out/name_ -f 1
+# Usage: blender -b file.blend -E BLENDER_EEVEE_NEXT -o out/name_ --python tools/render_max.py -f 1
 # Only touches render settings and (if the file lacks them) adds a framing
 # camera, a default sun and a sky world background so the preview is
 # visible; scene content, lights and world are left as built when present.
+# NOTE: -o must come BEFORE --python: Blender processes args in order,
+# so only then does scene.render.filepath already hold the -o value
+# when this script runs (2026-11-23 cluster-path fix; see _output_base).
 import math
+import sys
 
 import bpy
 from bpy_extras.object_utils import world_to_camera_view
@@ -254,6 +258,30 @@ def _cluster_label(cluster, clusters):
     return label
 
 
+def _output_base(scene):
+    """Output filepath prefix the cluster stills are derived from.
+
+    Blender processes CLI args in order, so with the old workflow
+    order (--python ... -o ...) scene.render.filepath still held the
+    .blend's stored value (/tmp/) when this script ran, and cluster
+    stills landed as /tmp/-<label>.png where nothing collected them.
+    Prefer the -o value parsed from sys.argv: it works whether -o
+    comes before or after --python, and also after a "--" separator
+    (Blender passes everything after "--" through to the script).
+    Only when no -o is present fall back to scene.render.filepath.
+    """
+    argv = sys.argv
+    for i, arg in enumerate(argv):
+        if arg in ("-o", "--render-output"):
+            if i + 1 < len(argv):
+                return argv[i + 1]
+        elif arg.startswith("-o="):
+            return arg[3:]
+        elif arg.startswith("--render-output="):
+            return arg[len("--render-output="):]
+    return scene.render.filepath
+
+
 def _ensure_camera(scene):
     """Make sure the scene has an active camera that shows the piece.
 
@@ -293,7 +321,7 @@ def _ensure_camera(scene):
     _, whole_area, _ = _projected_stats(scene, whole_cam, objs)
     if 2 <= len(clusters) <= 8 and whole_area < 0.02:
         # Sparse multi-cluster piece: one still per cluster.
-        base = scene.render.filepath
+        base = _output_base(scene)
         stem = base[:-1] if base.endswith("_") else base
         labels = [_cluster_label(c, clusters) for c in clusters]
         whole_mins, whole_maxs = _objects_bbox(objs)
