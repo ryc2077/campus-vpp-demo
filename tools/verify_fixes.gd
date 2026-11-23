@@ -225,6 +225,40 @@ func _process(_delta: float) -> bool:
 	_chk("阴天 V2G 弧线基线显示", (chg.arc_segs[0] as MeshInstance3D).visible, str((chg.arc_segs[0] as MeshInstance3D).visible))
 	chg.call("update_frame", 10.0, 12.0, 0.0, 0.15)
 	_chk("暴雨 V2G 弧线隐藏", not (chg.arc_dots[0] as MeshInstance3D).visible, str((chg.arc_dots[0] as MeshInstance3D).visible))
+	# ---- 回退分支修补：S1 储能壳落底 / S3 车落底+车轮 / S5 顶层窗不埋屋顶 ----
+	var cb = _main.campus
+	_chk("S1 储能外壳底 0.40 落在基座顶", cb != null and absf((cb.storage_shell[0] as MeshInstance3D).position.y - 2.20 - 0.40) < 0.001, str((cb.storage_shell[0] as MeshInstance3D).position.y) if cb != null else "null")
+	_chk("S1 储能屋顶随壳同降 4.95", cb != null and absf((cb.storage_shell[1] as MeshInstance3D).position.y - 4.95) < 0.001, str((cb.storage_shell[1] as MeshInstance3D).position.y) if cb != null else "null")
+	var cg = cb.charge_group
+	var bodies := 0
+	var wheels := 0
+	var wheels_grounded := 0
+	for ch in cg.get_children():
+		if ch is MeshInstance3D:
+			var mi := ch as MeshInstance3D
+			if mi.mesh is BoxMesh and (mi.mesh as BoxMesh).size.is_equal_approx(Vector3(3.9, 1.0, 1.8)):
+				bodies += 1
+				if absf(mi.position.y - 0.5 - 0.10) >= 0.001:
+					_chk("S3 车身底 0.10 落在地面垫顶", false, str(mi.position.y))
+			if mi.mesh is CylinderMesh and absf((mi.mesh as CylinderMesh).top_radius - 0.35) < 0.001:
+				wheels += 1
+				if absf(mi.position.y - 0.35 - 0.10) < 0.001:
+					wheels_grounded += 1
+	_chk("S3 3 辆车身全部落底（底 0.10）", bodies == 3, str(bodies))
+	_chk("S3 车轮 12 个且轮底 0.10 落地", wheels == 12 and wheels_grounded == 12, str(wheels) + "/" + str(wheels_grounded))
+	var win_bad := 0
+	var win_n := 0
+	for b in cb.campus["buildings"]:
+		var bh: float = b["height"]
+		var hg: Node3D = cb.hosts[String(b["id"])]
+		for ch2 in hg.get_children():
+			if ch2 is MeshInstance3D:
+				var mi2 := ch2 as MeshInstance3D
+				if mi2.mesh is BoxMesh and (mi2.mesh as BoxMesh).size.is_equal_approx(Vector3(1.9, 1.4, 0.12)):
+					win_n += 1
+					if mi2.position.y + 0.7 > bh + 0.001:
+						win_bad += 1
+	_chk("S5 全部窗顶 ≤ 墙顶（无埋入屋顶板）", win_bad == 0, "checked=" + str(win_n) + " bad=" + str(win_bad))
 	# ---- 场景面板不撑出屏（回归检查）：进配电房（修前最宽 511px），
 	# 等几帧让容器排完版再量宽。
 	_main.call("enter_scene", "dist")

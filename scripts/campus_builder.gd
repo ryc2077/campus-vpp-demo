@@ -122,6 +122,9 @@ func _build_building(b: Dictionary) -> void:
 	var fy := 0
 	while fy < floors:
 		var wy: float = 2.6 + float(fy) * (h - 3.0) / maxf(1.0, float(floors - 1))
+		# 顶层窗顶不得超过墙顶：窗半高 0.7，旧公式顶层 wy = h-0.4、窗顶 h+0.30 埋入屋顶板；
+		# 钳制到 h-0.75，顶层窗顶 = h-0.05（留 5cm），只影响顶层，其余楼层不变
+		wy = minf(wy, h - 0.75)
 		var cx := 0
 		while cx < cols:
 			var wx: float = -w / 2.0 + 2.2 + float(cx) * (w - 4.4) / maxf(1.0, float(cols - 1))
@@ -201,17 +204,17 @@ func _build_storage() -> void:
 	host_bodies["storage"] = st_body
 	# 基座
 	_box(storage_group, Vector3(0, 0.2, 0), Vector3(10, 0.4, 6), _mat(Color("#37424c")))
-	# 柜体外壳（可半透明切换）
+	# 柜体外壳（可半透明切换）：壳底 2.60-2.20=0.40 落在基座顶（0.40），旧值 2.85 时壳底 0.65 悬空 0.25；屋顶/状态灯随壳体同降 0.25，相对位置不变
 	var shell_mat := StandardMaterial3D.new()
 	shell_mat.albedo_color = Color("#059669")
 	shell_mat.roughness = 0.45
 	shell_mat.metallic = 0.3
-	var shell := _box(storage_group, Vector3(0, 2.85, 0), Vector3(8.6, 4.4, 4.0), shell_mat)
+	var shell := _box(storage_group, Vector3(0, 2.60, 0), Vector3(8.6, 4.4, 4.0), shell_mat)
 	storage_shell.append(shell)
 	var roof_mat := StandardMaterial3D.new()
 	roof_mat.albedo_color = Color("#37424c")
 	roof_mat.roughness = 0.6
-	var roof := _box(storage_group, Vector3(0, 5.2, 0), Vector3(9.2, 0.35, 4.6), roof_mat)
+	var roof := _box(storage_group, Vector3(0, 4.95, 0), Vector3(9.2, 0.35, 4.6), roof_mat)
 	storage_shell.append(roof)
 	# 内部电池簇：3 组机架 + SOC 条
 	var i := 0
@@ -237,7 +240,7 @@ func _build_storage() -> void:
 	dot_mat.emission_enabled = true
 	dot_mat.emission = Color("#38f27a")
 	dot_mat.emission_energy_multiplier = 1.5
-	_box(storage_group, Vector3(0, 5.45, 1.6), Vector3(0.4, 0.4, 0.4), dot_mat)
+	_box(storage_group, Vector3(0, 5.20, 1.6), Vector3(0.4, 0.4, 0.4), dot_mat)
 
 func _build_charge() -> void:
 	var ch: Dictionary = campus["charge"]
@@ -255,16 +258,21 @@ func _build_charge() -> void:
 		var cx := -9.0 + i * 9.0
 		# 充电桩
 		_box(g, Vector3(cx, 1.0, -6.5), Vector3(0.9, 2.0, 0.8), _mat(Color("#0f8a7d")))
-		# 车身
-		_box(g, Vector3(cx, 0.85, 0), Vector3(3.9, 1.0, 1.8), _mat(DataLoader.color_from_hex(car["color"]), 0.35, 0.4))
-		_box(g, Vector3(cx - 0.2, 1.65, 0), Vector3(2.0, 0.7, 1.6), _mat(DataLoader.color_from_hex(car["color"]).darkened(0.15), 0.35, 0.4))
+		# 车身：车身底 0.60-0.50=0.10 落在地面垫顶（0.10），旧值 0.85 时底 0.35 悬空 0.25；车舱/SOC 条随车身同降 0.25，相对位置不变
+		_box(g, Vector3(cx, 0.60, 0), Vector3(3.9, 1.0, 1.8), _mat(DataLoader.color_from_hex(car["color"]), 0.35, 0.4))
+		_box(g, Vector3(cx - 0.2, 1.40, 0), Vector3(2.0, 0.7, 1.6), _mat(DataLoader.color_from_hex(car["color"]).darkened(0.15), 0.35, 0.4))
+		# 车轮：圆柱横置（轴沿 z），轮底 = 0.45-0.35 = 0.10 落在地面垫顶
+		var wheel_mat := _mat(Color("#1c2126"), 0.6, 0.2)
+		for wx_off in [-1.2, 1.2]:
+			for wz_off in [-0.95, 0.95]:
+				_cyl(g, Vector3(cx + wx_off, 0.45, wz_off), 0.35, 0.35, 0.25, wheel_mat, 16).rotation_degrees.x = 90
 		# 车顶 SOC 条（缩放 x 反映 SOC）
 		var fill_mat := StandardMaterial3D.new()
 		fill_mat.albedo_color = Color("#2fbf71")
 		fill_mat.emission_enabled = true
 		fill_mat.emission = Color("#2fbf71")
 		fill_mat.emission_energy_multiplier = 0.8
-		var fill := _box(g, Vector3(cx, 2.15, 0), Vector3(3.4, 0.18, 0.3), fill_mat)
+		var fill := _box(g, Vector3(cx, 1.90, 0), Vector3(3.4, 0.18, 0.3), fill_mat)
 		fill.scale.x = float(car["base_soc"])
 		fill.position.x = cx - 3.4 * (1.0 - float(car["base_soc"])) / 2.0
 		car_fills.append({"fill": fill, "base_soc": float(car["base_soc"]), "v2g": bool(car.get("v2g", false)), "cx": cx})
