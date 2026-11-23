@@ -489,7 +489,7 @@ CPU 与内存，负载一度 31，内存只剩约 300MB–1GB，期间还发生�
 - `tools/verify_fixes.gd` 新检查 2 项（分支感知）：GLB 模式 `_shell_mat` 就是 `storage_glb_shell_mats[0]`；回退模式 `_shell_mat` 就是程序化壳 `material_override`。
 - 验证（本地，Godot 4.4 `4.4.stable.official.4c311cbee`）：`--check-only` 对 main.gd / campus_builder.gd / verify_fixes.gd 三脚本零报错；`verify_fixes.gd` 无头跑 **PASS=84 FAIL=0**（回退分支；新加的回退检查已执行通过）。
   本地 GLB 分支未执行：本地 `.godot/imported/` 只有 14 个文件、0 个 .scn，6 个场景 GLB 均报 `No loader found for resource` 而回退（已知本地限制：全量 --import 在本机极慢且内存只剩约 450MB 可用；已在后台起一次 `--import` 尝试，若完成则重跑验证走 GLB 分支，否则以 Actions 为准）。
-  Actions 预期：GLB 模式总检查数 93（92 + 本次 GLB 新检查 1 项），待 push 后核对 run 结论。
+  Actions run [45216881747](https://github.com/ryc2077/campus-vpp-demo/actions/runs/45216881747) success，VERIFY-SUMMARY: **PASS=93 FAIL=0**（92 + 本次 GLB 新检查 1 项），新加的 GLB 模式检查在 Actions 日志里执行通过（`PASS: GLB 模式：_shell_mat 指 GLB 壳材质 [0]`）；本地 84/84 是回退分支。
 - 已知风险（未修，留作后续一处修补，需另行授权）：`_update_visuals()` 的 SOC 变色是整 `Color` lerp（含 alpha 通道，目标色 alpha=1.0），每帧把壳材质 alpha 向 1.0 推——GLB 壳的半透明（关 0.35 / 开 0.22）会被几秒内推回不透明，与 d8e87e56 的外壳开关效果冲突。
   这是程序化模式就已有的行为（同一行 lerp 一直作用于程序化壳材质，开壳半透明同样会被推回），本次只改指向、未动 lerp 行；根治需在 lerp 时保留原 alpha（`_update_visuals` 里一处改动），不在本次“只改指向”范围内。
 
