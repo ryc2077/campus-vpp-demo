@@ -530,6 +530,23 @@ for _m in [m for m in bpy.data.materials
 print("MATERIAL CHECK PASS: car paint clearcoat Coat Weight 1.0 / "
       "Coat Roughness 0.05")
 
+# ---- 世界背景：Nishita 天空（返工 R2，与 ch-cars 同口径） ----
+# 返工 R2（验收 run 45251171902：ov-parking 同 ch-cars 一样，纯色平坦世界里
+# 清漆无物可映；.blend 里留 Nishita 天空世界供 Actions 预览渲染，
+# render_max 对亮色世界原样保留；不进 GLB，Godot 不受影响。太阳仍走
+# render_max 默认（西南方向），本件不自带太阳。）
+_world = bpy.data.worlds.new("ov-parking_world")
+bpy.context.scene.world = _world
+_world.use_nodes = True
+_sky = _world.node_tree.nodes.new("ShaderNodeTexSky")
+_sky.sky_type = 'NISHITA'
+_sky.sun_elevation = math.radians(50.0)
+_sky.sun_rotation = math.radians(225.0)
+_sky.altitude = 0.0
+_bg = _world.node_tree.nodes["Background"]
+_world.node_tree.links.new(_sky.outputs["Color"], _bg.inputs["Color"])
+_bg.inputs["Strength"].default_value = 1.0
+
 # ---- save .blend ----
 os.makedirs(PY_DIR, exist_ok=True)
 os.makedirs(os.path.dirname(GLB_PATH), exist_ok=True)

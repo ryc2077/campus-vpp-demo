@@ -300,12 +300,23 @@ print("MATERIAL CHECK PASS: car paint + hub have solid Base Color + Roughness; "
       "car paint clearcoat Coat Weight 1.0 / Coat Roughness 0.05")
 
 # ---- lighting / world (SPEC section 2) ----
+# 2026-11-24 返工 R2（验收 run 45251171902：Coat 0.05/底漆 0.25 后新图与旧图
+#   逐像素几乎相同——清漆层在纯色平坦世界里无物可映、太阳镜面角又打不到
+#   自动相机方向，再锐的涂层也看不见。修法：.blend 里保留 Nishita 天空
+#   世界（render_max 只在无世界/近黑时才补平色天，亮色世界原样保留），
+#   清漆层映天空渐变+太阳盘，车身现光泽；不改色、不改结构、不进 GLB，
+#   Godot 不受影响。太阳仍走 SPEC 西南方向（本件不留太阳，render_max 补默认太阳）。）
 world = bpy.data.worlds.new("ch-cars_world")
 bpy.context.scene.world = world
 world.use_nodes = True
-bg = world.node_tree.nodes["Background"]
-bg.inputs["Color"].default_value = (0.65, 0.78, 0.88, 1.0)
-bg.inputs["Strength"].default_value = 1.0
+_sky = world.node_tree.nodes.new("ShaderNodeTexSky")
+_sky.sky_type = 'NISHITA'
+_sky.sun_elevation = math.radians(50.0)
+_sky.sun_rotation = math.radians(225.0)
+_sky.altitude = 0.0
+_bg = world.node_tree.nodes["Background"]
+world.node_tree.links.new(_sky.outputs["Color"], _bg.inputs["Color"])
+_bg.inputs["Strength"].default_value = 1.0
 
 bpy.ops.object.light_add(type='SUN', location=(44 - 20, -76 - 20, 25))
 sun = bpy.context.active_object
@@ -349,9 +360,10 @@ os.makedirs(os.path.dirname(PNG_PATH), exist_ok=True)
 # bpy.ops.render.render(write_still=True)  # local render disabled, see above
 
 # ---- remove preview-only helpers, keep only the cars ----
+# 注意：world 不删——Nishita 天空是返工 R2 的清漆反光源（见上），须留在 .blend
+# 里供 Actions 预览渲染；render_max 对亮色世界原样保留。太阳/相机/探针仍删。
 for obj in (ground, sun, cam, probe):
     bpy.data.objects.remove(obj, do_unlink=True)
-bpy.data.worlds.remove(world)
 
 # ---- save .blend ----
 os.makedirs(SCRIPT_DIR, exist_ok=True)
