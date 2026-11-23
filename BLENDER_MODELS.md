@@ -334,6 +334,11 @@
 
 - 2026-11-24 04:4x CST 返工 R1 推送完成（commit `d74ab2a6`，32 文件一次提交）：di-walls（.py/.blend/.glb + 15 张重烘焙图：天花板顶面与墙面纹理加重）、ch-cars（.py/.blend/.glb：Coat Roughness 0.15→0.05、底漆 0.35→0.25）、ov-parking（.py/.blend/.glb：补 Coat Weight 1.0 / Coat Roughness 0.05、车窗 Bump）、st-fence（.py/.blend/.glb：柜体复用 st-cabinet 锈蚀贴图、地面复用 st-base 混凝土贴图，无新素材）、dist/charge 场景（.blend/.glb 重刷：dist 回读 375、charge 回读 306，逐件与上次一致）、BLENDER_MODELS.md。仓库 HEAD 与 dist.glb（16,192,560 B）/ ov-parking.glb（3,645,908 B）大小核对一致。推送触发新的 blender-previews run，最终渲染验收盯新 run，只看返工 4 件 + 回归（di-signs 字形、st-cabinet 锈蚀、pv 车漆对照）。遗留：overview 场景未重刷（ov-parking 车漆未进总览场景 GLB；瘦身脚本 /tmp/slim_glb.py 已丢，需重写，见 §10 口径）。
 
+- 2026-11-24 04:2x CST di-signs 板面凹凸调弱（run 45227196322 最终渲染验收非阻塞观察：板面波浪状凹凸过重、像皱箔，字形本身完整）：
+  - **根因**：`make_material` 里 4 种牌面材质（Sign_Red/White/Yellow/Blue）共用同一 Bump 节点，Strength 1.0 / Distance 0.1，由 scale 2.5~3.5 的粗噪波驱动；Distance 0.1m 对 0.6m 的牌面太大，粗噪波被放大成肉眼可见的波浪起伏；文字对象共用同材质，字形表面也被带皱。无 normal 贴图、无置换，只有 Bump。
+  - **改动**：只改 Bump 两值 Strength 1.0→0.3、Distance 0.1→0.02（凹凸幅度约为旧值 1/17）；噪波尺度、粗糙度映射、字体、字形、字号、板面尺寸与颜色全不动。
+  - **验证**：重跑 di-signs.py，`DONE di-signs`，零 Error/Traceback；字形校验 Warn 0.026 / NoClose 0.017（≤5% 判据，与好字体一致）；尺寸 Warn 0.42×0.10、NoClose 0.343×0.28、Num 高 0.075，全与旧版相同；GLB 回读 24 对象、8 文字齐全；.blend 回读核实 4 材质 Bump 均为 0.3/0.02。dist 场景重跑 `assets/blender/scenes/dist.py`，`DONE dist`，回读 375 对象（walls 17 / cabinets 30 / transformer 76 / busbar 228 / signs 24，与上次一致），dist.blend 内 4 材质 Bump 同为 0.3/0.02。体积：di-signs.blend 825,524 B、di-signs.glb 481,196 B、dist.blend 8,109,300 B、dist.glb 16,192,560 B（与返工 R1 版同体积——Bump 节点不进 glTF，GLB 字节未变，渲染看 .blend）。**视觉验收待 Actions 出图**（新 run 的 di-signs 簇图 + 05-dist）。
+
 ## §10 总览大文件瘦身入仓（2026-11-23 11:39–12:00 CST，瘦身任务 8bb03134）
 
 - **根因**：Git Data API 建 blob 有实际大小上限，实测探针（孤 blob，不污染仓库）：40MB 原始文件 OK（base64 约 55.9MB），46MB 报 HTTP 422 "input too large"。阈值在 40–46MB 之间，**不是 100MB**；先前文档里写的"约 26MB 上限"是低估，实际可推到 40MB。另一次 37.8MB 推送曾遇 HTTP 502 "Server Error"，属 GitHub 侧临时错误，重试一次即成功（凡推必核 commit）。

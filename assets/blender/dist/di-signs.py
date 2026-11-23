@@ -85,9 +85,14 @@ def make_material(name, hex_color, roughness=0.5, metallic=0.0,
     # 轻微凹凸, 强化漆面/塑料质感
     # (实测: 牌面朝南、太阳在西南, 镜面反射打不到相机, 粗糙度变化在预览里
     #  几乎不可见; 只有凹凸能改漫反射明暗, 强度必须到 1.0 纹理才看得见)
+    # (2026-11-24 调弱: 旧值 Strength 1.0 / Distance 0.1 在 run 45227196322
+    #  验收图上呈波浪状皱箔——Distance 0.1m 对 0.6m 的牌面太大, 粗噪波
+    #  (scale 2.5~3.5) 被放大成肉眼可见的起伏, 连字形表面也被带皱。
+    #  新值 Strength 0.3 / Distance 0.02, 凹凸幅度约为旧值的 1/17,
+    #  板面基本平整、仍留轻微质感不全平; 噪波尺度与粗糙度映射不动)
     bump = nt.nodes.new("ShaderNodeBump")
-    bump.inputs["Strength"].default_value = 1.0
-    bump.inputs["Distance"].default_value = 0.1
+    bump.inputs["Strength"].default_value = 0.3
+    bump.inputs["Distance"].default_value = 0.02
     nt.links.new(noise.outputs["Fac"], bump.inputs["Height"])
     nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     bsdf.inputs["Metallic"].default_value = metallic
