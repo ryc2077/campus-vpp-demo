@@ -17,6 +17,12 @@ var storage_shell: Array[MeshInstance3D] = []
 var storage_rack_bars: Array[MeshInstance3D] = []
 var car_fills: Array[Dictionary] = [] # {fill: MeshInstance3D, base_soc, v2g}
 var storage_group: Node3D
+var storage_soc_group: Node3D # SOC 条组：GLB 成功时 storage_group 隐藏，条子留在组外才可见
+var storage_glb_active := false # storage.glb 已接管储能站时，程序化储能组保持隐藏
+var storage_glb_shell_mats: Array[StandardMaterial3D] = [] # GLB 壳/顶材质（外壳开关控制用，[0]=壳 [1]=顶）
+var storage_glb_shell_base_alpha: Array[float] = [] # 开关关时恢复的原始 alpha
+var storage_glb_shell_base_transp: Array[int] = [] # 开关关时恢复的原始透明模式
+var storage_glb_shell_base_depth: Array[int] = [] # 开关关时恢复的原始深度模式
 var transformer_group: Node3D
 var charge_group: Node3D
 var overview_glb_active := false # overview.glb 已接管总览时，程序化宿主保持隐藏
@@ -217,6 +223,17 @@ func _build_storage() -> void:
 	var roof := _box(storage_group, Vector3(0, 4.95, 0), Vector3(9.2, 0.35, 4.6), roof_mat)
 	storage_shell.append(roof)
 	# 内部电池簇：3 组机架 + SOC 条
+	# SOC 条单独成组（与 storage_group 同原点 (64,0,-30)）：storage.glb 加载成功时
+	# storage_group 整体隐藏，条子留在组外才可见。条子位置按 GLB 实测对齐
+	# （storage.glb）：3 台电池柜局部中心 X −2.4/−0.8/0.8、柜顶 2.55、前脸 Z 0.5；
+	# 条宽 1.1（柜宽 1.3，左右各留 0.1）、中心 Z 0.65（厚 0.15，背面 0.575，
+	# 距门板前脸 0.545 留 0.03，不埋进柜体）、Y 2.2（顶 2.375 < 柜顶 2.55，不悬空）。
+	# GLB 加载失败走回退时，_load_scene_glbs() 把条子移回程序化机架位置。
+	var soc_group := Node3D.new()
+	soc_group.name = "storageSocGroup"
+	soc_group.position = Vector3(pos[0], 0, pos[1])
+	add_child(soc_group)
+	storage_soc_group = soc_group
 	var i := 0
 	while i < 3:
 		var x := -2.6 + i * 2.6
@@ -226,7 +243,7 @@ func _build_storage() -> void:
 		bar_mat.emission_enabled = true
 		bar_mat.emission = Color("#34d399")
 		bar_mat.emission_energy_multiplier = 0.6
-		var bar := _box(storage_group, Vector3(x, 2.2, -0.2), Vector3(2.0, 0.35, 0.15), bar_mat)
+		var bar := _box(soc_group, Vector3(-2.4 + i * 1.6, 2.2, 0.65), Vector3(1.1, 0.35, 0.15), bar_mat)
 		storage_rack_bars.append(bar)
 		# 风扇
 		var fan := _cyl(storage_group, Vector3(x, 4.3, 0.4), 0.55, 0.55, 0.15, _mat(Color("#d7dde3"), 0.4, 0.5), 12)
@@ -341,6 +358,21 @@ func _build_flag_and_gate() -> void:
 	_box(gate, Vector3(0, 5.4, 0), Vector3(10.0, 0.7, 0.2), _mat(Color("#f3e9d2")))
 
 func set_shell_translucent(open: bool) -> void:
+	# GLB 已接管：改 GLB 壳/顶材质——程序化组已隐藏，改它无可见效果。
+	# 开：与程序化路同款半透明（alpha 0.22）；关：恢复导入时的原始值
+	# （壳 alpha 0.35 半透明、顶不透明），不是一律改回不透明。
+	if not storage_glb_shell_mats.is_empty():
+		for i in range(storage_glb_shell_mats.size()):
+			var mat: StandardMaterial3D = storage_glb_shell_mats[i]
+			if open:
+				mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+				mat.albedo_color.a = 0.22
+				mat.depth_draw_mode = 2 # BaseMaterial3D.DEPTH_DRAW_DISABLED
+			else:
+				mat.transparency = storage_glb_shell_base_transp[i]
+				mat.albedo_color.a = storage_glb_shell_base_alpha[i]
+				mat.depth_draw_mode = storage_glb_shell_base_depth[i]
+		return
 	for m in storage_shell:
 		var mat: StandardMaterial3D = m.material_override as StandardMaterial3D
 		if mat == null:
@@ -353,6 +385,41 @@ func set_shell_translucent(open: bool) -> void:
 			mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 			mat.albedo_color.a = 1.0
 			mat.depth_draw_mode = 0 # BaseMaterial3D.DEPTH_DRAW_OPAQUE
+
+## 收集 GLB 储能壳/顶的材质：节点名 Storage_Shell_ASSEMBLY_ADDED /
+## Storage_Roof_ASSEMBLY_ADDED（storage.glb 实测）；导入的 glTF 材质在 mesh 表面
+## 上（不在 material_override 上），用 get_active_material(0) 取；并记下原始
+## alpha/透明/深度模式，开关关时原样恢复。先壳后顶，顺序固定（[0]=壳，[1]=顶）。
+func _collect_glb_shell_mats(root: Node) -> void:
+	_collect_glb_shell_named(root, "Storage_Shell")
+	_collect_glb_shell_named(root, "Storage_Roof")
+	if storage_glb_shell_mats.is_empty():
+		push_warning("[CampusBuilder] storage.glb 里没找到 Storage_Shell/Storage_Roof 材质节点，外壳开关将无可见效果")
+
+func _collect_glb_shell_named(root: Node, prefix: String) -> void:
+	var stack: Array[Node] = [root]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		if n is MeshInstance3D and n.name.begins_with(prefix):
+			var mat := (n as MeshInstance3D).get_active_material(0) as StandardMaterial3D
+			if mat != null:
+				storage_glb_shell_mats.append(mat)
+				storage_glb_shell_base_alpha.append(mat.albedo_color.a)
+				storage_glb_shell_base_transp.append(mat.transparency)
+				storage_glb_shell_base_depth.append(mat.depth_draw_mode)
+		for ch in n.get_children():
+			stack.append(ch)
+
+## GLB 加载失败回退：SOC 条移回程序化机架位置（x −2.6/0/+2.6，z −0.2，宽 2.0，
+## 与 _build_storage() 原值一致），否则条子会悬在机架前方 0.9m 空中。
+func _move_soc_bars_to_proc() -> void:
+	var i := 0
+	for bar in storage_rack_bars:
+		bar.position = Vector3(-2.6 + i * 2.6, 2.2, -0.2)
+		var bm := bar.mesh as BoxMesh
+		if bm != null:
+			bm.size = Vector3(2.0, 0.35, 0.15)
+		i += 1
 
 func set_host_visible(id: String, visible: bool) -> void:
 	# overview.glb 已接管时，程序化宿主不恢复可见（否则与 GLB 楼体重叠成双份）；
@@ -383,8 +450,14 @@ func _load_scene_glbs() -> void:
 		for id in hosts.keys():
 			set_host_visible(id, false)
 	# 储能站（全局坐标，Blender 中心 (64,30)；含拼装补的半透明壳体）
-	if GlbLoader.attach(self, "storage", "StorageGLB") != null and storage_group != null:
+	var st_glb := GlbLoader.attach(self, "storage", "StorageGLB")
+	if st_glb != null and storage_group != null:
 		storage_group.visible = false
+		storage_glb_active = true
+		_collect_glb_shell_mats(st_glb)
+	else:
+		# GLB 回退：SOC 条移回程序化机架位置，否则条子会悬在机架前方空中。
+		_move_soc_bars_to_proc()
 	# 光伏屋顶（全局坐标，A/B/实验楼屋顶机位）
 	if GlbLoader.attach(self, "pv", "PvGLB") != null:
 		for arr in pv_arrays.values():

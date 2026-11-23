@@ -301,6 +301,51 @@ func _process(_delta: float) -> bool:
 					if mi2.position.y + 0.7 > bh + 0.001:
 						win_bad += 1
 	_chk("S5 全部窗顶 ≤ 墙顶（无埋入屋顶板）", win_bad == 0, "checked=" + str(win_n) + " bad=" + str(win_bad))
+	# ---- 储能外壳开关 + SOC 条（GLB/回退两路，分支感知：GLB 未载入时验回退路） ----
+	if cb.storage_glb_active:
+		_chk("GLB 模式：储能壳/顶材质已收集 2 个", cb.storage_glb_shell_mats.size() == 2, str(cb.storage_glb_shell_mats.size()))
+		_chk("GLB 模式：壳原始 alpha 0.35（半透明）", cb.storage_glb_shell_mats.size() == 2 and absf(cb.storage_glb_shell_base_alpha[0] - 0.35) < 0.001, str(cb.storage_glb_shell_base_alpha) if cb.storage_glb_shell_mats.size() == 2 else "未收集")
+		_chk("GLB 模式：顶原始 alpha 1.0（不透明）", cb.storage_glb_shell_mats.size() == 2 and absf(cb.storage_glb_shell_base_alpha[1] - 1.0) < 0.001, str(cb.storage_glb_shell_base_alpha) if cb.storage_glb_shell_mats.size() == 2 else "未收集")
+		if cb.storage_glb_shell_mats.size() == 2:
+			cb.call("set_shell_translucent", true)
+			_chk("GLB 模式：开关开壳 alpha 0.22", absf((cb.storage_glb_shell_mats[0] as StandardMaterial3D).albedo_color.a - 0.22) < 0.001, str((cb.storage_glb_shell_mats[0] as StandardMaterial3D).albedo_color.a))
+			_chk("GLB 模式：开关开顶 alpha 0.22", absf((cb.storage_glb_shell_mats[1] as StandardMaterial3D).albedo_color.a - 0.22) < 0.001, str((cb.storage_glb_shell_mats[1] as StandardMaterial3D).albedo_color.a))
+			cb.call("set_shell_translucent", false)
+			_chk("GLB 模式：开关关壳 alpha 恢复 0.35", absf((cb.storage_glb_shell_mats[0] as StandardMaterial3D).albedo_color.a - 0.35) < 0.001, str((cb.storage_glb_shell_mats[0] as StandardMaterial3D).albedo_color.a))
+			_chk("GLB 模式：开关关顶 alpha 恢复 1.0", absf((cb.storage_glb_shell_mats[1] as StandardMaterial3D).albedo_color.a - 1.0) < 0.001, str((cb.storage_glb_shell_mats[1] as StandardMaterial3D).albedo_color.a))
+		var bars_ok: bool = cb.storage_rack_bars.size() == 3
+		var bars_vis := true
+		var bars_pos_ok := true
+		var bars_size_ok := true
+		var bx := [-2.4, -0.8, 0.8]
+		for k in range(cb.storage_rack_bars.size()):
+			var bb := cb.storage_rack_bars[k] as MeshInstance3D
+			if not bb.is_visible_in_tree():
+				bars_vis = false
+			if absf(bb.position.x - bx[k]) >= 0.001 or absf(bb.position.y - 2.2) >= 0.001 or absf(bb.position.z - 0.65) >= 0.001:
+				bars_pos_ok = false
+			if not (bb.mesh is BoxMesh and (bb.mesh as BoxMesh).size.is_equal_approx(Vector3(1.1, 0.35, 0.15))):
+				bars_size_ok = false
+		_chk("GLB 模式：SOC 条 3 条", bars_ok, str(cb.storage_rack_bars.size()))
+		_chk("GLB 模式：SOC 条在树上可见（未随程序化组隐藏）", bars_ok and bars_vis, "")
+		_chk("GLB 模式：SOC 条 X −2.4/−0.8/0.8、Y 2.2、Z 0.65（对齐 GLB 柜）", bars_ok and bars_pos_ok, str([(cb.storage_rack_bars[0] as MeshInstance3D).position, (cb.storage_rack_bars[1] as MeshInstance3D).position, (cb.storage_rack_bars[2] as MeshInstance3D).position]) if bars_ok else "")
+		_chk("GLB 模式：SOC 条 1.1×0.35×0.15（柜宽 1.3 内，不埋柜）", bars_ok and bars_size_ok, "")
+		_chk("GLB 模式：SOC 条组在 storage_group 外", cb.storage_soc_group != null and cb.storage_soc_group != cb.storage_group, str(cb.storage_soc_group))
+	else:
+		# 回退路：程序化壳仍受开关控制，条子在程序化机架位置
+		cb.call("set_shell_translucent", true)
+		var proc_a := (cb.storage_shell[0].material_override as StandardMaterial3D).albedo_color.a
+		_chk("回退模式：开关开程序化壳 alpha 0.22", absf(proc_a - 0.22) < 0.001, str(proc_a))
+		cb.call("set_shell_translucent", false)
+		var proc_a2 := (cb.storage_shell[0].material_override as StandardMaterial3D).albedo_color.a
+		_chk("回退模式：开关关程序化壳 alpha 恢复 1.0", absf(proc_a2 - 1.0) < 0.001, str(proc_a2))
+		var pbx := [-2.6, 0.0, 2.6]
+		var pb_ok: bool = cb.storage_rack_bars.size() == 3
+		for k in range(cb.storage_rack_bars.size()):
+			var bb2 := cb.storage_rack_bars[k] as MeshInstance3D
+			if absf(bb2.position.x - pbx[k]) >= 0.001 or absf(bb2.position.z - (-0.2)) >= 0.001:
+				pb_ok = false
+		_chk("回退模式：SOC 条在程序化机架位置 X −2.6/0/2.6、Z −0.2", pb_ok, "")
 	# ---- 场景面板不撑出屏（回归检查）：进配电房（修前最宽 511px），
 	# 等几帧让容器排完版再量宽。
 	_main.call("enter_scene", "dist")
