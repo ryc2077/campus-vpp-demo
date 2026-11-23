@@ -5,7 +5,10 @@ extends SceneTree
 ##      P2-3 标签色、P2-5 WxLabel、labels fixed_size、标题/时钟色、
 ##      屋顶光伏/艺体馆标签净空（总览 + 冻结帧，1280×720）、
 ##      池塘标签不进场景栏（总览）+ 屏内标签栏带扫查（储能场景/总览/冻结帧）、
-##      ABC 面板遮挡（充电区 + 总览 ABC 打开态：屏内可见标签无一与 ABC 面板相交）。
+##      ABC 面板遮挡（充电区 + 总览 ABC 打开态：屏内可见标签无一与 ABC 面板相交）、
+##      冻结帧屏外标签审计（x 钳制不折回的基线：屏内 4 / 屏外 2，锚点在画面外）、
+##      面板进场动效（场景面板 + ABC 面板 scale 0.95 中段：_final_rect = 终态 rect、
+##      标签可见集合与终态一致，储能 ABC 打开态 SOC 不闪现）。
 ## 每项打印 PASS/FAIL，最后汇总。退出码 0=全过，1=有 FAIL。
 
 var _main: Node = null
@@ -228,6 +231,41 @@ func _soc_onscreen_visible(labels: Node) -> bool:
 	return false
 
 
+func _vis_set(labels: Node) -> Array:
+	# 屏内可见标签集合（已排序；SOC 是动态文本，用 [soc] 作稳定键，
+	# 免得 SOC 百分比随 hour 变导致集合比对抖动）。
+	var cam: Camera3D = labels.camera as Camera3D
+	var out: Array[String] = []
+	for d in labels.defs:
+		var l: Label3D = d["label"]
+		if not l.visible:
+			continue
+		var sp: Vector2 = cam.unproject_position(l.position)
+		if sp.x >= 0.0 and sp.x <= 1280.0 and sp.y >= 0.0 and sp.y <= 720.0:
+			out.append("[soc]" if String(d["dynamic"]) == "soc" else String(d["text"]))
+	out.sort()
+	return out
+
+
+func _offscreen_visible_texts(labels: Node) -> Array:
+	# visible=true 但渲染中心在屏外的标签（已排序；x 钳制未折回的遗留审计用）。
+	var cam: Camera3D = labels.camera as Camera3D
+	var out: Array[String] = []
+	for d in labels.defs:
+		var l: Label3D = d["label"]
+		if not l.visible:
+			continue
+		var sp: Vector2 = cam.unproject_position(l.position)
+		if sp.x < 0.0 or sp.x > 1280.0 or sp.y < 0.0 or sp.y > 720.0:
+			out.append(String(d["text"]))
+	out.sort()
+	return out
+
+
+func _rect_close(a: Rect2, b: Rect2, tol: float) -> bool:
+	return absf(a.position.x - b.position.x) < tol and absf(a.position.y - b.position.y) < tol and absf(a.size.x - b.size.x) < tol and absf(a.size.y - b.size.y) < tol
+
+
 func _process(_delta: float) -> bool:
 	_frames += 1
 	if _frames < 5:
@@ -359,6 +397,47 @@ func _process(_delta: float) -> bool:
 			_chk("09-freeze：二号教学楼标签藏掉（整条在面板后）", not _label_visible(_labels_fz, "二号教学楼"), "visible=" + str(_label_visible(_labels_fz, "二号教学楼")))
 			_chk("09-freeze：创造力中心标签藏掉（整条在面板后）", not _label_visible(_labels_fz, "创造力中心"), "visible=" + str(_label_visible(_labels_fz, "创造力中心")))
 			_chk("09-freeze：一号教学楼仍屏内可见（在面板外，未被误藏）", _label_onscreen_visible(_labels_fz, "一号教学楼"), "visible=" + str(_label_visible(_labels_fz, "一号教学楼")))
+			# ---- 冻结帧屏外标签审计（x 钳制未折回的已知遗留；探针结论：不修）：
+			# 修前审计（1280×720，无头探针，7 视图全量）：屏外可见共 8 条——
+			# pv 二号/操场、storage 操场、classroom 操场、charge 池塘/南门、
+			# freeze 宿舍楼 A/操场；锚点投影全在画面外几百～几千 px（宿舍楼 A
+			# x=9135、操场 x=−284/y=741），楼根本不在本帧内。临时折回实验：
+			# 折回后 freeze 4→6（宿舍楼 A 落 (1227,636)、操场落 (79,636)，
+			# 双双贴底边）、classroom 0→1（操场凭空出现在内景）、pv 3→5、
+			# charge 3→5——多出来的全是贴边浮标，不指向任何可见楼体；
+			# y 折回不同：锚点 x 在屏内、只 y 出带，楼在帧内才值得拉回。
+			# 故不修 x 折回；以下三项把审计基线锁死，防后人误修。
+			var _fz_on := 0
+			for _d5 in _labels_fz.defs:
+				var _l5: Label3D = _d5["label"]
+				if not _l5.visible:
+					continue
+				var _sp5: Vector2 = (_labels_fz.camera as Camera3D).unproject_position(_l5.position)
+				if _sp5.x >= 0.0 and _sp5.x <= 1280.0 and _sp5.y >= 0.0 and _sp5.y <= 720.0:
+					_fz_on += 1
+			var _fz_off: Array = _offscreen_visible_texts(_labels_fz)
+			_chk("冻结帧审计：屏内可见 4 条、屏外可见 2 条（宿舍楼 A / 操场 · 田径场）", _fz_on == 4 and _fz_off == ["宿舍楼 A", "操场 · 田径场"], "onscreen=" + str(_fz_on) + " offscreen=" + str(_fz_off))
+			var _fz_ap_out := true
+			for _d6 in _labels_fz.defs:
+				if _fz_off.has(String(_d6["text"])):
+					var _anch6: Vector3 = _d6["anchor"]
+					var _ap6: Vector2 = (_labels_fz.camera as Camera3D).unproject_position(_anch6)
+					if _ap6.x >= 0.0 and _ap6.x <= 1280.0 and _ap6.y >= 0.0 and _ap6.y <= 720.0:
+						_fz_ap_out = false
+			_chk("冻结帧审计：屏外可见标签的锚点投影都在画面外（楼不在本帧内，不值得折回）", _fz_ap_out, "offscreen=" + str(_fz_off))
+			var _fz_x_ok := true
+			for _d7 in _labels_fz.defs:
+				var _l7: Label3D = _d7["label"]
+				if not _l7.visible:
+					continue
+				var _rp7: Vector2 = (_labels_fz.camera as Camera3D).unproject_position(_l7.position)
+				if _rp7.x < 0.0 or _rp7.x > 1280.0 or _rp7.y < 0.0 or _rp7.y > 720.0:
+					continue
+				var _anch7: Vector3 = _d7["anchor"]
+				var _ap7: Vector2 = (_labels_fz.camera as Camera3D).unproject_position(_anch7)
+				if absf(_rp7.x - _ap7.x) >= 1.0:
+					_fz_x_ok = false
+			_chk("冻结帧审计：屏内标签渲染 x = 锚点投影 x（x 未折回，无边角浮标）", _fz_x_ok, "")
 			# 04-charge 放到新 phase 再量：切场景后等 4 帧再量（与储能标签同理），
 			# 04 用 shots_all.sh 的 hour=18。
 			_main.hour = 18.0
@@ -465,6 +544,63 @@ func _process(_delta: float) -> bool:
 				if _sp4.x >= 0.0 and _sp4.x <= 1280.0 and _sp4.y >= 0.0 and _sp4.y <= 720.0:
 					_n_back += 1
 			_chk("总览 ABC 关闭后：屏内可见恢复 17 条（无标签被误藏）", _n_back == 17, "onscreen=" + str(_n_back))
+			# 动效闪现放到新 phase 再量：进储能场景、等 4 帧让面板排版定型。
+			_main.call("_restore_scene_state")
+			(_main.get_node("UI/ABCPanel") as Control).visible = false
+			_main.get_node("UI").call("layout_panels")
+			_main.call("_enter_instant", "storage")
+			_phase = 10
+		return false
+	if _phase == 10:
+		if _frames >= 39:
+			# ---- 场景面板进场动效（180ms scale 0.95→1.0，origin 右缘）：
+			# 动效期间 get_global_rect() 比终态小一圈（左缘 +18px、底边 −28px），
+			# 修前标签按实时 rect 碰撞，终态应藏掉的可能先可见、下一轮 _update
+			# 才藏掉（闪现约 150ms）。修后 labels.gd 用 _final_rect（终态 rect）
+			# 碰撞，动效中与终态的可见集合应一致。直接置 scale 0.95 模拟动效中段
+			#（与 _play_enter 同值同 pivot；真 tween 的时序不等，机制等价），
+			# 不等真 tween 跑完，免得帧预算超 60。
+			var _labels_an = _main.get_node("Labels")
+			var _p_an: Control = _main.get_node("UI/ScenePanel")
+			_p_an.pivot_offset = Vector2(_p_an.size.x, 0)
+			_p_an.scale = Vector2(0.95, 0.95)
+			var _fr_an = _labels_an.call("_final_rect", _p_an)
+			_labels_an.call("_update")
+			var _mid_an: Array = _vis_set(_labels_an)
+			_p_an.scale = Vector2.ONE
+			var _fin_rect_an: Rect2 = _p_an.get_global_rect()
+			_labels_an.call("_update")
+			var _fin_an: Array = _vis_set(_labels_an)
+			_chk("场景面板动效中：_final_rect(0.95) = 终态 rect（±1px）", _fr_an is Rect2 and _rect_close(_fr_an, _fin_rect_an, 1.0), "mid=" + str(_fr_an) + " fin=" + str(_fin_rect_an))
+			_chk("场景面板动效中：标签可见集合与终态一致（无闪现）", _mid_an == _fin_an, "mid=" + str(_mid_an) + " fin=" + str(_fin_an))
+			_chk("场景面板动效中：储能 SOC 终态仍可见（未被终态 rect 误藏）", _fin_an.has("[soc]"), "fin=" + str(_fin_an))
+			# ABC 动效放到新 phase 再量：打开 ABC、等 4 帧让面板排版定型。
+			(_main.get_node("UI/ABCPanel") as Control).visible = true
+			_main.get_node("UI").call("layout_panels")
+			_phase = 11
+		return false
+	if _phase == 11:
+		if _frames >= 43:
+			# ---- ABC 面板进场动效（同 180ms scale 0.95→1.0，origin 右缘）：
+			# 动效期间 rect 左缘 +27px、底边 −19px；修前储能 ABC 打开态 SOC 标签
+			# 终态 overlap 仅 0.09，动效中段实测会闪现（mid 含 SOC、fin 不含）。
+			# 修后 _final_rect 碰撞，mid 与 fin 应一致、SOC 动效中也不出现。
+			# ABC 是直接置 visible（?abc=1 同款，不走进入 tween），无真 tween 在跑。
+			var _labels_ab2 = _main.get_node("Labels")
+			var _a_an: Control = _main.get_node("UI/ABCPanel")
+			_a_an.pivot_offset = Vector2(_a_an.size.x, 0)
+			_a_an.scale = Vector2(0.95, 0.95)
+			var _fr_ab = _labels_ab2.call("_final_rect", _a_an)
+			_labels_ab2.call("_update")
+			var _mid_ab: Array = _vis_set(_labels_ab2)
+			_a_an.scale = Vector2.ONE
+			var _fin_rect_ab: Rect2 = _a_an.get_global_rect()
+			_labels_ab2.call("_update")
+			var _fin_ab: Array = _vis_set(_labels_ab2)
+			_chk("ABC 面板动效中：_final_rect(0.95) = 终态 rect（±1px）", _fr_ab is Rect2 and _rect_close(_fr_ab, _fin_rect_ab, 1.0), "mid=" + str(_fr_ab) + " fin=" + str(_fin_rect_ab))
+			_chk("ABC 面板动效中：标签可见集合与终态一致（无闪现）", _mid_ab == _fin_ab, "mid=" + str(_mid_ab) + " fin=" + str(_fin_ab))
+			_chk("ABC 面板动效中：储能 SOC 不闪现（终态藏掉，动效中也不出现）", not _mid_ab.has("[soc]"), "mid=" + str(_mid_ab))
+			_chk("ABC 面板动效终态：只剩三号教学楼 / 配电房（与 89a06cf 探针一致）", _fin_ab == ["三号教学楼", "配电房"], "fin=" + str(_fin_ab))
 			print("VERIFY-SUMMARY: PASS=", _passes, " FAIL=", _fails)
 			quit(1 if _fails > 0 else 0)
 		return false

@@ -14,6 +14,12 @@ extends Node3D
 ##    用视线深度把（钳制量 + 档位）一次折回，渲染中心 = rect 中心。
 ## 3) 窄屏：宽度 < 760 时标签字号缩小、只保留 prio ≤ 4 的主标签。
 ## 4) 标签锚点贴设施顶部，不再悬空。
+## 5) 面板进场动效（180ms scale 0.95→1.0，origin 在右缘）期间，
+##    get_global_rect() 比终态 rect 小一圈，终态应藏掉的标签会先可见、
+##    等下一轮 _update（150ms 间隔）才藏掉，闪现约 150ms。本版碰撞
+##    用“动效结束后的终态 rect”（_final_rect 按 scale 关于 pivot 反推），
+##    动效本身与时长一行不动；ABC 面板同理（储能 ABC 打开态 SOC 标签
+##    终态 overlap 仅 0.09，动效中段实测会闪现，见 verify 检查）。
 
 var camera: Camera3D
 var font: Font # Label3D 不走 Control 主题，main.gd 启动时把中文字体直接赋过来
@@ -81,6 +87,28 @@ func _process(_delta: float) -> void:
 	_last_ms = now
 	_update()
 
+func _final_rect(c: Control) -> Rect2:
+	# 动效结束后的 rect：当前 rect 按 scale 关于 pivot 反推回 scale=1。
+	# scale=1 时就是当前 rect；scale 异常（0）时退回当前 rect。
+	# （实测 @720p：场景面板 scale 0.95 时 rect 左缘 +18px、底边 −28px；
+	# ABC 面板左缘 +27px、底边 −19px；pivot 在右缘，右缘与顶边不动。）
+	if c.scale == Vector2.ONE:
+		return c.get_global_rect()
+	var s: Vector2 = c.scale
+	if absf(s.x) < 0.001 or absf(s.y) < 0.001:
+		return c.get_global_rect()
+	var t: Transform2D = c.get_global_transform_with_canvas()
+	var pivot_g: Vector2 = t * c.pivot_offset
+	var r: Rect2 = c.get_global_rect()
+	var mn := Vector2(INF, INF)
+	var mx := Vector2(-INF, -INF)
+	for corner in [r.position, Vector2(r.end.x, r.position.y), Vector2(r.position.x, r.end.y), r.end]:
+		var p: Vector2 = pivot_g + (corner - pivot_g) / s
+		mn = mn.min(p)
+		mx = mx.max(p)
+	return Rect2(mn, mx - mn)
+
+
 func _update() -> void:
 	if camera == null:
 		return
@@ -89,18 +117,19 @@ func _update() -> void:
 		return
 	var narrow: bool = vp.x < 760.0
 	var space := get_world_3d().direct_space_state
-	# 场景面板碰撞区：实时 rect（窗口缩放 / ABC 双开下移都跟得上）；面板隐藏时（总览）不碰撞。
+	# 场景面板碰撞区：进场动效终态 rect（动效期间实时 rect 偏小，见 _final_rect；
+	# 动效本身不动，只改碰撞口径）。面板隐藏时（总览）不碰撞。
 	var panel_rect := Rect2()
 	var panel_on := false
 	if panel_control != null and panel_control.is_visible_in_tree():
-		panel_rect = panel_control.get_global_rect()
+		panel_rect = _final_rect(panel_control)
 		panel_on = true
-	# ABC 面板碰撞区：与场景面板同一模式，实时 rect（窗口缩放 / 窄屏满宽都跟得上）；
-	# 面板关闭时不碰撞（总览 ABC 常关；场景页 ABC 未打开时也不碰撞）。
+	# ABC 面板碰撞区：与场景面板同一模式，终态 rect（打开时才碰撞，
+	# 关闭时不碰撞；双开时场景面板下移、ABC 面板 rect 本身不动，实时取都跟得上）。
 	var abc_rect := Rect2()
 	var abc_on := false
 	if abc_panel_control != null and abc_panel_control.is_visible_in_tree():
-		abc_rect = abc_panel_control.get_global_rect()
+		abc_rect = _final_rect(abc_panel_control)
 		abc_on = true
 	# Screen size correction (fixed_size normalises distance to 1.0, so distance
 	# drops out; only viewport height and fov matter):
