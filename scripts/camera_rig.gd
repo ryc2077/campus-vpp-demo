@@ -8,7 +8,7 @@ signal flight_finished
 
 var az := 0.78
 var el := 0.55
-var dist := 235.0
+var dist := 275.0
 var target := Vector3(-6, 2, 4)
 
 var _fly: Dictionary = {}

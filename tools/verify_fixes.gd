@@ -5,6 +5,7 @@ extends SceneTree
 ##      P2-3 标签色、P2-5 WxLabel、labels fixed_size、标题/时钟色、
 ##      屋顶光伏/艺体馆标签净空（总览 + 冻结帧，1280×720）、
 ##      池塘标签不进场景栏（总览）+ 屏内标签栏带扫查（储能场景/总览/冻结帧）、
+##      总览池塘水面底缘 y<640（F1 取景修补：总览 dist 235→275）、
 ##      ABC 面板遮挡（充电区 + 总览 ABC 打开态：屏内可见标签无一与 ABC 面板相交）、
 ##      冻结帧屏外标签审计（x 钳制不折回的基线：屏内 4 / 屏外 2，锚点在画面外）、
 ##      面板进场动效（场景面板 + ABC 面板 scale 0.95 中段：_final_rect = 终态 rect、
@@ -337,7 +338,7 @@ func _process(_delta: float) -> bool:
 			# rig._process 逐帧算出，等几帧再量渲染位置才准（与储能标签同理）。
 			# 注意：储能近拍把 limits 钳在储能区（dist [3,36] + target_box），
 			# _enter_instant("overview") 不清 limits，rig._process 会把总览机位
-			#（dist 235 / target (−6,2,4)）钳回储能区，量到的根本不是总览；
+			#（dist 275 / target (−6,2,4)）钳回储能区，量到的根本不是总览；
 			# 先 _restore_scene_state 解除 limits（_enter_frozen 内部就是这么做的）。
 			_main._close_cam = false
 			_main.call("_restore_scene_state")
@@ -370,11 +371,23 @@ func _process(_delta: float) -> bool:
 						_pond_sp = (_labels_ov.camera as Camera3D).unproject_position(_pl.position)
 			var _vp_ov: Vector2 = _labels_ov.get_viewport().get_visible_rect().size
 			_chk("总览：池塘标签渲染中心不在场景栏带（580≤y≤642，留 10px 余量）", _pond_vis and absf(_vp_ov.y - 720.0) < 1.0 and _pond_sp.y >= 580.0 and _pond_sp.y <= 642.0, "vp=" + str(_vp_ov) + " visible=" + str(_pond_vis) + " y=" + str(_pond_sp.y))
+			# ---- 总览池塘水面底缘（F1 取景修补：总览机位 dist 235→275）----
+			# 水面椭圆（campus.json 口径：中心 (82,78)、水面 rx 9.9/rz 7.2、y=0.1），
+			# 采样 72 点取最大屏 y；修前底缘 708（程序化水面）/713（全尺寸椭圆），
+			# 被场景栏（y652–708）盖住约 56px；修后应 <640（栏顶 652 之上，留余量）。
+			# dist 守卫同上：本 phase 进总览前已 _restore_scene_state 解除近拍 limits，
+			# 量之前不再重复解除；limits 未解除时量到的是钳回的近拍机位。
+			var _pond_bottom := 0.0
+			for _i in range(72):
+				var _a := TAU * float(_i) / 72.0
+				var _sp9: Vector2 = (_labels_ov.camera as Camera3D).unproject_position(Vector3(82 + 9.9 * cos(_a), 0.1, 78 + 7.2 * sin(_a)))
+				_pond_bottom = maxf(_pond_bottom, _sp9.y)
+			_chk("总览：池塘水面底缘 y<640（完整露出在场景栏之上）", _pond_bottom < 640.0 and absf(_main.rig.dist - 275.0) < 0.5, "bottom=" + str(_pond_bottom) + " dist=" + str(_main.rig.dist))
 			var _band_ov: Array = _labels_band_detail(_labels_ov)
 			_chk("总览：屏内标签渲染中心都不进顶栏/场景栏（90≤y≤642）", bool(_band_ov[0]), String(_band_ov[1]))
 			# 附加 dist 守卫：limits 没解除时总览机位会被钳成 dist 36 的储能近拍，
-			# 两标签盒不交就成了空通过；真总览 dist 235，target (−6,2,4)。
-			_chk("总览：屋顶光伏与艺体馆字盒不重叠（净空 ≥20px）", _labels_pair_clear(_labels_ov, 20.0) and absf(_main.rig.dist - 235.0) < 0.5, _labels_pair_detail(_labels_ov) + " dist=" + str(_main.rig.dist) + " target=" + str(_main.rig.target))
+			# 两标签盒不交就成了空通过；真总览 dist 275，target (−6,2,4)。
+			_chk("总览：屋顶光伏与艺体馆字盒不重叠（净空 ≥20px）", _labels_pair_clear(_labels_ov, 20.0) and absf(_main.rig.dist - 275.0) < 0.5, _labels_pair_detail(_labels_ov) + " dist=" + str(_main.rig.dist) + " target=" + str(_main.rig.target))
 			_main.call("_enter_frozen", "classroom", 0.5)
 			_phase = 5
 		return false
@@ -385,9 +398,9 @@ func _process(_delta: float) -> bool:
 			var _labels_fz = _main.get_node("Labels")
 			_labels_fz.call("_update")
 			# 同总览的 dist 守卫：冻结帧 easeOutCubic(0.5)=0.875、弧线抬升后
-			# dist = 235 + (38−235)×0.875 + sin(0.875π)×20 ≈ 70.3；若 limits
+			# dist = 275 + (38−275)×0.875 + sin(0.875π)×20 ≈ 75.3；若 limits
 			# 意外钳住会变成 36，盒不交就是空通过。
-			_chk("冻结帧：屋顶光伏与艺体馆字盒不重叠（净空 ≥20px）", _labels_pair_clear(_labels_fz, 20.0) and absf(_main.rig.dist - 70.28) < 1.0, _labels_pair_detail(_labels_fz) + " dist=" + str(_main.rig.dist))
+			_chk("冻结帧：屋顶光伏与艺体馆字盒不重叠（净空 ≥20px）", _labels_pair_clear(_labels_fz, 20.0) and absf(_main.rig.dist - 75.28) < 1.0, _labels_pair_detail(_labels_fz) + " dist=" + str(_main.rig.dist))
 			var _band_fz: Array = _labels_band_detail(_labels_fz)
 			_chk("冻结帧：屏内标签渲染中心都不进顶栏/场景栏（90≤y≤642）", bool(_band_fz[0]), String(_band_fz[1]))
 			# ---- 09-freeze 面板遮挡（同类旧局限）：修前二号 overlap 1.0、创造力中心 0.88，
@@ -527,11 +540,19 @@ func _process(_delta: float) -> bool:
 			_chk("总览 ABC 打开：配电变压器标签藏掉（在 ABC 矩形里）", not _label_visible(_labels_ov2, "配电变压器"), "visible=" + str(_label_visible(_labels_ov2, "配电变压器")))
 			var _soc_sp2 := _soc_sp(_labels_ov2)
 			_chk("总览 ABC 打开：储能 SOC 走 +88 档逃到 ABC 底边之下（455≤y≤485）", _soc_onscreen_visible(_labels_ov2) and _soc_sp2.y >= 455.0 and _soc_sp2.y <= 485.0, "y=" + str(_soc_sp2.y))
-			_chk("总览 ABC 打开：一号教学楼仍屏内可见（在 ABC 外，未被误藏）", _label_onscreen_visible(_labels_ov2, "一号教学楼"), "visible=" + str(_label_visible(_labels_ov2, "一号教学楼")))
+			# F1 取景代价（一号教学楼标签）：总览 dist 235→275 后，一号锚点与屋顶光伏
+			# 锚点屏上只差约 10px，九档（0/±22/±44/±66/±88）全被屋顶光伏/艺体馆/
+			# 创造力中心/实验楼/操场堵死，labels.gd 按现有机制藏掉（occ=false，是
+			# 纯屏上排不开，不是遮挡；无头探针 30+ 组机位全量扫查：池塘底缘 <640 的
+			# 机位全都藏一号，dist ≤255 才保得住一号但池塘仍被栏盖）。这是取景修补
+			# 换来的已知代价，不是 ABC 面板误藏：关闭态同样藏掉（下条 16 条对照）。
+			# 若以后改 labels.gd（加档位/缩净空）把一号放回来，把本条改回可见断言。
+			_chk("总览 ABC 打开：一号教学楼标签藏掉（F1 取景代价，与 ABC 无关）", not _label_visible(_labels_ov2, "一号教学楼"), "visible=" + str(_label_visible(_labels_ov2, "一号教学楼")))
 			_chk("总览 ABC 打开：宿舍楼 A 仍屏内可见（被 SOC 顶下 +22，仍在面板外）", _label_onscreen_visible(_labels_ov2, "宿舍楼 A"), "visible=" + str(_label_visible(_labels_ov2, "宿舍楼 A")))
 			var _band_ov2: Array = _labels_band_detail(_labels_ov2)
 			_chk("总览 ABC 打开：屏内标签渲染中心都不进顶栏/场景栏（90≤y≤642）", bool(_band_ov2[0]), String(_band_ov2[1]))
-			# 关闭 ABC：总览应恢复 17 条（关上面板不误藏的回归对照）。
+			# 关闭 ABC：总览应恢复 16 条（F1 取景后一号教学楼藏掉，见上条；三号同 baseline 已藏掉；
+			# 关上面板不误藏的回归对照，17→16 只差这一号）。
 			(_main.get_node("UI/ABCPanel") as Control).visible = false
 			_main.get_node("UI").call("layout_panels")
 			_labels_ov2.call("_update")
@@ -543,7 +564,7 @@ func _process(_delta: float) -> bool:
 				var _sp4: Vector2 = (_labels_ov2.camera as Camera3D).unproject_position(_l4.position)
 				if _sp4.x >= 0.0 and _sp4.x <= 1280.0 and _sp4.y >= 0.0 and _sp4.y <= 720.0:
 					_n_back += 1
-			_chk("总览 ABC 关闭后：屏内可见恢复 17 条（无标签被误藏）", _n_back == 17, "onscreen=" + str(_n_back))
+			_chk("总览 ABC 关闭后：屏内可见恢复 16 条（一号因 F1 取景藏掉，三号同 baseline）", _n_back == 16, "onscreen=" + str(_n_back))
 			# 动效闪现放到新 phase 再量：进储能场景、等 4 帧让面板排版定型。
 			_main.call("_restore_scene_state")
 			(_main.get_node("UI/ABCPanel") as Control).visible = false
