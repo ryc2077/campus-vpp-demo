@@ -39,5 +39,10 @@ shot "shot=1&hour=9&fallback=1" 15-fallback-overview.png
 # 16：ABC 打开态（?abc=1 打开 ABC 对照面板；充电区 ABC 打开藏掉 5 条标签，
 #   是 ABC 遮挡最密的场景；与 04-charge 同机位同时刻，便于对照）
 shot "scene=charge&shot=1&hour=18&abc=1" 16-abc-open-charge.png
+# 17：变压器近景（T2 围栏验收：总览图上围栏看不清，?close=1 在总览改用
+#   变压器近景机位 dist 14m、目标箱体中心 (74,2.0,-30)，围栏 7.5×5.5m、
+#   散热片、绝缘子全入框；须传 scene=overview，否则 _deferred_enter 不跑、
+#   机位停在总览）
+shot "scene=overview&shot=1&hour=9&close=1" 17-transformer-closeup.png
 if [ "$FAILED" -ne 0 ]; then echo "SHOTS FAILED"; exit 1; fi
 echo "ALL DONE"

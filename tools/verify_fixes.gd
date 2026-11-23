@@ -686,9 +686,87 @@ func _process(_delta: float) -> bool:
 			_chk("ABC 面板动效中：标签可见集合与终态一致（无闪现）", _mid_ab == _fin_ab, "mid=" + str(_mid_ab) + " fin=" + str(_fin_ab))
 			_chk("ABC 面板动效中：储能 SOC 不闪现（终态藏掉，动效中也不出现）", not _mid_ab.has("[soc]"), "mid=" + str(_mid_ab))
 			_chk("ABC 面板动效终态：只剩三号教学楼 / 配电房（与 89a06cf 探针一致）", _fin_ab == ["三号教学楼", "配电房"], "fin=" + str(_fin_ab))
+			# ---- T2 变压器近景放到新 phase 再量：先关 ABC、回总览（_restore_scene_state
+			# 解除储能区 rig limits + 藏场景面板，见 phase 3 同款陷阱），置 _close_cam
+			# 再 _enter_instant("overview")，等 4 帧让 rig._process 按放宽 limits 定位后再量。
+			(_main.get_node("UI/ABCPanel") as Control).visible = false
+			_main.get_node("UI").call("layout_panels")
+			_main.call("_restore_scene_state")
+			(_main.get_node("UI/ScenePanel") as Control).visible = false
+			_main._close_cam = true
+			_main.call("_enter_instant", "overview")
+			_phase = 12
+		return false
+	if _phase == 12:
+		if _frames >= 47:
+			# ---- T2 变压器围栏近景（总览全景验收待确认项 1b6fee23）----
+			# GLB 实测口径（ov-transformer.glb 与 overview.glb 同值）：围栏 7.5×5.5m、
+			# 12 立柱（x 70.25–77.75、z −32.75–−27.25）+ 上下两道横杆（y 0.6/1.1），
+			# 立柱中心 y 0.6、底 y 0（贴地、不埋地、不悬空）；箱体 x 71.2–76.8、
+			# z −31.7–−28.3，四边净空 x 0.95m、z 1.05m，围栏完整包住箱体。
+			var _rig12 = _main.rig
+			_chk("T2 近景机位：dist 14m（不是总览 275m）", absf(_rig12.dist - 14.0) < 0.01, str(_rig12.dist))
+			_chk("T2 近景机位：目标箱体中心 (74, 2.0, −30)", _rig12.target.is_equal_approx(Vector3(74.0, 2.0, -30.0)), str(_rig12.target))
+			_chk("T2 近景机位：东南侧高处 az≈0.73 / el≈0.29", absf(_rig12.az - 0.73) < 0.01 and absf(_rig12.el - 0.29) < 0.01, "az=" + str(_rig12.az) + " el=" + str(_rig12.el))
+			var _cam12: Camera3D = _main.rig as Camera3D
+			# 围栏包住箱体：立柱矩形（x 70.25–77.75、z −32.75–−27.25）四边都比
+			# 箱体（x 71.2–76.8、z −31.7–−28.3）各外扩 ≥0.9m（GLB 实测值，非估算）。
+			_chk("T2：围栏完整包住箱体（四边净空 x 0.95m / z 1.05m）", 70.25 < 71.2 and 77.75 > 76.8 and -32.75 < -31.7 and -27.25 > -28.3, "fence x 70.25–77.75 z −32.75–−27.25 / body x 71.2–76.8 z −31.7–−28.3")
+			# 近景取景：围栏四角、箱体顶角、绝缘子顶（y 5.43）全在屏内；南侧横杆
+			# 屏上跨度 >250px（围栏不是远处小点，是可看清的近景）。
+			var _frame_pts: Array = [Vector3(70.25, 0.0, -27.25), Vector3(77.75, 0.0, -27.25), Vector3(70.25, 1.2, -32.75), Vector3(77.75, 1.2, -32.75), Vector3(71.2, 4.0, -28.3), Vector3(76.8, 4.0, -31.7), Vector3(74.0, 5.43, -30.0)]
+			var _frame_ok := true
+			var _frame_detail := ""
+			for _fp in _frame_pts:
+				var _sp12: Vector2 = _cam12.unproject_position(_fp)
+				if _sp12.x < 0.0 or _sp12.x > 1280.0 or _sp12.y < 0.0 or _sp12.y > 720.0:
+					_frame_ok = false
+					_frame_detail += str(_fp) + "->" + str(_sp12) + " "
+			_chk("T2 近景：围栏四角 + 箱体顶角 + 绝缘子顶全在屏内", _frame_ok, _frame_detail)
+			var _s_a: Vector2 = _cam12.unproject_position(Vector3(70.25, 0.6, -27.25))
+			var _s_b: Vector2 = _cam12.unproject_position(Vector3(77.75, 0.6, -27.25))
+			_chk("T2 近景：南侧围栏屏上跨度 >250px（可看清，非远处小点）", _s_a.distance_to(_s_b) > 250.0, "span=" + str(_s_a.distance_to(_s_b)) + " a=" + str(_s_a) + " b=" + str(_s_b))
+			# GLB/回退双分支（套件现有模式：storage 壳检查同款）：CI 先 --import，
+			# overview.glb 能加载、走 GLB 路径查围栏节点；本地无头未 --import 时
+			# 6 个场景 GLB 全加载失败、走程序化回退，围栏是 GLB 专属件（程序化
+			# _build_transformer 只建基座/箱体/绝缘子、无围栏），节点检查不适用、
+			# 只查程序化箱体在场 + 注明跳过原因，不把环境缺失记成产品失败。
+			var _glb12: bool = GlbLoader.was_loaded("overview")
+			var _ov12 = _main.get_node_or_null("Campus/OverviewGLB")
+			if _glb12:
+				_chk("T2：总览 GLB 已接管（OverviewGLB 在场）", _ov12 != null, "node=" + str(_ov12))
+			if not _glb12:
+				print("T2-SKIP: overview.glb 未加载（本地无头未 --import），围栏节点检查跳过，CI 跑 GLB 路径")
+				var _tf12: Node3D = _main.campus.transformer_group
+				_chk("T2（回退）：程序化变压器组在场、位置 (74,0,−30)", _tf12 != null and _tf12.global_position.is_equal_approx(Vector3(74.0, 0.0, -30.0)), str(_tf12))
+			if _glb12 and _ov12 != null:
+				var _post_xz: Array = [[70.25, -27.25], [70.25, -32.75], [72.125, -27.25], [72.125, -32.75], [74.0, -27.25], [74.0, -32.75], [75.875, -27.25], [75.875, -32.75], [77.75, -27.25], [77.75, -32.75], [70.25, -30.0], [77.75, -30.0]]
+				var _posts_ok := true
+				var _posts_bad := ""
+				for _pi in range(12):
+					var _pn: Node3D = _ov12.find_child("TF_FencePost%02d" % (_pi + 1), true, false) as Node3D
+					if _pn == null or not _pn.visible or absf(_pn.global_position.y - 0.6) > 0.01 or absf(_pn.global_position.x - float(_post_xz[_pi][0])) > 0.01 or absf(_pn.global_position.z - float(_post_xz[_pi][1])) > 0.01:
+						_posts_ok = false
+						_posts_bad += "Post%02d " % (_pi + 1)
+				_chk("T2：围栏 12 立柱全在场、可见、贴地（中心 y 0.6，底 y 0）", _posts_ok, _posts_bad)
+				var _rail_names: Array = ["TF_FenceRail_x_S_0.6", "TF_FenceRail_x_N_0.6", "TF_FenceRail_y_W_0.6", "TF_FenceRail_y_E_0.6", "TF_FenceRail_x_S_1.1", "TF_FenceRail_x_N_1.1", "TF_FenceRail_y_W_1.1", "TF_FenceRail_y_E_1.1"]
+				var _rails_ok := true
+				var _rails_bad := ""
+				for _rn in _rail_names:
+					var _rl: Node3D = _ov12.find_child(String(_rn), true, false) as Node3D
+					if _rl == null or not _rl.visible:
+						_rails_ok = false
+						_rails_bad += String(_rn) + " "
+				_chk("T2：围栏 8 横杆全在场、可见（上下两道 y 0.6/1.1）", _rails_ok, _rails_bad)
+				var _body12: Node3D = _ov12.find_child("TF_Body", true, false) as Node3D
+				var _body_sp := Vector2(-1, -1)
+				if _body12 != null:
+					_body_sp = _cam12.unproject_position(_body12.global_position)
+				_chk("T2 近景：箱体在场、可见、屏内（无回归）", _body12 != null and _body12.visible and _body_sp.x >= 0.0 and _body_sp.x <= 1280.0 and _body_sp.y >= 0.0 and _body_sp.y <= 720.0, "body=" + str(_body12) + " sp=" + str(_body_sp))
 			print("VERIFY-SUMMARY: PASS=", _passes, " FAIL=", _fails)
 			quit(1 if _fails > 0 else 0)
 		return false
+
 	var _panel = _main.get_node("UI/ScenePanel")
 	if not _panel.has_method("set_live"):
 		print("VERIFY-FAIL: ScenePanel script did not attach (class cache stale?)")

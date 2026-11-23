@@ -262,7 +262,8 @@ func _apply_url_params() -> void:
 	# ?freeze=0.5：冻结在飞行中段（慢速/逐帧检查）；?slowmo=3：飞行时长 ×3；
 	# ?reduced=1：减弱动效（等价于 prefers-reduced-motion）。
 	# ?fallback=1：全部 GLB 加载失败、走程序化回退（回退分支演练截图用）；
-	# ?close=1：储能场景改用柜面近拍机位（流光点验收用）。这两项在 _ready
+	# ?close=1：储能场景改用柜面近拍机位（流光点验收用），总览改用变压器近景
+	# 机位（T2 围栏验收用）。这两项在 _ready
 	# 开头已按 _url_params 生效，这里只应用天气/时刻/场景等常规参数。
 	if not OS.has_feature("web"):
 		return
@@ -421,7 +422,16 @@ func _enter_instant(key: String) -> void:
 	_apply_c3_anchor(key == "overview")
 	_apply_bldA_anchor(key == "overview")
 	if key == "overview":
-		_snap_to(scenes_data["overview"]["cam"])
+		if _close_cam:
+			# 变压器近景（T2，?close=1）：东南侧高处俯视箱体中心 (74, 2.0, −30)，
+			# dist 14m、az 0.73、el 0.29（与 ov-transformer.py 渲染机位同款）；
+			# 围栏 7.5×5.5m、绝缘子顶 5.43m 全入框。总览无 limits：近拍改用
+			# 放宽副本（同储能 close=1 模式），否则 rig._process 会把 dist 钳回 95m。
+			_snap_to({"az": 0.73, "el": 0.29, "dist": 14.0, "target": [74.0, 2.0, -30.0]})
+			rig.set_limits({"dist": [3.0, 36.0], "el": [0.08, 1.15]})
+			rig.arm_limits(true)
+		else:
+			_snap_to(scenes_data["overview"]["cam"])
 		return
 	_restore_scene_state()
 	active_scene = key
