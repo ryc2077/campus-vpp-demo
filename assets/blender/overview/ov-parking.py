@@ -1,12 +1,16 @@
-# ov-parking: 停车区（总览件）
+# ov-parking v2: 停车区返工（总览件）
 # Blender 坐标 x 向东、y 向北、z 向上，单位米
-# 内容：停车场 20x12m（中心 (-30,-90)，沥青灰）+ 北侧一排 10 个车位白线
-#      + 3 辆简易小车（灰 / 蓝 / 红）
+# 内容：停车场 20x12m（中心 (-30,-90)，程序化沥青）+ 北侧一排 10 个车位
+#      + 白色车位线（轻微磨损）+ 每个车位末端轮挡 + 南侧行车道导向箭头/虚线
+#      + 3 辆升级小车（灰 / 蓝 / 红，按 ch-cars v2 做法：倒角车身 + 分层车窗
+#        + 车灯 + 后视镜 + 轮胎/轮毂分开）
 # 不做主干道（ov-road-main）、不做充电区。
+# 新规矩：渲染全部走 GitHub Actions，本地不渲染、不出预览图。
 #
 # 尺寸说明：任务给 10 个车位 × 2.5m 宽 = 25m，装不进 20m 宽的停车场；
 # 停车场 20x12m 与车位 10 个是硬指标，故车位宽取 20/10 = 2.0m、深 5m，
 # 车辆 1.8m 宽仍可停入。车位线贴在沥青面上（z 0.08 -> 0.10），防共面闪烁。
+# 轮挡在车位北端（车头一侧），导向箭头在南侧行车道（y=-92.5），指向东。
 import bpy
 import math
 import os
@@ -17,13 +21,12 @@ BASE = os.path.expanduser("~/workspace/goals/campus-virtual-power-plant-competit
 PY_DIR = os.path.join(BASE, "assets/blender/overview")
 BLEND_PATH = os.path.join(PY_DIR, "ov-parking.blend")
 GLB_PATH = os.path.join(BASE, "assets/models/ov-parking.glb")
-PNG_PATH = os.path.join(BASE, "screenshots/blender/ov-parking.png")
 
 # 停车场：中心 (-30, -90)，20(x) x 12(y)m，厚 0.08m
 LOT_CX, LOT_CY = -30.0, -90.0
 LOT_SX, LOT_SY = 20.0, 12.0
 LOT_Z0, LOT_Z1 = 0.0, 0.08
-# 车位：北侧一排，10 个，2.0m 宽 x 5m 深（见文件头尺寸说明）
+# 车位：北侧一排，10 个，2.0m 宽 x 5m 深
 N_SPACES = 10
 SPACE_W, SPACE_D = 2.0, 5.0
 LINE_W = 0.12
@@ -32,37 +35,286 @@ LINE_Z0, LINE_Z1 = LOT_Z1, 0.10
 SPACE_Y_NORTH = LOT_CY + LOT_SY / 2.0          # -84
 SPACE_Y_SOUTH = SPACE_Y_NORTH - SPACE_D        # -89
 SPACE_Y_C = (SPACE_Y_NORTH + SPACE_Y_SOUTH) / 2.0  # -86.5
+# 行车道（车位南侧空地）：y -96..-89，导向标线中心线 y=-92.5
+LANE_Y = -92.5
+# 轮挡：车位北端，贴着前轮胎面（前轮前缘 y=-84.67），y=-84.75
+STOP_Y = SPACE_Y_NORTH - 0.75
 
 
-def hex_rgb(h):
-    """Hex sRGB -> linear RGB."""
-    h = h.lstrip("#")
+def srgb_to_linear(hexstr):
+    """Hex sRGB -> linear RGB（Principled Base Color 必须是线性值）。"""
+    h = hexstr.lstrip("#")
+    r = int(h[0:2], 16) / 255.0
+    g = int(h[2:4], 16) / 255.0
+    b = int(h[4:6], 16) / 255.0
 
-    def srgb_to_lin(c):
-        c = c / 255.0
+    def conv(c):
         return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
-
-    r, g, b = (srgb_to_lin(int(h[i:i + 2], 16)) for i in (0, 2, 4))
-    return (r, g, b, 1.0)
+    return (conv(r), conv(g), conv(b), 1.0)
 
 
-def make_mat(name, hexcol, rough=0.9, metallic=0.0):
-    m = bpy.data.materials.new(name)
-    m.use_nodes = True
-    bsdf = m.node_tree.nodes["Principled BSDF"]
-    bsdf.inputs["Base Color"].default_value = hex_rgb(hexcol)
-    bsdf.inputs["Roughness"].default_value = rough
+def _noise_roughness(ntree, bsdf, scale, r_min, r_max):
+    """Noise Texture -> Map Range -> Roughness."""
+    tex = ntree.nodes.new("ShaderNodeTexCoord")
+    noise = ntree.nodes.new("ShaderNodeTexNoise")
+    noise.inputs["Scale"].default_value = scale
+    noise.inputs["Detail"].default_value = 2.0
+    noise.inputs["Roughness"].default_value = 0.7
+    ntree.links.new(tex.outputs["Generated"], noise.inputs["Vector"])
+    rng = ntree.nodes.new("ShaderNodeMapRange")
+    rng.inputs["From Min"].default_value = 0.0
+    rng.inputs["From Max"].default_value = 1.0
+    rng.inputs["To Min"].default_value = r_min
+    rng.inputs["To Max"].default_value = r_max
+    ntree.links.new(noise.outputs["Fac"], rng.inputs["Value"])
+    ntree.links.new(rng.outputs["Result"], bsdf.inputs["Roughness"])
+
+
+def _noise_bump(ntree, bsdf, scale, strength, detail=2.0):
+    tex = ntree.nodes.new("ShaderNodeTexCoord")
+    noise = ntree.nodes.new("ShaderNodeTexNoise")
+    noise.inputs["Scale"].default_value = scale
+    noise.inputs["Detail"].default_value = detail
+    ntree.links.new(tex.outputs["Generated"], noise.inputs["Vector"])
+    bump = ntree.nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = strength
+    bump.inputs["Distance"].default_value = 0.02
+    ntree.links.new(noise.outputs["Fac"], bump.inputs["Height"])
+    ntree.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+
+
+def make_asphalt(name):
+    """程序化沥青：Base Color 保持纯值（保证 glTF 导出颜色正确），
+    颗粒 / 磨损斑块 / 细裂纹全部走 Roughness 与 Bump：
+    - Noise scale 60：细颗粒 Bump
+    - Noise scale 4：大尺度磨损斑块 -> Roughness 0.80..1.0
+    - Voronoi scale 90：细裂纹 -> Bump（小强度）"""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    ntree = mat.node_tree
+    bsdf = ntree.nodes["Principled BSDF"]
+    bsdf.inputs["Base Color"].default_value = srgb_to_linear("#424A52")
+    bsdf.inputs["Roughness"].default_value = 0.95
+    bsdf.inputs["Metallic"].default_value = 0.0
+    # 细颗粒
+    _noise_bump(ntree, bsdf, scale=60.0, strength=0.25, detail=2.0)
+    # 磨损斑块：大尺度 Noise -> Roughness 0.80..1.0
+    _noise_roughness(ntree, bsdf, scale=4.0, r_min=0.80, r_max=1.0)
+    # 细裂纹：Voronoi -> 第二个 Bump 节点串联到 Normal
+    tex = ntree.nodes.new("ShaderNodeTexCoord")
+    vor = ntree.nodes.new("ShaderNodeTexVoronoi")
+    vor.inputs["Scale"].default_value = 90.0
+    vor.feature = "DISTANCE_TO_EDGE"
+    ntree.links.new(tex.outputs["Generated"], vor.inputs["Vector"])
+    bump2 = ntree.nodes.new("ShaderNodeBump")
+    bump2.inputs["Strength"].default_value = 0.12
+    bump2.inputs["Distance"].default_value = 0.01
+    ntree.links.new(vor.outputs["Distance"], bump2.inputs["Height"])
+    # 把裂纹 Bump 接到第一个 Bump 的 Normal 输入上（串联）
+    first_bump = None
+    for n in ntree.nodes:
+        if n.bl_idname == "ShaderNodeBump" and n is not bump2:
+            first_bump = n
+            break
+    if first_bump is not None:
+        ntree.links.new(bump2.outputs["Normal"], first_bump.inputs["Normal"])
+    return mat
+
+
+def make_worn_white(name, hexstr="#F2F2F2"):
+    """磨损白漆：纯色 Base Color + Noise 粗糙度变化（轻微磨损感）。"""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    ntree = mat.node_tree
+    bsdf = ntree.nodes["Principled BSDF"]
+    bsdf.inputs["Base Color"].default_value = srgb_to_linear(hexstr)
+    bsdf.inputs["Roughness"].default_value = 0.8
+    _noise_roughness(ntree, bsdf, scale=8.0, r_min=0.65, r_max=0.95)
+    return mat
+
+
+def make_paint(name, hexstr):
+    """车漆：Principled，Noise 粗糙度 0.35 +/- 0.08，轻 Bump（同 ch-cars v2）。"""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    ntree = mat.node_tree
+    bsdf = ntree.nodes["Principled BSDF"]
+    bsdf.inputs["Base Color"].default_value = srgb_to_linear(hexstr)
+    bsdf.inputs["Metallic"].default_value = 0.15
+    _noise_roughness(ntree, bsdf, scale=6.0, r_min=0.27, r_max=0.43)
+    _noise_bump(ntree, bsdf, scale=18.0, strength=0.06)
+    return mat
+
+
+def make_glass(name):
+    """车窗玻璃：透明材质（Alpha 0.65、粗糙度低），与 ov-gate 的
+    Glass_Reflective 做法一致。v2 的 Transmission 0.9 + Glass BSDF
+    混合导出后是 OPAQUE（alpha 1.0），Godot 里不透明，改回 Alpha 混合。"""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    ntree = mat.node_tree
+    bsdf = ntree.nodes["Principled BSDF"]
+    bsdf.inputs["Base Color"].default_value = srgb_to_linear("#9FC3D8")
+    bsdf.inputs["Roughness"].default_value = 0.06
+    bsdf.inputs["Metallic"].default_value = 0.0
+    bsdf.inputs["Alpha"].default_value = 0.65
+    bsdf.inputs["Specular IOR Level"].default_value = 1.0
+    mat.surface_render_method = "DITHERED"
+    return mat
+
+
+def make_tire(name):
+    """橡胶轮胎：粗糙度 0.95 + Noise Bump，与轮毂分开（同 ch-cars v2）。"""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    ntree = mat.node_tree
+    bsdf = ntree.nodes["Principled BSDF"]
+    bsdf.inputs["Base Color"].default_value = srgb_to_linear("#2A2D2F")
+    bsdf.inputs["Roughness"].default_value = 0.95
+    _noise_bump(ntree, bsdf, scale=10.0, strength=0.30)
+    return mat
+
+
+def make_hub(name):
+    """金属轮毂：metallic 0.8，粗糙度 0.35 +/- 0.08（同 ch-cars v2）。"""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    ntree = mat.node_tree
+    bsdf = ntree.nodes["Principled BSDF"]
+    bsdf.inputs["Base Color"].default_value = srgb_to_linear("#C0C5C9")
+    bsdf.inputs["Metallic"].default_value = 0.8
+    _noise_roughness(ntree, bsdf, scale=6.0, r_min=0.27, r_max=0.43)
+    return mat
+
+
+def make_lamp(name, hexstr, emission_hex, strength=1.0):
+    """弱发光灯块（前灯暖白 / 尾灯红）。"""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    bsdf.inputs["Base Color"].default_value = srgb_to_linear(hexstr)
+    bsdf.inputs["Roughness"].default_value = 0.25
+    bsdf.inputs["Emission Color"].default_value = srgb_to_linear(emission_hex)
+    bsdf.inputs["Emission Strength"].default_value = strength
+    return mat
+
+
+def make_simple(name, hexstr, roughness=0.9, metallic=0.0):
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    bsdf.inputs["Base Color"].default_value = srgb_to_linear(hexstr)
+    bsdf.inputs["Roughness"].default_value = roughness
     bsdf.inputs["Metallic"].default_value = metallic
-    return m
+    return mat
 
 
-MAT_ASPHALT = make_mat("Asphalt_424A52", "#424A52", 0.95)
-MAT_LINE = make_mat("Line_White", "#FFFFFF", 0.8)
-MAT_WHEEL = make_mat("Wheel_Dark", "#2A2E33", 0.9)
-MAT_GROUND = make_mat("Ground_Grass_69B45E", "#69B45E", 1.0)
-MAT_CAR_GREY = make_mat("Car_Grey_8A8F94", "#8A8F94", 0.5, 0.3)
-MAT_CAR_BLUE = make_mat("Car_Blue_3B82C4", "#3B82C4", 0.5, 0.3)
-MAT_CAR_RED = make_mat("Car_Red_C4534E", "#C4534E", 0.5, 0.3)
+# ---- 材质（车位线 / 轮挡 / 导向标线各自分开）----
+MAT_ASPHALT = make_asphalt("ov-parking_asphalt")
+MAT_LINE = make_worn_white("ov-parking_line_white")        # 车位线
+MAT_MARKING = make_worn_white("ov-parking_marking_white")  # 导向箭头/虚线
+MAT_STOP = make_simple("ov-parking_wheelstop_concrete", "#B9B3A8", 0.95)  # 轮挡
+MAT_GLASS = make_glass("ov-parking_glass")
+MAT_TIRE = make_tire("ov-parking_tire")
+MAT_HUB = make_hub("ov-parking_hub")
+MAT_HEAD = make_lamp("ov-parking_headlamp", "#FFF6D8", "#FFF2CC", strength=1.0)
+MAT_TAIL = make_lamp("ov-parking_taillamp", "#C03028", "#D04030", strength=0.8)
+MAT_DARK = make_simple("ov-parking_dark", "#3A3F42", 0.7)
+
+# ---- PBR 贴图挂接（返工）：下载的 CC0 实拍贴图经亮度映射到 SPEC 色
+# （assets/external/* -> ov-parking_textures/ 衍生 PNG）；车漆/轮胎/
+# 轮毂/磨损白线无对应下载，用程序化合成贴图补位；程序化 Noise 节点
+# 不进 glTF，必须换成图片纹理节点。UV 按米缩放（见 _scale_uvs_to_meters）。
+import numpy as _np
+TEX_DIR = os.path.join(PY_DIR, "ov-parking_textures")
+
+
+def _load_img(path, colorspace):
+    img = bpy.data.images.load(path)
+    img.colorspace_settings.name = colorspace
+    return img
+
+
+def _apply_pbr(mat, set_name):
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    out = nt.nodes["Material Output"]
+    for n in list(nt.nodes):
+        if n not in (bsdf, out):
+            nt.nodes.remove(n)
+    for link in list(nt.links):
+        if link.to_node is bsdf:
+            nt.links.remove(link)
+    bsdf.inputs["Base Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+    c = os.path.join(TEX_DIR, set_name + "_color.png")
+    if os.path.exists(c):
+        t = nt.nodes.new("ShaderNodeTexImage")
+        t.image = _load_img(c, "sRGB")
+        nt.links.new(t.outputs["Color"], bsdf.inputs["Base Color"])
+    r = os.path.join(TEX_DIR, set_name + "_rough.png")
+    if os.path.exists(r):
+        t = nt.nodes.new("ShaderNodeTexImage")
+        t.image = _load_img(r, "Non-Color")
+        nt.links.new(t.outputs["Color"], bsdf.inputs["Roughness"])
+        bsdf.inputs["Roughness"].default_value = 1.0
+    n = os.path.join(TEX_DIR, set_name + "_normal.png")
+    if os.path.exists(n):
+        t = nt.nodes.new("ShaderNodeTexImage")
+        t.image = _load_img(n, "Non-Color")
+        nm = nt.nodes.new("ShaderNodeNormalMap")
+        nm.space = "TANGENT"
+        nt.links.new(t.outputs["Color"], nm.inputs["Color"])
+        nt.links.new(nm.outputs["Normal"], bsdf.inputs["Normal"])
+    return mat
+
+
+def _ensure_uv(ob):
+    me = ob.data
+    if me is None or len(me.uv_layers) > 0:
+        return
+    me.uv_layers.new(name="UVMap")
+    bpy.ops.object.select_all(action="DESELECT")
+    ob.select_set(True)
+    bpy.context.view_layer.objects.active = ob
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.uv.smart_project(angle_limit=66.0, island_margin=0.02)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    bpy.ops.object.select_all(action="DESELECT")
+
+
+def _scale_uvs_to_meters(obj, tile):
+    """每面按世界尺寸把 UV 缩放到 tile 米一重复（REPEAT 平铺）。"""
+    me = obj.data
+    if me is None or len(me.uv_layers) == 0:
+        return 0
+    uv = me.uv_layers.active.data
+    mw = obj.matrix_world
+    for poly in me.polygons:
+        idx = list(poly.loop_indices)
+        P = _np.array([mw @ me.vertices[me.loops[i].vertex_index].co
+                       for i in idx], dtype=float)
+        U = _np.array([[uv[i].uv[0], uv[i].uv[1]] for i in idx], dtype=float)
+        A = _np.column_stack([_np.ones(len(idx)), U])
+        coef, *_ = _np.linalg.lstsq(A, P, rcond=None)
+        su = _np.linalg.norm(coef[1]) / tile
+        sv = _np.linalg.norm(coef[2]) / tile
+        for i in idx:
+            u, v = uv[i].uv
+            uv[i].uv = (u * su, v * sv)
+    return len(me.polygons)
+
+
+_apply_pbr(MAT_ASPHALT, "Asphalt")
+_apply_pbr(MAT_LINE, "WhiteWorn")
+_apply_pbr(MAT_MARKING, "WhiteWorn")
+_apply_pbr(MAT_STOP, "Concrete")
+_apply_pbr(MAT_TIRE, "Tire")
+_apply_pbr(MAT_HUB, "HubMetal")
+# 车漆在 make_car 里现做现挂（PaintGrey/PaintBlue/PaintRed）。
+# 贴图 UV 按米缩放：{材质: 一重复多少米}
+UV_TILE = {MAT_ASPHALT: 3.0, MAT_LINE: 1.0, MAT_MARKING: 1.0,
+           MAT_STOP: 2.0, MAT_TIRE: 1.0, MAT_HUB: 1.0}
 
 # ---- clean scene ----
 bpy.ops.object.select_all(action="SELECT")
@@ -71,64 +323,162 @@ bpy.ops.object.delete(use_global=False)
 objs = []  # objects that go into the .glb
 
 
-def box(name, cx, cy, z0, z1, sx, sy, mat, bevel=0.02):
-    bpy.ops.mesh.primitive_cube_add(location=(cx, cy, (z0 + z1) / 2.0))
+def box(name, loc, dims, mat, bevel=0.0):
+    bpy.ops.mesh.primitive_cube_add(location=loc)
     o = bpy.context.active_object
     o.name = name
-    o.dimensions = (sx, sy, z1 - z0)
+    o.dimensions = dims
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-    if bevel and min(sx, sy, z1 - z0) > 2 * bevel + 0.02:
-        mod = o.modifiers.new("EdgeSoft", "BEVEL")
+    if bevel > 0:
+        mod = o.modifiers.new(name="bevel", type="BEVEL")
         mod.width = bevel
-        mod.segments = 2
-        mod.limit_method = "ANGLE"
-    o.data.materials.append(mat)
-    objs.append(o)
-    return o
-
-
-def cylinder_wheel(name, cx, cy, cz, mat):
-    """车轮：圆柱，轴沿 x（车宽方向），r=0.33m，宽 0.20m。"""
-    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.33, depth=0.20,
-                                        location=(cx, cy, cz),
-                                        rotation=(0.0, math.pi / 2.0, 0.0))
-    o = bpy.context.active_object
-    o.name = name
-    o.data.materials.append(mat)
+        mod.segments = 3
+    if mat:
+        o.data.materials.append(mat)
     objs.append(o)
     return o
 
 
 # ---- 停车场沥青面 ----
-box("parking_lot", LOT_CX, LOT_CY, LOT_Z0, LOT_Z1,
-    LOT_SX, LOT_SY, MAT_ASPHALT, bevel=0.02)
+box("ov-parking_lot", (LOT_CX, LOT_CY, (LOT_Z0 + LOT_Z1) / 2.0),
+    (LOT_SX, LOT_SY, LOT_Z1 - LOT_Z0), MAT_ASPHALT, bevel=0.02)
 
 # ---- 车位线：11 条分隔线（0.12m 宽 x 5m 深）+ 1 条北缘通长线 ----
 lot_x0 = LOT_CX - LOT_SX / 2.0  # -40
 for i in range(N_SPACES + 1):
     x = lot_x0 + i * SPACE_W
-    box(f"space_line_{i:02d}", x, SPACE_Y_C, LINE_Z0, LINE_Z1,
-        LINE_W, SPACE_D, MAT_LINE, bevel=0.0)
-box("space_line_north", LOT_CX, SPACE_Y_NORTH - LINE_W / 2.0,
-    LINE_Z0, LINE_Z1, LOT_SX, LINE_W, MAT_LINE, bevel=0.0)
+    box(f"ov-parking_space_line_{i:02d}", (x, SPACE_Y_C, (LINE_Z0 + LINE_Z1) / 2.0),
+        (LINE_W, SPACE_D, LINE_Z1 - LINE_Z0), MAT_LINE)
+box("ov-parking_space_line_north",
+    (LOT_CX, SPACE_Y_NORTH - LINE_W / 2.0, (LINE_Z0 + LINE_Z1) / 2.0),
+    (LOT_SX, LINE_W, LINE_Z1 - LINE_Z0), MAT_LINE)
 
-# ---- 3 辆简易小车：车身 4.2x1.8x0.55 + 车顶 2.0x1.6x0.5 + 4 轮 r=0.33 ----
-# 车长沿 y（鼻朝北，停进北侧车位），车宽沿 x；地面为沥青顶面 z=0.08
-# 车身 z 0.33..0.88，车顶 z 0.88..1.38，轮心 z 0.41
-CAR_BODY_Z0, CAR_BODY_Z1 = 0.33, 0.88
-CAR_ROOF_Z0, CAR_ROOF_Z1 = 0.88, 1.38
-WHEEL_Z = LOT_Z1 + 0.33  # 0.41
+# ---- 轮挡：每个车位北端（车头一侧）一个混凝土挡块 1.6 x 0.15 x 0.12m ----
+for i in range(N_SPACES):
+    x = lot_x0 + (i + 0.5) * SPACE_W
+    box(f"ov-parking_wheelstop_{i + 1:02d}",
+        (x, STOP_Y, LOT_Z1 + 0.06), (1.6, 0.15, 0.12), MAT_STOP, bevel=0.02)
+
+# ---- 导向标线：南侧行车道，两个指向东的箭头 + 两段虚线 ----
+def guide_arrow(name, cx, cy):
+    """箭头：杆 1.2 x 0.25m + 三角头（显式坐标三角棱柱），指向 +X（东）。"""
+    box(f"{name}_shaft", (cx - 0.35, cy, 0.11), (1.2, 0.25, 0.02), MAT_MARKING)
+    # 三角头：底边 x=cx+0.10、半宽 0.45，顶点 x=cx+1.10，厚 0.02（z 0.10..0.12）
+    verts = [(cx + 0.10, cy - 0.45, 0.10), (cx + 0.10, cy + 0.45, 0.10),
+             (cx + 1.10, cy, 0.10),
+             (cx + 0.10, cy - 0.45, 0.12), (cx + 0.10, cy + 0.45, 0.12),
+             (cx + 1.10, cy, 0.12)]
+    faces = [(0, 2, 1), (3, 4, 5), (0, 1, 4, 3), (1, 2, 5, 4), (2, 0, 3, 5)]
+    mesh = bpy.data.meshes.new(f"{name}_head_mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    head = bpy.data.objects.new(f"{name}_head", mesh)
+    bpy.context.collection.objects.link(head)
+    head.data.materials.append(MAT_MARKING)
+    objs.append(head)
 
 
-def car(name, cx, mat):
-    cy = SPACE_Y_C
-    box(f"{name}_body", cx, cy, CAR_BODY_Z0, CAR_BODY_Z1,
-        1.8, 4.2, mat, bevel=0.03)
-    box(f"{name}_roof", cx, cy - 0.2, CAR_ROOF_Z0, CAR_ROOF_Z1,
-        1.6, 2.0, mat, bevel=0.03)
-    for wx in (cx - 0.80, cx + 0.80):
-        for wy in (cy - 1.35, cy + 1.35):
-            cylinder_wheel(f"{name}_wheel", wx, wy, WHEEL_Z, MAT_WHEEL)
+guide_arrow("ov-parking_arrow_1", -35.0, LANE_Y)
+guide_arrow("ov-parking_arrow_2", -25.0, LANE_Y)
+# 行车道虚线：沿 y=-92.5，6 段，每段 1.0m、间隔 1.0m，跳过箭头位置
+for k, dx in enumerate((-9.0, -7.0, -3.0, -1.0, 3.0, 5.0, 7.0, 9.0)):
+    box(f"ov-parking_lane_dash_{k + 1:02d}",
+        (LOT_CX + dx, LANE_Y, 0.11), (1.0, 0.12, 0.02), MAT_MARKING)
+
+
+# ---- 车辆（同 ch-cars v2 做法；局部坐标车长沿 X、车头 +X）----
+def wheel(name, loc):
+    """轮胎圆柱 + 金属轮毂盘 + 每面 5 根辐条。"""
+    parts = []
+    bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=0.33, depth=0.22,
+                                        location=loc)
+    tire = bpy.context.active_object
+    tire.name = name + "_tire"
+    tire.rotation_euler = (math.radians(90), 0, 0)  # 轴沿 Y
+    tire.data.materials.append(MAT_TIRE)
+    objs.append(tire)
+    parts.append(tire)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=0.19, depth=0.24,
+                                        location=loc)
+    hub = bpy.context.active_object
+    hub.name = name + "_hub"
+    hub.rotation_euler = (math.radians(90), 0, 0)
+    hub.data.materials.append(MAT_HUB)
+    objs.append(hub)
+    parts.append(hub)
+    for side in (+1, -1):
+        for k in range(5):
+            ang = math.radians(k * 72.0)
+            sp = box("%s_spoke_%s%d" % (name, "L" if side > 0 else "R", k),
+                     (loc[0], loc[1] + side * 0.125, loc[2]),
+                     (0.34, 0.02, 0.08), MAT_HUB)
+            sp.rotation_euler = (0, ang, 0)
+            parts.append(sp)
+    return parts
+
+
+def make_car(tag, color_hex, cx, cy, rot_z_deg):
+    """整车挂在一个 empty 下，旋转/摆放一次完成。车头朝北（+Y）故 rot_z=+90。"""
+    mat_body = make_paint("ov-parking_body_" + tag, color_hex)
+    # 车漆挂图（返工）：细噪波车漆纹理，颜色即车身色
+    _apply_pbr(mat_body, "Paint" + tag.capitalize())
+    UV_TILE[mat_body] = 1.0
+    parts = []
+    # 车身 4.5 x 1.8 x 0.55，中心 z 0.60，倒角
+    parts.append(box("ov-parking_%s_body" % tag, (0, 0, 0.60),
+                     (4.5, 1.8, 0.55), mat_body, bevel=0.04))
+    # 车顶 2.2 x 1.6 x 0.5，中心 z 1.125，略偏后（x -0.2）
+    parts.append(box("ov-parking_%s_roof" % tag, (-0.2, 0, 1.125),
+                     (2.2, 1.6, 0.5), mat_body, bevel=0.04))
+    # 分层车窗：每侧前后两块（B 柱留缝）
+    for side in (+1, -1):
+        s = "L" if side > 0 else "R"
+        parts.append(box("ov-parking_%s_glass_front_%s" % (tag, s),
+                         (0.35, side * 0.805, 1.12),
+                         (0.85, 0.02, 0.35), MAT_GLASS))
+        parts.append(box("ov-parking_%s_glass_rear_%s" % (tag, s),
+                         (-0.75, side * 0.805, 1.12),
+                         (0.85, 0.02, 0.35), MAT_GLASS))
+    # 前风挡 + 后窗
+    parts.append(box("ov-parking_%s_glass_wind" % tag,
+                     (0.91, 0, 1.12), (0.02, 1.40, 0.38), MAT_GLASS))
+    parts.append(box("ov-parking_%s_glass_back" % tag,
+                     (-1.31, 0, 1.12), (0.02, 1.40, 0.38), MAT_GLASS))
+    # 前灯（+X）与尾灯（-X），弱发光
+    for side in (+1, -1):
+        s = "L" if side > 0 else "R"
+        parts.append(box("ov-parking_%s_head_%s" % (tag, s),
+                         (2.26, side * 0.55, 0.78),
+                         (0.06, 0.50, 0.12), MAT_HEAD))
+        parts.append(box("ov-parking_%s_tail_%s" % (tag, s),
+                         (-2.26, side * 0.55, 0.78),
+                         (0.06, 0.50, 0.12), MAT_TAIL))
+    # 前格栅
+    parts.append(box("ov-parking_%s_grille" % tag,
+                     (2.26, 0, 0.45), (0.06, 1.20, 0.15), MAT_DARK))
+    # 后视镜：支杆 + 镜体，A 柱两侧
+    for side in (+1, -1):
+        s = "L" if side > 0 else "R"
+        parts.append(box("ov-parking_%s_mirror_stalk_%s" % (tag, s),
+                         (0.75, side * 0.90, 1.02),
+                         (0.10, 0.14, 0.05), MAT_DARK))
+        parts.append(box("ov-parking_%s_mirror_%s" % (tag, s),
+                         (0.75, side * 0.98, 1.04),
+                         (0.16, 0.06, 0.14), mat_body, bevel=0.02))
+    # 4 轮：r 0.33，x +-1.5，y +-0.80，z 0.33（局部坐标；整车由 empty 抬高 LOT_Z1）
+    for i, wx in enumerate((-1.5, 1.5)):
+        for j, wy in enumerate((-0.80, 0.80)):
+            parts.extend(wheel("ov-parking_%s_wheel_%d%d" % (tag, i, j),
+                               (wx, wy, 0.33)))
+    # empty 抬高 LOT_Z1（0.08）：轮底正好落在沥青顶面，车身不悬空、不下陷
+    bpy.ops.object.empty_add(type="PLAIN_AXES", location=(cx, cy, LOT_Z1))
+    grp = bpy.context.active_object
+    grp.name = "ov-parking_%s" % tag
+    grp.rotation_euler = (0, 0, math.radians(rot_z_deg))
+    for p in parts:
+        p.parent = grp
+    objs.append(grp)
+    return grp
 
 
 def space_center_x(i):
@@ -136,51 +486,28 @@ def space_center_x(i):
     return lot_x0 + (i - 0.5) * SPACE_W
 
 
-car("car_grey", space_center_x(2), MAT_CAR_GREY)   # x=-37
-car("car_blue", space_center_x(5), MAT_CAR_BLUE)   # x=-31
-car("car_red", space_center_x(9), MAT_CAR_RED)     # x=-23
+# 3 辆车：灰 2 号位、蓝 5 号位、红 9 号位（位置与 v1 一致），车头朝北
+make_car("grey", "#8A8F94", space_center_x(2), SPACE_Y_C, 90)
+make_car("blue", "#3B82C4", space_center_x(5), SPACE_Y_C, 90)
+make_car("red", "#C4534E", space_center_x(9), SPACE_Y_C, 90)
 
-print("parking objects:", len(objs), "(lot 1, lines 12, cars 3x6)")
+print("parking objects:", len(objs))
 
-# ---- preview-only ground (NOT exported) ----
-bpy.ops.mesh.primitive_plane_add(location=(LOT_CX, LOT_CY, -0.01))
-ground = bpy.data.objects["Plane"]
-ground.name = "Ground_PreviewOnly"
-ground.dimensions = (60.0, 50.0, 0.0)
-bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-ground.data.materials.append(MAT_GROUND)
-
-# ---- lighting (SPEC section 2): sun 3.5 from SW, elev ~50 deg ----
-target = Vector((LOT_CX, LOT_CY, 0.0))
-sun_dir = Vector((-0.64, -0.64, 1.0))  # sun sits SW and up
-bpy.ops.object.light_add(type="SUN", location=tuple(target + sun_dir * 80.0))
-sun = bpy.context.active_object
-sun.name = "Sun_SW"
-sun.data.energy = 3.5
-sun.data.use_shadow = True
-sun.rotation_euler = (target - sun.location).to_track_quat("-Z", "Y").to_euler()
-
-# ---- world: flat light blue (0.65, 0.78, 0.88), strength 1.0 ----
-world = bpy.data.worlds.new("World_LightBlue")
-bpy.context.scene.world = world
-world.use_nodes = True
-bg = world.node_tree.nodes["Background"]
-bg.inputs["Color"].default_value = (0.65, 0.78, 0.88, 1.0)
-bg.inputs["Strength"].default_value = 1.0
-
-# ---- camera: near top-down (~59 deg elevation) over the lot ----
-# 能看清车位线与车辆；640x360 下 20m 宽停车场占画面主体。
-bpy.ops.object.camera_add(location=(LOT_CX, LOT_CY - 18.0, 30.0))
-cam = bpy.context.active_object
-cam.name = "Cam_Preview"
-cam.data.lens = 35.0
-cam.rotation_euler = (target - cam.location).to_track_quat("-Z", "Y").to_euler()
-bpy.context.scene.camera = cam
+# ---- UV 按米缩放（返工）：贴图 1 重复 = tile 米，无 UV 的箭头先补 UV ----
+bpy.context.view_layer.update()
+for _o in objs:
+    if _o.type != "MESH" or not _o.data.materials:
+        continue
+    _tile = UV_TILE.get(_o.data.materials[0])
+    if _tile is None:
+        continue
+    _ensure_uv(_o)
+    _scale_uvs_to_meters(_o, _tile)
+print("UV scaled to meters for textured mats")
 
 # ---- save .blend ----
 os.makedirs(PY_DIR, exist_ok=True)
 os.makedirs(os.path.dirname(GLB_PATH), exist_ok=True)
-os.makedirs(os.path.dirname(PNG_PATH), exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=BLEND_PATH)
 print("saved blend:", BLEND_PATH)
 if os.path.exists(BLEND_PATH + "1"):
@@ -201,19 +528,7 @@ bpy.ops.object.select_all(action="DESELECT")
 bpy.ops.import_scene.gltf(filepath=GLB_PATH)
 imported = [o for o in bpy.context.selected_objects]
 print("glb re-import OK, imported objects:", len(imported))
-bpy.ops.object.delete(use_global=False)  # remove re-imported copies before render
+bpy.ops.object.delete(use_global=False)
 print("re-imported copies deleted, scene objects:", len(bpy.context.scene.objects))
-
-# ---- render preview: Eevee, 640x360, 16 samples ----
-scene = bpy.context.scene
-scene.render.engine = "BLENDER_EEVEE_NEXT"
-scene.render.resolution_x = 640
-scene.render.resolution_y = 360
-scene.render.resolution_percentage = 100
-scene.eevee.taa_render_samples = 16
-scene.render.filepath = PNG_PATH
-scene.render.image_settings.file_format = "PNG"
-bpy.ops.render.render(write_still=True)
-print("rendered preview:", PNG_PATH)
 
 print("DONE ov-parking")
