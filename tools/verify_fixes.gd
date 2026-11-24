@@ -987,7 +987,7 @@ func _process(_delta: float) -> bool:
 	# ---- 总览偏淡修复（天空/地面加深） ----
 	var wsys = _main.get_node("Weather")
 	var sky_mat = wsys._sky.sky_material as ProceduralSkyMaterial
-	_chk("白天天顶色加深 #63a9e6", _col(sky_mat.sky_top_color) == "#63a9e6", _col(sky_mat.sky_top_color))
+	_chk("白天天顶色加深 #63a9b4 (F4 B: 顶色 B 230->180)", _col(sky_mat.sky_top_color) == "#63a9b4", _col(sky_mat.sky_top_color))
 	var ground_mi := _main.get_node("Campus").get_child(0) as MeshInstance3D
 	_chk("地面绿加深 #4f9d43", ground_mi != null and _col((ground_mi.material_override as StandardMaterial3D).albedo_color) == "#4f9d43", _col((ground_mi.material_override as StandardMaterial3D).albedo_color) if ground_mi != null else "null")
 	# ---- P3-4 减弱动效：停闪电、云漂移与树摆 ----

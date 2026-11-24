@@ -169,7 +169,16 @@ func update_frame(hour: float, delta: float) -> void:
 	sun.rotation_degrees = Vector3(-55.0 * maxf(sun_el, 0.05) - 8.0, -35.0 + 70.0 * clampf((hour - rise) / maxf(0.1, set_h - rise), 0.0, 1.0), 0.0)
 	# 天空颜色：昼夜 + 天气压暗（白天顶色加深一档，之前 #8ec9f0 偏淡）
 	var night := Color("#33507c")
-	var day := Color("#63a9e6")
+	# F4 B 通道残留定夺（2026-11-24，选②改天空颜色，探针逐档量过）：
+	# 顶色 B 230→180（#63a9e6→#63a9b4），只动 B、R/G 一分不动。最小探针
+	# （平色地面 + 复刻晴天 09:00 环境/太阳/总览机位，xvfb + llvmpipe）：
+	# 草地 #69B45D (96.4,177.7,120.7)→(96.4,177.7,101.5)，R/G 纹丝不动、
+	# B +26→+7.5（SPEC (105,180,94) ±15 全进）；回退地面 #4F9D43
+	# (77.1,157.5,100.6)→(77.1,157.5,83.6)。天空 (111,176,232)→
+	# (111,176,186)，仍是蓝色（B−G +10），未变青灰；B 再降到 170 时
+	# 天空 B≈G 已不像蓝天，故取 180 不再降。地平线/雾色由顶色派生，
+	# 同向跟降；太阳/雾密度/色调映射/地面材质一概不动。
+	var day := Color("#63a9b4")
 	var dusk := Color("#f6bd8a")
 	var sky_col := night.lerp(day, daylight)
 	var dusk_f: float = (1.0 - absf(sun_el - 0.16) / 0.24) if (sun_el > -0.05 and sun_el < 0.38) else 0.0
