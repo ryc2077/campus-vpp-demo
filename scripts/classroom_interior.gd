@@ -41,8 +41,38 @@ func _build() -> void:
 	if inst != null:
 		inst.name = "ClassroomGLB"
 		add_child(inst)
+		_add_fill_light()
 		return
 	_build_procedural()
+	_add_fill_light()
+
+# R2-T30 室内补光：两盏暖色聚光灯，水平对打南/北墙（BLENDER_MODELS.md §30）。
+# 只照室内：SpotLight3D 默认 spot_range=5m，灯在房间中心、锥角 120°，
+# 锥体基本不出南/北墙；且灯挂在 ClassroomInterior 下，内景在总览等场景
+# visible=false 时灯不渲染，室外灯光/草地不受影响（T7 五档 SPEC 不动）。
+# 参数是探针实测定案（Omni 会把已达标的西墙一起抬亮，不可用；见 §30）：
+# 位置 (0, 1.8, ±0.4)、朝向水平向外（沿 ±z）、色 #ffe0b3、能量 1.5、
+# 锥角 120°、衰减 1.0、无阴影。朝向用 rotation 定（Spot 默认沿 -z 出光，
+# 向南一盏转 180°），不用 look_at（内景在主场景里有全局位移，look_at
+# 的全局目标点在局部坐标下会指错方向）。
+const FILL_COLOR := Color("#ffe0b3")
+const FILL_ENERGY := 1.5
+const FILL_ANGLE := 120.0
+const FILL_HEIGHT := 1.8
+const FILL_ZOFF := 0.4
+
+func _add_fill_light() -> void:
+	for dir in [-1.0, 1.0]:
+		var sp := SpotLight3D.new()
+		sp.name = "FillSpotNorth" if dir < 0.0 else "FillSpotSouth"
+		sp.position = Vector3(0, FILL_HEIGHT, dir * FILL_ZOFF)
+		sp.rotation = Vector3(0, PI, 0) if dir > 0.0 else Vector3.ZERO
+		sp.light_color = FILL_COLOR
+		sp.light_energy = FILL_ENERGY
+		sp.spot_angle = FILL_ANGLE
+		sp.spot_attenuation = 1.0
+		sp.shadow_enabled = false
+		add_child(sp)
 
 func _build_procedural() -> void:
 	# 地面 / 天花
