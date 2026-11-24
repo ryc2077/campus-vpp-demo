@@ -620,6 +620,31 @@ bake_piece(piece_objs)
 
 # ---------- 存 .blend ----------
 os.makedirs(os.path.dirname(BLEND_PATH), exist_ok=True)
+# R2-T9 PBR hard fix (2026-11-24): baked maps on big faces were near-flat
+# (wall normal std ~0.5-3, asphalt color std ~4 in-tile, one 1024 texture
+# stretched over 40 m walls / 260 m roads) so everything rendered as flat
+# panels. Re-link real CC0 photo textures + world-scale UVs after the bake
+# step, before save/export. Idempotent; see _pbr_apply.py in this dir.
+_pbr_hook = os.path.join(os.path.dirname(BLEND_PATH), "_pbr_apply.py")
+if os.path.exists(_pbr_hook):
+    _pbr_g = {"__name__": "_pbr_apply", "__file__": _pbr_hook}
+    exec(compile(open(_pbr_hook).read(), _pbr_hook, "exec"), _pbr_g)
+    _pbr_g["apply_pbr"](os.path.splitext(os.path.basename(BLEND_PATH))[0])
+
+# R2-T9b pack fix (2026-11-25): pack images into the .blend so Actions
+# renders do not depend on external files (same fix as R2-T21a tower,
+# commit 77c73269: relative //../../external/... paths rendered pink in
+# run #99 when the texture files were not yet in the repo).
+for _im in list(bpy.data.images):
+    if _im.name in ("Render Result", "Viewer Node"):
+        continue
+    if _im.packed_file is None:
+        try:
+            _im.pack()
+            print("packed image:", _im.name, _im.size[:])
+        except Exception as e:
+            print("pack image skip:", _im.name, e)
+
 bpy.ops.wm.save_as_mainfile(filepath=BLEND_PATH)
 
 # ---------- 导出 .glb（只选本件对象） ----------

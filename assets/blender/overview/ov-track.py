@@ -440,6 +440,20 @@ for _im in bpy.data.images:
         print("PBR path fix:", _im.name, _fp, "->", _new)
         _im.filepath = _new
 
+# R2-T9b pack fix (2026-11-25): pack images into the .blend so Actions
+# renders do not depend on external files (same fix as R2-T21a tower,
+# commit 77c73269: relative //../../external/... paths rendered pink in
+# run #99 when the texture files were not yet in the repo).
+for _im in list(bpy.data.images):
+    if _im.name in ("Render Result", "Viewer Node"):
+        continue
+    if _im.packed_file is None:
+        try:
+            _im.pack()
+            print("packed image:", _im.name, _im.size[:])
+        except Exception as e:
+            print("pack image skip:", _im.name, e)
+
 # ---- save .blend ----
 os.makedirs(PY_DIR, exist_ok=True)
 os.makedirs(os.path.dirname(GLB_PATH), exist_ok=True)

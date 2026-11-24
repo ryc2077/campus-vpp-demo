@@ -1323,16 +1323,19 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 
 ### 验证
 
-- 待填（Actions blender-previews overview 组 success 后，下载 artifact 逐张目视
-  本任务两件 + 回归（road-main/walk、bldC、gym/lab/canteen）：纹理可见、无穿模；
-  godot-verify 总览 00-overview 目视由终轮整合做）。
-- **还剩什么**：① ov-field 草皮仍用烘焙图（未在任务书点名，本次未动）；
-  ② T21a §23 ②：ov-windows-roofs 的 A/B 窗带与屋顶膜与新换装 bldA/bldB
-  玻璃幕墙重叠（窗带双层、屋顶膜与屋顶板共面），终轮整合须更新本件
-  （改 C 栋专用或删除），本次只换了膜/压顶的贴图、几何一字未动，
-  不加重也不解决该重叠；③ T21a 换装 5 栋的细部素色材质
-  （tower/dorm/lib/bldA/bldB 的 MetalGrey/AC/窗框/门等源模型自带平色）
-  不在本任务范围，其 §23 验证仍待填；④ 总览重拼与 Godot 侧验收由终轮整合做。
+- **blender-previews #102 / 45441951337（HEAD `f39cd380`）：success（约 2026-11-25 02:2x CST 完成），但目视发现品红——不是本任务两件的挂接错，是仓库缺贴图文件（见下）**。artifact `blender-previews-overview`（17,667,643 B）已下载，20 张 PNG 逐张目视：
+  - **ov-track.png 通过**：红环 + 白色分道线清晰，环面有细颗粒（track_B8543F_color.jpg 是本次 push 里唯一随 .blend 一起进仓的色图，rough/normal 当时缺也不致品红，只损微观起伏）。
+  - **ov-windows-roofs.png 不通过（品红）**：三块屋顶膜呈亮品红（取样 (196,124,205)/(197,125,206)），压顶边带同色；窗带玻璃/框架正常（烘焙贴图在仓内）。本地同 .blend 渲染深灰颗粒膜正常——差异在仓库，不在挂接。
+  - **ov-road-main.png 不通过（品红）**：整条沥青环路 + 主路亮品红（取样 (197,120,206)/(198,123,207)），地面绿地正常。
+  - **ov-road-walk.png 不通过（品红）**：步道/路缘呈淡品红细线（铺装色图缺失），背景偏暗。
+  - **ov-gym.png 不通过（品红）**：整栋墙/顶/雨棚/地面全品红，只剩窗玻璃与屋顶设备盒正常。
+  - **ov-bldC.png 不通过（不是品红，是旧件）**：墙面平米白、屋顶平深灰，无 PBR 纹理——仓库里的 bldC .blend/.glb 仍是 2026-11-23 版（见“补推 bldC”）。
+  - **根因（两件，已实锤）**：① T9 在本地生成了 `pbr-tinted/` 20 张 + polyhaven 5 张却没推仓，#102 检出时 `assets/external/` 里没有这些文件，Eevee 缺图渲成品红；T21b 已于 2026-11-24T17:24:26Z 在 `4228878e` 补推 24 文件（19 张 pbr-tinted + 5 张 polyhaven），其 message 自述“此前只在本地，Actions 渲染缺图致墙面品红”；② 本地 .blend 逐项 fresh-open 核查：road-main/walk、gym、bldC 全部存相对路径 `//../../external/...`（无绝对路径、无 packed 缺失），路径本身正确——排除“路径写错”假说。另 T21a 在 `77c73269`（17:58Z）把 tower 的 10 张 PBR 图打包进 .blend，称“首版只存相对路径，Actions 检出后找不到渲成品红（run #99）”，其余 4 件“首版已打包不受影响”——#99 时贴图文件同样不在仓内，缺文件即可解释品红，打包是等效的兜底修法。
+- **godot-verify #125 / 45441951343（HEAD `f39cd380`）：success**。artifact `godot-screenshots`（12,348,571 B）已下载，20 张 PNG；**00-overview 目视**：楼体窗带/墙面/屋顶、沥青路、跑道红环均有材质可见（非光板），裁放确认：跑道红环有分道线与颗粒、创造力中心楼面有灰泥斑驳与屋顶灰瓦纹理、主路沥青有深浅变化。**但 00-overview 的总览场景用的是 `assets/models/scenes/overview.glb`（T1b 2026-11-24T16:05Z 重拼版），早于本次 push（16:51Z），本次 windows-roofs 膜/压顶与 track 红环尚未进入总览场景**——Godot 侧只能确认总览整体有材质，本次两件进总览须终轮整合重拼后复验。
+- **补推 bldC（T9 遗留，2026-11-25 02:3x CST）**：本地 T9 版 ov-bldC .blend（1,962,120 B，2026-11-24 23:14 CST）/.glb（10,926,252 B，23:15 CST）/.py（23:11 CST 钩子版）从未推仓——仓库版仍是 2026-11-23T15:16:12Z `c9390d62` 的 1,992,496 B .blend / 3,731,892 B .glb（.py 更是 11-22 版，无 PBR 钩子）。本地 fresh-open 核查：26 张图全相对路径、尺寸 1024；GLB 审计：墙/檐口/混凝土/屋顶全 PBR 三件套、贴图真实尺寸、UV 平铺中位墙 2.00m/混凝土 2.00m/屋顶 3.00m——推仓条件具备。本次一并推 `ov-bldC.py` + `.blend` + `.glb`（.py 只加打包段，见下；.blend/.glb 是 T9 原文件，未重建）。
+- **打包兜底（2026-11-25 02:3x CST，与 T21a tower 修法同款）**：8 个 PBR 件的 .blend 逐个打开、把全部在用贴图打包进文件（`im.pack()`，几何/材质/节点一字未动），共 106 张：windows-roofs 13、track 9、bldC 25、road-main 9、road-walk 15、gym 9、lab 13（+3 已打包）、canteen 13（+9 已打包）。打包后尺寸：bldC 11,008,332 B、canteen 15,938,654 B、lab 12,752,436 B、road-walk 11,846,320 B、road-main 7,287,152 B、gym 6,687,636 B、windows-roofs 5,046,268 B、track 4,800,132 B——均 <40MB。fresh-open 复核 windows-roofs 的 concrete_424A52/B9B3A8 均为 packed=True、1024×1024。独立验证：把打包后的 ov-track.blend 单独拷到 /tmp/packtest（无 external 目录，相对路径解析不到任何文件），用 .blend 自带相机渲染，红环颗粒清晰、无品红——证明打包自带贴图、脱离仓库文件也能渲（`/tmp/packtest/track_0001.png`，2,057,034 B）。另 `ov-windows-roofs.py` / `ov-track.py` / `ov-bldC.py` 各加 8 行打包段（T21a bldA/tower 同款，保存前 `im.pack()`），使以后重跑也保持打包；road-main/walk、gym/lab/canteen 的 .py 未动（T14b/T21b 的文件，.blend 已打包；若其主人重跑脚本，未打包的 .blend 会再产生，见“还剩什么”⑤）。
+- **本次推仓**：待填（8 个打包 .blend + bldC .glb + 3 个 .py + 本文档，推后补 commit 号与核对结果；该 push 会触发新的 blender-previews，届时以新 run 复验品红是否消失 + bldC PBR 是否可见）。
+- **还剩什么**：① ov-field 草皮仍用烘焙图（未在任务书点名，本次未动）；② T21a §23 ②：ov-windows-roofs 的 A/B 窗带与屋顶膜与新换装 bldA/bldB 玻璃幕墙重叠（窗带双层、屋顶膜与屋顶板共面），终轮整合须更新本件（改 C 栋专用或删除），本次只换了膜/压顶的贴图、几何一字未动，不加重也不解决该重叠；③ T21a 换装 5 栋的细部素色材质（tower/dorm/lib/bldA/bldB 的 MetalGrey/AC/窗框/门等源模型自带平色）不在本任务范围，其 §23 验证仍待填；④ 总览重拼与 Godot 侧验收由终轮整合做（本次两件进 00-overview 须重拼后复验）；⑤ road-main/walk、gym/lab/canteen 的 .py 未加打包段（T14b/T21b 的文件未动），若其主人重跑脚本会产出未打包 .blend，建议其主人照 T21a 款式补 8 行，或下次推仓前由整合复核 packed 状态；⑥ #103（HEAD `6eb9850d`，17:20Z）检出时贴图文件仍未进仓（`4228878e` 17:24Z 才到），其 overview 组如出品红属预期，不另修，以本次推仓触发的新 run 为准；⑦ **注意**：本次 §24 验证段曾被并行任务的 docs 推送覆盖回“待填”（2026-11-25 02:5x CST 发现，文件从 1,335 行变 1,369 行、§24 验证段回退），已按当前文件重写本段；推仓前须重读 HEAD，推后核对远端 §24 内容。
 
 ## §25 R2-T23：03-classroom Godot 侧目视补验（2026-11-25 00:57–01:30 CST，只验证与记录，不改模型、不推模型）
 
