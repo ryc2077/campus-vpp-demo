@@ -229,6 +229,27 @@ lib 24×16×22（6F）、gym 36×16×18、lab 42×12×13、tower 14×14×32、ca
 - `grass/tevy-wild-grass-clump.glb`、`grass/3dassets-tall-grass-clump.glb`：2 个 CC0 GLB（`file` + glTF JSON 头验证通过）。
 - 程序化保底草叶贴图：**未做**（已拿到真实下载素材，无需保底）。
 
+## 10. 链接核验注记（2026-11-24，R2-T16）
+
+> 核验方法：`curl -I -L`（UA 为浏览器）逐条验本文档全部链接；资产页与直链分开计；tevy / 3DAssets 直链另与本地文件逐字节比对（SHA-256）。
+> 结论：**死链 0 条**。本文档原有链接一条未改、一条未删；以下只记录核验结果。
+
+- 全部通过（200）：Poly Haven 9 个资产页 + 27 条直链；ambientCG 4 个资产页 + license 页 + 4 条 `get?file=` 直链；
+  tevy 4 个模型页（school-building / classroom / school-corridor-lockers / grass-clump）+ 直链；Grab3D 3 个资产页 + 3 条直链；
+  kit-predios 仓库页；Render a House 2 个博客页 + PNG ZIP + GLB/FBX 直链；3DAssets 高草丛资产页 + CDN 直链；
+  BlendSwap 5 条、Sketchfab 模型页、Open3DModel、itch.io 学校包、Meshy 标签页；Kenney / KayKit / Quaternius 方案页见 BLENDER_MODELS.md §14.6。
+- 瞬时失败、重试后 200（非死链）：`ambientcg.com/a/Grass004` 首次 000、重试 200；
+  `ambientcg.com/get?file=Grass004_1K-JPG.zip` 与 `WoodFloor051` 同款首次 000、重试 200。
+- 站方拦截、非死链（页面本身存在，保留原链接）：`staging.blenderkit.com` 资产页 curl 526/000，
+  但浏览器打开确认页面存在（Outdoor Split Air Conditioner，FREE，496 面，2.1 MiB，与 §3 记录一致）；
+  `blenderkit.com` 列表页与 `free3d.com` curl 403（反爬墙）；`cgtrader.com` 202（验证页）。
+  以上 4 处 curl 未能验证，不判定为死链，待浏览器复核。
+- 本次新定位（原只记站名、无单品页，现已逐字节验明，见 BLENDER_MODELS.md §17.5/§17.7）：
+  3DAssets 草 4 件（CDN 39457/3849/3848/3847）、tevy 新草 4 件（v1/lod0.glb）、3DAssets 研讨桌椅 2 件（CDN 34746/34749）。
+- 未进本文档的新批文件（`desks/`、`grass/` 新草、R2-T3 树方案）已记入 BLENDER_MODELS.md §17.5–§17.7；
+  其中 7 项单品页（Poly Pizza 4 件、3DAssets 桌椅 3 件）由同轮 R2-T2（本文档 §7）、R2-T11（本文档 §6）落地时补齐，
+  本任务对 7 条直链逐字节验明（SHA-256 与本地文件一致），**待补 0 项**。
+
 ## 7. 课桌椅模型 sourcing（R2-T2，2026-11-24 22:39–23:10 CST）
 
 > 背景：用户 2026-11-24 22:36 反馈桌椅建模还是不对，要求去网上找现成的桌椅 Blender 模型。

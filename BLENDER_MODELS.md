@@ -439,17 +439,18 @@
 - **配电房**：黄雾根因是暖米色墙（Wall_Cream 亮部 #D7C8A5）× F4 关阴影后漏进来的暖阳光 × 天顶 B 下调，非雾密度问题；`scripts/dist_interior.gd` 在 GLB 加载后复制墙/顶 7 个材质做冷色补偿（墙 0.88/0.90/1.15、顶 0.90/0.92/1.20），目标中性浅灰（#B9B3A8 系）。模型文件、data、weather/灯光全局一律未动（灯光由 R2-T7 另做）。
 - **验证**：本地无头 PASS=232 FAIL=0；CI run 与 00/05 目视结论待补（见 PROGRESS.md 同名一节）。
 
-## §14 外部素材来源总表（2026-11-24，R2-T16）
+## §17 外部素材来源总表（2026-11-24，R2-T16）
 
 > 本节补齐此前缺失的来源记录：此前 BLENDER_MODELS.md 只在 §3.4 提 tevy 名字、§3 提 blue_metal_plate 等贴图名、§10 提 grass-side-colour，
 > Poly Haven 9 套、ambientCG 4 套、Grab3D/kit-predios 楼体、Render a House 草的逐项链接全在 `assets/external/SOURCES.md` 里，不在本文档；
 > `desks/`、`grass/` 新批草、R2-T3 树来源则连 SOURCES.md 里也没有。本节是全库唯一逐项总表，逐项可查。
 > 核验（2026-11-24 23:0x CST，`curl -I -L`）：**死链 0 条**。核验分三档：● 直链与本地文件逐字节一致（SHA-256 比对）；
-> ○ 资产页＋直链均返回 200；△ 单品页未定位，写“待补”（不编链接）。首次 000 均属瞬时失败，重试后 200，见 SOURCES.md §7。
+> ○ 资产页＋直链均返回 200；△ 单品页未定位，写“待补”（不编链接）——本节 △ 现为 0 项（盘点时 7 项待补，同轮 R2-T2/R2-T11 落地时已补齐单品页，本任务逐字节验明）。
+> 首次 000 均属瞬时失败，重试后 200，见 SOURCES.md §10。
 > 授权总则：除特别注明外，本节全部素材为 **CC0 1.0**（可自由改、商用、无需署名）；Render a House 另有“禁转售/禁并入模型库再分发”限制；
 > Poly Pizza 逐模型分 CC0 或 CC-BY，需逐项确认（见表内 △ 项）。
 
-### 14.1 PBR 贴图：Poly Haven 9 套（SOURCES.md §1.1，全 ○）
+### 17.1 PBR 贴图：Poly Haven 9 套（SOURCES.md §1.1，全 ○）
 
 直链格式：`https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/<slug>/<slug>_<diff|rough|nor_gl>_1k.jpg`；
 资产页：`https://polyhaven.com/a/<slug>`。每套 3 张（diff=baseColor、rough、nor_gl=OpenGL 法线），1024×1024。
@@ -468,7 +469,7 @@
 
 另：Poly Haven 草丛模型 Grass Medium 01（https://polyhaven.com/a/grass_medium_01，CC0）**未下载**——资产页 200，但直链多种格式均 404，`api.polyhaven.org` 本机 522/403，见 SOURCES.md §3。
 
-### 14.2 PBR 贴图：ambientCG 4 套（SOURCES.md §1.2，全 ○）
+### 17.2 PBR 贴图：ambientCG 4 套（SOURCES.md §1.2，全 ○）
 
 直链格式：`https://ambientcg.com/get?file=<AssetID>_1K-JPG.zip`（302 跳转）；资产页：`https://ambientcg.com/a/<AssetID>`；
 授权依据：https://ambientcg.com/license（全站 CC0 1.0）。`*_Color.jpg`=baseColor、`*_Roughness.jpg`、`*_NormalGL.jpg`（另有 NormalDX 备用，勿混用）。
@@ -480,7 +481,7 @@
 | Plaster001 | 外墙灰泥备用（与 white_stucco 二选一，未挂载） | https://ambientcg.com/a/Plaster001 | CC0 |
 | Concrete034 | 混凝土备用（与 concrete_wall_007 二选一，未挂载；1024×512） | https://ambientcg.com/a/Concrete034 | CC0 |
 
-### 14.3 教学楼 / 教室模型（SOURCES.md §5，全 ○；整栋均不直接采用，见 SOURCES.md §5.2）
+### 17.3 教学楼 / 教室模型（SOURCES.md §5“教学楼 / 教室模型”，全 ○；整栋均不直接采用，见 SOURCES.md §5.2）
 
 | 模型（本地文件） | 用途（件） | 资产页 | 直链 | 授权 |
 |---|---|---|---|---|
@@ -496,7 +497,7 @@
 注意：Grab3D 的 3 个 `.blend`（同目录）**全部是同一个 67,137 字节占位文件，不可用**，用同目录 `.glb`（见 SOURCES.md §5.3）。
 tevy 的 `.glb` 用 `EXT_meshopt_compression` 压缩，Blender 4.2 自带导入器打不开，先用 gltf-transform 去压缩（见 SOURCES.md §5.3）。
 
-### 14.4 草：草叶 alpha 贴图与草丛模型（SOURCES.md §5，全 ○；用途 ov-lawn）
+### 17.4 草：草叶 alpha 贴图与草丛模型（SOURCES.md §5“草补找”，全 ○；用途 ov-lawn）
 
 | 素材（本地文件） | 用途 | 资产页 | 直链 | 授权 |
 |---|---|---|---|---|
@@ -505,7 +506,7 @@ tevy 的 `.glb` 用 `EXT_meshopt_compression` 压缩，Blender 4.2 自带导入�
 | tevy 野草丛 `grass/tevy-wild-grass-clump.glb` | ov-lawn 自然野草丛点缀（0.6m，带贴图） | https://tevy.dev/models/grass-clump | https://tevy.dev/models/grass-clump/v1/lod0.glb | CC0 |
 | 3DAssets 高草丛 `grass/3dassets-tall-grass-clump.glb` | ov-lawn 高草丛点缀（1m，纯色，染色后混用） | https://3dassets.dev/assets/wipe-day-survival-island-tall-grass-clump-99fa2311 | https://cdn.3dassets.dev/assets/27439/v1/model.glb | CC0 |
 
-### 14.5 草：R2-T11 草重铺候选新批（2026-11-24 落盘，SOURCES.md 未收录；R2-T11 施工中，尚未铺入 ov-lawn）
+### 17.5 草：R2-T11 草重铺候选新批（2026-11-24 落盘，已由同轮 R2-T11 记入 SOURCES.md §6；R2-T11 施工中，尚未铺入 ov-lawn）
 
 | 素材（本地文件） | 资产页 | 直链 | 授权 | 核验 |
 |---|---|---|---|---|
@@ -517,15 +518,15 @@ tevy 的 `.glb` 用 `EXT_meshopt_compression` 压缩，Blender 4.2 自带导入�
 | tevy 草甸草块 `grass/tevy/tevy-meadow-grass-patch.glb`（另有 lod1/lod2 及 `-decoded` 版） | https://tevy.dev/models/meadow-grass-patch | https://tevy.dev/models/meadow-grass-patch/v1/lod0.glb | CC0 | ● 与本地逐字节一致 |
 | tevy 红燕麦草丛 `grass/tevy/tevy-red-oat-grass-clump.glb`（另有 lod1/lod2 及 `-decoded` 版） | https://tevy.dev/models/red-oat-grass-clump | https://tevy.dev/models/red-oat-grass-clump/v1/lod0.glb | CC0 | ● 与本地逐字节一致 |
 | tevy 茅草簇 `grass/tevy/tevy-thatching-grass-tussock.glb`（另有 `-decoded.glb` 解压版） | https://tevy.dev/models/thatching-grass-tussock | https://tevy.dev/models/thatching-grass-tussock/v1/lod0.glb | CC0 | ● 与本地逐字节一致 |
-| Poly Pizza 高草 `grass/poly-pizza/quaternius-grass-tall.glb`（mesh `Grass_Common_Short`） | 待补 | 待补 | 待补（Poly Pizza 逐模型 CC0 或 CC-BY，须逐项确认） | △ |
-| Poly Pizza 草簇 `grass/poly-pizza/quaternius-grass-tufts.glb`（mesh `Grass_Large_Extruded`、`Grass_Small`） | 待补 | 待补 | 待补（同上） | △ |
+| Poly Pizza 高草 `grass/poly-pizza/quaternius-grass-tall.glb`（mesh `Grass_Common_Short`） | https://poly.pizza/m/vUJjrRsFp4 | https://static.poly.pizza/0a84d74b-eb09-4794-ad58-dd10eed6b11e.glb | CC0（Quaternius，页内 "CC0 1.0"） | ● 与本地逐字节一致 |
+| Poly Pizza 草簇 `grass/poly-pizza/quaternius-grass-tufts.glb`（mesh `Grass_Large_Extruded`、`Grass_Small`） | https://poly.pizza/m/UGTOzcO3P2 | https://static.poly.pizza/99357ca2-6364-4990-8d4c-9bc5a1a5e859.glb | CC0（Quaternius，页内 "CC0 1.0"） | ● 与本地逐字节一致 |
 
 注：tevy 新草 4 件的本地文件与直链逐字节一致的 SHA-256 前 16 位：lawn-tufts `97cc610a0fe67957`、
 meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`、thatching-grass-tussock `29981ada7cd8dd39`。
 3DAssets 4 件直链 CDN ID 与本地逐字节一致（dune 39457、purple 3849、wood 3848、tufted 3847）。
 `grass/tevy/` 内 `-decoded.glb` 为 meshopt 解压后的同模型副本，无独立来源。
 
-### 14.6 树：R2-T3 绿化方案来源（GREEN_PLAN.md §3.1；方案已定，模型文件尚未下载，R2-T15 施工中）
+### 17.6 树：R2-T3 绿化方案来源（GREEN_PLAN.md §3.1；方案已定，模型文件尚未下载，R2-T15 施工中）
 
 | 来源 | 用途（ov-trees，473 棵计划） | 链接 | 授权 | 核验 |
 |---|---|---|---|---|
@@ -536,20 +537,20 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 | Sketchfab CC0 区 | 备用：筛选 Downloadable + CC0 的树模型，逐模型确认授权页为 CC0 | https://sketchfab.com | 按单个模型，仅 CC0 可用 | ○ 首页 200 |
 | Poly Haven 树木 | **禁用**：授权是 CC0，但扫描模型面数极大（Fir Tree 01 约 700 万 tris、Pine Tree 01 约 1,700 万 tris），总览用不上 | https://polyhaven.com/models | CC0 1.0（但不用） | ○ 页面 200 |
 
-### 14.7 桌椅：R2-T2 换装候选（2026-11-24 落盘，SOURCES.md 未收录；R2-T2 sourcing 在跑，尚未换入 cl-desks）
+### 17.7 桌椅：R2-T2 换装候选（2026-11-24 落盘，已由同轮 R2-T2 记入 SOURCES.md §7；尚未换入 cl-desks）
 
 | 素材（本地文件） | 资产页 | 直链 | 授权 | 核验 |
 |---|---|---|---|---|
 | Kenney 椅 `desks/kenney/chair.glb`、桌 `desks/kenney/desk.glb`、椅桌一体 `desks/kenney/chair-desk.glb` | https://kenney.nl/assets/furniture-kit | 套件 ZIP 在 `desks/kenney/furniture-kit.zip`（本地 GLB 由套件转换，UniGLTF 生成） | CC0（随包 `LICENSE-kenney.txt`：Furniture Kit 2.0，kenney.nl） | ○ 页面经浏览器打开确认存在且标 CC0（curl 403 系站方反爬） |
 | 3DAssets 研讨桌 `desks/3dassets/seminar-table.glb`（Seminar Room Table，1.8m） | https://3dassets.dev/assets/university-lecture-hall-and-campus-seminar-table-1c6ce71f | https://cdn.3dassets.dev/assets/34746/v1/model.glb | CC0 | ● 与本地逐字节一致 |
 | 3DAssets 研讨椅 `desks/3dassets/seminar-chair.glb`（Stacking Seminar Chair，mesh `stackable-chair`） | https://3dassets.dev/assets/university-lecture-hall-and-campus-stackable-chair-cb3333fb | https://cdn.3dassets.dev/assets/34749/v1/model.glb | CC0 | ● 与本地逐字节一致 |
-| 3DAssets 1400 桌 `desks/3dassets/desk-1400.glb` | 待补 | 待补 | 待补（站内件，生成器 `3dassets.dev ingest`，全站 CC0；单品页未定位） | △ |
-| 3DAssets 学生椅 `desks/3dassets/student-chair.glb` | 待补 | 待补 | 待补（同上） | △ |
-| 3DAssets 学生桌 `desks/3dassets/student-desk.glb` | 待补 | 待补 | 待补（同上） | △ |
-| Poly Pizza 椅 `desks/polypizza/quaternius-chair.glb`（mesh `Chair_1`） | 待补 | 待补 | 待补（Poly Pizza 逐模型 CC0 或 CC-BY，须逐项确认） | △ |
-| Poly Pizza 桌 `desks/polypizza/quaternius-desk.glb`（mesh `Desk_Drawer1-4`） | 待补 | 待补 | 待补（同上） | △ |
+| 3DAssets 1400 桌 `desks/3dassets/desk-1400.glb`（Computers and Desk Gadgets 系列，1.40×0.70m 板脚办公桌，备选） | https://3dassets.dev/assets/computers-and-desk-gadgets-desk-1400-c38edf1c | https://cdn.3dassets.dev/assets/38859/v1/model.glb | CC0 | ● 与本地逐字节一致 |
+| 3DAssets 学生椅 `desks/3dassets/student-chair.glb`（Japanese School and City Street 系列，**选定**，见 SOURCES.md §7.1） | https://3dassets.dev/assets/japanese-school-and-city-street-student-chair-826ccbf4 | https://cdn.3dassets.dev/assets/30083/v1/model.glb | CC0 | ● 与本地逐字节一致 |
+| 3DAssets 学生桌 `desks/3dassets/student-desk.glb`（Japanese School and City Street 系列，**选定**，见 SOURCES.md §7.1） | https://3dassets.dev/assets/japanese-school-and-city-street-student-desk-9e5d008a | https://cdn.3dassets.dev/assets/30081/v1/model.glb | CC0 | ● 与本地逐字节一致 |
+| Poly Pizza 椅 `desks/polypizza/quaternius-chair.glb`（mesh `Chair_1`，约 2 倍比例尺木餐椅，不选） | https://poly.pizza/m/iMNqRzPwwe | https://static.poly.pizza/84ecc6a3-2751-4f50-912a-b9f4ff033d7a.glb | CC0（Quaternius，页内 "CC0 1.0"） | ● 与本地逐字节一致 |
+| Poly Pizza 桌 `desks/polypizza/quaternius-desk.glb`（mesh `Desk_Drawer1-4`，古董办公桌，不选） | https://poly.pizza/m/V86Go2rlnq | https://static.poly.pizza/91c2bf8d-0876-4801-abd3-8dd5d017ecbd.glb | CC0（Quaternius，页内 "CC0 1.0"） | ● 与本地逐字节一致 |
 
-### 14.8 未采用的参考源（未下载，仅作记录，避免后人重复找；见 SOURCES.md §3/§6）
+### 17.8 未采用的参考源（未下载，仅作记录，避免后人重复找；见 SOURCES.md §3 及 §6 原版“教学楼模型：试过没成的渠道”）
 
 | 渠道 | 结果 | 参考链接 |
 |---|---|---|
@@ -560,22 +561,23 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 | itch.io Low Poly Library & School Pack | 未下载（须走 itch 购买页） | https://reodesuxz.itch.io/low-poly-library-school-pack |
 | Meshy.ai Classroom / University 模型库 | 未下载（须注册，AI 生成、质量未验证） | https://www.meshy.ai/tags/classroom |
 
-### 14.9 本轮盘点结论（R2-T16 缺失清单结账）
+### 17.9 本轮盘点结论（R2-T16 缺失清单结账）
 
-- A 类（只有名字、BLENDER_MODELS 无链接；SOURCES.md 有）：Poly Haven 9 套、ambientCG 4 套、tevy 教室 3 件、Grab3D 3 件、kit-predios 2 件、Render a House 草 2 组、tevy 野草丛、3DAssets 高草丛——本节已全部补上（§14.1–14.4，共 25 项）。
-- B 类（SOURCES.md 有、BLENDER_MODELS 完全没提）：同 A 类中的 Grab3D/kit-predios/ambientCG 备用套 + §14.8 未采用参考源——本节已补上。
-- C 类（只有名字、连 SOURCES.md 也没有）：desks/ 10 件、grass/ 新批 10 件、R2-T3 树 6 项——本节已补上（§14.5–14.7），其中 12 项已核实（● 9 项：3dassets 草 4、tevy 草 4、3dassets 桌椅 2；○ 3 项：树方案 3 项为方案页）、7 项待补（△：Poly Pizza 草 2 + 桌椅 2、3DAssets 桌椅 3）。
-- 本节新增有据可查项 51 项（含 §14.8 参考链接 9 组）；待补 7 项，见下 §14.10。
-- 本次核验死链 0 条；SOURCES.md 同步修正见其 §7（仅加核验注记，未改原有链接）。
+- A 类（只有名字、BLENDER_MODELS 无链接；SOURCES.md 有）：Poly Haven 9 套、ambientCG 4 套、tevy 教室 3 件、Grab3D 3 件、kit-predios 2 件、Render a House 草 2 组、tevy 野草丛、3DAssets 高草丛——本节已全部补上（§17.1–17.4，共 25 项）。
+- B 类（SOURCES.md 有、BLENDER_MODELS 完全没提）：同 A 类中的 Grab3D/kit-predios/ambientCG 备用套 + §17.8 未采用参考源——本节已补上。
+- C 类（盘点时只有名字、连 SOURCES.md 也没有）：desks/ 8 行、grass/ 新批 10 行、R2-T3 树 6 行，共 24 行——本节已补上（§17.5–17.7）。
+  盘点时其中 7 行单品页待补（Poly Pizza 草 2 + 桌椅 2、3DAssets 桌椅 3）；同轮 R2-T2（SOURCES.md §7）与 R2-T11（SOURCES.md §6）
+  落地时已补齐这 7 个单品页，本任务对 7 条直链逐字节验明（SHA-256 与本地文件一致），**待补现为 0 项**。
+  C 类核验：● 17 行（直链与本地逐字节一致）、○ 7 行（Kenney 桌椅套件 1 行 + 树方案 6 行，方案页/套件页 200）。
+- 本节新增有据可查项 49 项（§17.1–17.7）+ §17.8 参考链接 9 组；待补 0 项。
+- 本次核验死链 0 条；SOURCES.md 同步修正见其 §10（仅加核验注记，未改原有链接）。
 
-### 14.10 还剩什么（待补 7 项）
+### 17.10 还剩什么（待补 0 项）
 
-1. Poly Pizza 4 项逐项页链接 + 逐项授权确认（`grass/poly-pizza/` 2 件、`desks/polypizza/` 2 件）：目录名只说明来自 Poly Pizza（poly.pizza，Quaternius 模型聚合站），
-   站内逐模型分 CC0 或 CC-BY，mesh 名搜索未定位单品页；在 R2-T2/R2-T11 换装前须逐项确认，CC-BY 的须署名或弃用。
-2. 3DAssets 桌椅 3 项单品页链接（`desks/3dassets/desk-1400.glb`、`student-chair.glb`、`student-desk.glb`）：
-   文件生成器为 `3dassets.dev ingest`，全站 CC0，但站内搜索与关键词搜索均未定位单品页，资产页 + CDN 直链待补。
-3. R2-T3 树模型文件尚未下载（Kenney/KayKit/Quaternius）：本节只有方案页链接；R2-T15 施工下载落盘后，须在 SOURCES.md 补逐项下载记录。
-4. §14.5–14.7 的新批文件（desks/、grass/ 新草）尚未回填进 SOURCES.md：待 R2-T2/R2-T11 sourcing 完工后由对应任务回填，本任务只改 BLENDER_MODELS.md + SOURCES.md 核验注记，不代填。
+1. R2-T3 树模型文件尚未下载（Kenney/KayKit/Quaternius）：本节只有方案页链接；R2-T15 施工下载落盘后，须在 SOURCES.md 补逐项下载记录。
+2. 本文档编号重叠（非本节内容问题，留待后续整理）：同轮 R2-T2 与 R2-T11 各写了一个“§14”（课桌椅 / 草第二轮），
+   R2-T8 写了“§16”、R2-T12 写了“§15”，顺序颠倒；本任务只把自己一节编号为 §17（空闲号），未动他人小节标题。
+   SOURCES.md 同样存在两个“§6”与两个“§7”（原版 + R2-T11/R2-T2 新节），本任务的核验注记编号为 §10（空闲号）。
 
 ## §14 课桌椅网上模型 sourcing（R2-T2，2026-11-24 22:39–23:10 CST）
 
