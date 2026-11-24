@@ -171,27 +171,31 @@ def cylinder(name, loc, radius, depth, mat, quat=None, rot_euler=None):
     return o
 
 
-# ---------- 黑板: 3.6(y) x 1.2(高) m, 中心 (-4.80, 0, 1.6), 厚 0.04 ----------
-box("Blackboard", (-4.80, 0, 1.6), (0.04, 3.6, 1.2), MAT_BOARD)
+# ---------- 黑板: 3.6(y) x 1.2(高) m, 中心 (-4.782, 0, 1.6), 厚 0.04 ----------
+# R2-T22 (2026-11-25): 黑板组整体 +x 0.018m 移出西墙——旧中心 -4.80 时板盒
+# x[-4.82,-4.78] 埋进西墙内面 (-4.765) 15mm，板面在 Godot 里与墙同色、只剩框
+# faint 可见；现板盒 x[-4.802,-4.762]，板面露出墙面 3mm、背面仍在墙内，
+# 框/粉笔槽/粉笔/板擦同量平移，相对位置与尺寸一字未动。展示板未动（另案）。
+box("Blackboard", (-4.782, 0, 1.6), (0.04, 3.6, 1.2), MAT_BOARD)
 
 # 银灰边框 (框条略凸出板面)
-box("BoardFrameTop", (-4.79, 0, 2.23), (0.05, 3.72, 0.06), MAT_FRAME)
-box("BoardFrameBottom", (-4.79, 0, 0.97), (0.05, 3.72, 0.06), MAT_FRAME)
-box("BoardFrameLeft", (-4.79, -1.83, 1.6), (0.05, 0.06, 1.32), MAT_FRAME)
-box("BoardFrameRight", (-4.79, 1.83, 1.6), (0.05, 0.06, 1.32), MAT_FRAME)
+box("BoardFrameTop", (-4.772, 0, 2.23), (0.05, 3.72, 0.06), MAT_FRAME)
+box("BoardFrameBottom", (-4.772, 0, 0.97), (0.05, 3.72, 0.06), MAT_FRAME)
+box("BoardFrameLeft", (-4.772, -1.83, 1.6), (0.05, 0.06, 1.32), MAT_FRAME)
+box("BoardFrameRight", (-4.772, 1.83, 1.6), (0.05, 0.06, 1.32), MAT_FRAME)
 
 # 底部粉笔槽: 托板 + 前沿小唇, 槽深约 0.05m
-box("ChalkTray", (-4.78, 0, 0.99), (0.08, 3.6, 0.02), MAT_FRAME)
-box("ChalkTrayLip", (-4.745, 0, 1.005), (0.02, 3.6, 0.045), MAT_FRAME)
+box("ChalkTray", (-4.762, 0, 0.99), (0.08, 3.6, 0.02), MAT_FRAME)
+box("ChalkTrayLip", (-4.727, 0, 1.005), (0.02, 3.6, 0.045), MAT_FRAME)
 # 槽里粉笔: 两支白 + 一支蓝 + 一支短的断粉笔
 for i, (y, mat, length) in enumerate((
         (-0.8, MAT_CHALK, 0.09), (0.8, MAT_CHALK, 0.09),
         (1.25, MAT_CHALK_BLUE, 0.09), (1.55, MAT_CHALK, 0.045))):
     q = Vector((0.0, 1.0, 0.0)).to_track_quat("Z", "Y")
-    cylinder("Chalk%d" % i, (-4.76, y, 1.012), 0.008, length, mat, quat=q)
+    cylinder("Chalk%d" % i, (-4.742, y, 1.012), 0.008, length, mat, quat=q)
 # 板擦: 放在粉笔槽右段, 木托 + 黑毛毡底
-box("EraserFelt", (-4.76, -1.45, 1.008), (0.05, 0.17, 0.012), MAT_ERASER_FELT)
-box("EraserWood", (-4.76, -1.45, 1.02), (0.045, 0.16, 0.022), MAT_ERASER_WOOD, bevel=0.004)
+box("EraserFelt", (-4.742, -1.45, 1.008), (0.05, 0.17, 0.012), MAT_ERASER_FELT)
+box("EraserWood", (-4.742, -1.45, 1.02), (0.045, 0.16, 0.022), MAT_ERASER_WOOD, bevel=0.004)
 
 # ---------- 展示板: 黑板左右各一, 1.2 x 1.2m, 浅灰 ----------
 for side, y in (("Left", -2.55), ("Right", 2.55)):

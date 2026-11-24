@@ -1026,3 +1026,13 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
   终轮整合做）。
 - **还剩什么**：tower/dorm/lib/bldA/bldB 换装（R2-T21a 另做）；总览重拼与 Godot
   侧验收由终轮整合做；旧 `ov-gym/lab/canteen_textures/` 烘焙图已无引用，待清理。
+
+## §22 R2-T22 教室黑板盒埋墙修复（2026-11-25，只改 cl-board.py + 教室场景重拼）
+
+- **问题**：`assets/blender/classroom/cl-board.py` 的 Blackboard 盒中心 x=-4.80、厚 0.04（x[-4.82,-4.78]），西墙内面 x=-4.765，板面埋进墙内 15mm；run #107 的 03-classroom 里黑板面与墙同色，只剩框/粉笔槽 faint 可见（R2-T17 §18 遗留②）。
+- **修法**：只改 cl-board.py，黑板组整体沿 +x 平移 0.018m（黑板尺寸、墙一字未动）：Blackboard 中心 -4.80→-4.782（盒 x[-4.802,-4.762]，板面露出墙面 3mm、背面仍在墙内）；4 条银灰框 -4.79→-4.772（框面 -4.747，原与墙面齐平 -4.765、易 z-fight）；粉笔槽 -4.78→-4.762、槽唇 -4.745→-4.727、4 支粉笔与板擦 -4.76→-4.742；相对位置与尺寸全未动。展示板（WhiteBoard，板面 -4.80）同样埋墙，但需 +35mm 以上才露出、属另一处，未动，见还剩什么。
+- **重建**：重跑 cl-board.py（`assets/blender/classroom/cl-board-r2t22.log`），`DONE cl-board`，零 Error/Traceback；GLB 回读 39 对象（与 R2-T17 相同），GLB 内实测 Blackboard x[-4.802,-4.762]、BoardFrameTop x[-4.797,-4.747]、ChalkTray x[-4.802,-4.722]；cl-board.glb 12,450,368 B（改前 12,450,364 B）、cl-board.blend 1,874,776 B。
+- **场景重拼**：classroom.py 未改，重跑重拼（`assets/blender/scenes/classroom-r2t22.log`），`DONE classroom`，零 Error/Traceback；回读 440 对象（73+96+39+58+54+120，与 R2-T17 一致），门洞 clear（后排椅 y 列 ±0.8/1.8/2.8），board/desk 包围盒 x[-4.802,-3.690]；classroom.blend 5,465,640 B、classroom.glb 19,090,632 B。
+- **推仓**：待填（推后补 commit 号与核对结果）。
+- **验证**：待填（blender-previews classroom 组 + godot-verify run 号与目视结论）。
+- **还剩什么**：① 展示板 WhiteBoard/WhiteBoardBack（板面 x=-4.80）仍埋在西墙内 35mm，Godot 里不可见，属 cl-board.py 内同类问题、需另立任务修（移出量 ≥35mm）；② 03-classroom 的 Godot 侧目视须等 R2-T19 的 S4 车顶 SOC 条修好、某次 godot-verify 全绿出图后再补（见验证）。
