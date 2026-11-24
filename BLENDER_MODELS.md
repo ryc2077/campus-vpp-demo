@@ -410,8 +410,8 @@
   - **重建（Blender 4.2.0，`st-fence-r2t20-20261124.log`）**：`st-fence.py` 重跑，立柱 13 根、竖条 125 根、本件对象仍 36，GLB 回读 36，日志零 Error/Traceback；`Fence_Posts` 包围盒实测 (8.08, 3.08, 1.8)m（x[59.96,68.04] y[28.46,31.54]，立柱 0.08 宽）；新件 st-fence.blend 1,211,208 B、st-fence.glb 552,460 B（旧 565,804 B，少 4 根立柱所致）。
   - **重拼（`storage-scene-r2t20-20261124.log`）**：`scenes/storage.py` 未改，重跑 append cabinet 83 / doors 52 / cables 64 / base 32 / fence 36 + 拼装壳体/屋顶 2 = **269 对象**，回读 269，日志零 Error/Traceback；新场景 storage.blend 11,883,543 B、storage.glb 8,610,616 B（旧 8,623,960 B）。
   - **推送**：commit `587007d9`（父 `f5b6e03f`，2026-11-24T15:3xZ），6 文件一次提交：st-fence .py/.blend/.glb + storage .blend/.glb + 本文档；推后核对：commit 文件清单 6 项齐全，contents 核对 st-fence.glb 552,460 B / `1a93bbad`、st-fence.blend 1,211,208 B / `308f9de9`、storage.glb 8,610,616 B / `11499441`、storage.blend 11,883,543 B / `ca82cc60`，均与本地一致。
-  - **验证（Blender）**：（待填）
-  - **验证（Godot）**：（待填）
+  - **验证（Blender）**：blender-previews run **#88 / 45426566158**（push 触发，HEAD `587007d9`）：render (storage) 组 completed/**success**；artifact blender-previews-storage 5 张 1280×720 齐全，逐张目视 st-fence.png：围栏五段 + 黄牌 + 编号牌齐全，4 台示意柜锈蚀纹理、地面混凝土噪波正常；东侧再无孤立杆（旧 (68.75,28.5) 与 (68,32.5) 已无），北侧无出角立柱，南门洞正中无立柱、门洞畅通。注：run #88 整体截至本条写入时仍在跑（其余组 in_progress），与本任务无关。
+  - **验证（Godot）**：godot-verify run **#109 / 45426566166**（push 触发，HEAD `587007d9`），completed/**success**，单 job verify-export 全绿；artifact godot-screenshots 18 张全部下载，逐张目视 02-storage 与 10-storage-discharge-closeup：02——4 台柜 + 三面围栏 + 半透明壳体 + 屋顶板齐全，南门洞留空、黄色“高压危险”主牌在门洞东侧立杆上，东侧围栏到角点结束、无孤立杆；10 近景——南面围栏立柱间距均匀、双横杆/竖条密排、无孤立杆；与旧 run #106 逐像素对比：02 mean|diff|=0.36、10 mean|diff|=2.00，差异集中在两处——差分热力图上两道整根立柱高的红色条带，一道在旧 (62,28.5) 柱位（西移 0.375m 至 61.625），一道正在门洞正中旧 (64,28.5) stray 位（已拔除），其余为能量流光点相位噪声；无回归。
 
 ## §10 总览大文件瘦身入仓（2026-11-23 11:39–12:00 CST，瘦身任务 8bb03134）
 
@@ -897,7 +897,10 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 - **推仓**：5 批 push-files，48 个文件一次未超 40MB 单 blob（最大单文件 4,789,136 B）：
   Kenney `f16a77d6`（20 文件）、vinish `27ac65e6`（6 文件）、Grab3D `b58612df`（11 文件）、
   tevy `4ebc7ea0`（2 文件）、poly.pizza `a81ebbdc`（9 文件）；两份文档随第 6 批推，
-  commit 待填（推后核对 HEAD 与 blob SHA）。
+  commit `1e0cdb93`（`1e0cdb9352128abadc8997e79b0d16930dbd7d29`，父 `a81ebbdc`）。
+  推后核对：HEAD 即 `1e0cdb93`；contents API 逐目录核对 48 个文件大小与本地逐项一致
+  （kenney/glb 19/19、vinish 6/6、grab3d 11/11、tevy 2/2、polypizza 9/9、zip 1/1），
+  SOURCES.md 119,546 B 一致；本段为补记 docs commit 的 follow-up 提交，见下。
 - **验证**：待填（换装任务不在本轮；本轮只核验了文件可导入与尺寸/面数，未做换装后渲染）。
 - **还剩什么**：换装待下一波任务——tower/dorm/lib 直接换、bldA/bldB 换骨架+重排窗带、
   bldC 沿用旧件、gym/lab/canteen 量体重建+偷部件；Godot 侧总览重刷与目视由终轮整合做。
