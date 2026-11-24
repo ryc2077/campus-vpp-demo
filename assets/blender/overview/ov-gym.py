@@ -1,3 +1,9 @@
+# R2-T21b (2026-11-25): 量体重建+偷件换装版。量体/位置/层高一字未动
+# (SPEC §4: 36x16x18m 3F, 中心 (-70,60)); 窗带/屋顶设备/台阶/玻璃正门保留。
+# 偷件 (SOURCES.md §12): 南立面入口雨棚+双柱改为 tevy 医院楼 `entrances`
+# mesh 裁出的主雨棚 (hospital-building-tevy-plain.glb, CC0); vinish 超市
+# 只作量体参考 (36m 宽+平屋顶与本件一致, 单 mesh 不可拆, 未偷件)。
+# 材质: 烘焙取消, 改 PBR 直挂; 红墙 #8E2F28 + 深灰屋顶 #424A52 不变。
 # ov-gym v2: 艺体馆楼体 (overview) — 返工版
 # 36(x) x 16(y) x 18(z) m, 3 层, 中心 Blender (-70, 60, 0)
 # 红墙 #8E2F28 + 深灰屋顶 #424A52 + 女儿墙, 带简单窗带
@@ -253,6 +259,48 @@ def make_glass_mat():
     return m
 MAT_GLASS = make_glass_mat()
 
+# ---------- R2-T21b (2026-11-25): 偷件帮手 + PBR 直挂 ----------
+# _steal.py: 网上模型裁件/放置 (import_crop/place/dup_place)。
+# PBR 直挂 (替代 Cycles 烘焙): 给 _pbr_apply.PBR_MAP 里的材质直接链真实 CC0
+# 照片贴图 (与 _pbr_apply.SETS 同源); 随后 _pbr_hook 会把同一批图再 swap
+# 一次 (同文件, 幂等) 并按世界尺寸重投 UV。程序化 Brick/Noise 节点保留在
+# 节点树里但不再连到 Principled 输入, 不参与导出。
+_STEAL = {"__name__": "_steal"}
+_steal_path = os.path.join(os.path.dirname(BLEND_PATH), "_steal.py")
+_STEAL["__file__"] = _steal_path
+exec(compile(open(_steal_path).read(), _steal_path, "exec"), _STEAL)
+_PBR_G = {"__name__": "_pbr_apply"}
+_pbr_apply_path = os.path.join(os.path.dirname(BLEND_PATH), "_pbr_apply.py")
+_PBR_G["__file__"] = _pbr_apply_path
+_PBR_G["BLEND_PATH"] = BLEND_PATH  # R2-T21b: 让 _load 存 blend 相对路径
+exec(compile(open(_pbr_apply_path).read(), _pbr_apply_path, "exec"), _PBR_G)
+
+def _pbr_link_direct(mat_name, set_key):
+    mat = bpy.data.materials.get(mat_name)
+    if mat is None:
+        print("PBR-direct: material missing", mat_name)
+        return
+    color_f, rough_f, normal_f = _PBR_G["SETS"][set_key][:3]
+    nt = mat.node_tree
+    bsdf = nt.nodes.get("Principled BSDF")
+    assert bsdf is not None, "no Principled BSDF in %s" % mat_name
+    tex_c = nt.nodes.new("ShaderNodeTexImage")
+    tex_c.image = _PBR_G["_load"](color_f, 'sRGB')
+    nt.links.new(tex_c.outputs["Color"], bsdf.inputs["Base Color"])
+    tex_r = nt.nodes.new("ShaderNodeTexImage")
+    tex_r.image = _PBR_G["_load"](rough_f, 'Non-Color')
+    nt.links.new(tex_r.outputs["Color"], bsdf.inputs["Roughness"])
+    tex_n = nt.nodes.new("ShaderNodeTexImage")
+    tex_n.image = _PBR_G["_load"](normal_f, 'Non-Color')
+    nmap = nt.nodes.new("ShaderNodeNormalMap")
+    nmap.space = 'TANGENT'
+    nt.links.new(tex_n.outputs["Color"], nmap.inputs["Color"])
+    nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+
+for _mn, _sk in _PBR_G["PBR_MAP"]["ov-gym"].items():
+    _pbr_link_direct(_mn, _sk)
+print("PBR-direct linked for ov-gym")
+
 objs = []
 
 def box(name, cx, cy, z0, z1, sx, sy, mat, bevel=0.0):
@@ -374,16 +422,26 @@ window_band_end("ov-gym_w2W", CX - 17.7, 9.8, 12.0, 9.0)
 window_band_end("ov-gym_w3E", CX + 17.4, 14.3, 16.5, 8.0)
 window_band_end("ov-gym_w3W", CX - 17.4, 14.3, 16.5, 8.0)
 
-# ---------- entrance (south face): thick canopy + thick columns + bases + glass doors ----------
-# 雨棚加厚 3.15-3.70 (0.55), 外挑 2.8 m
-box("ov-gym_canopy", CX, CY - 8.0 - 1.4, 3.15, 3.70, 10.5, 2.8, MAT_CONC_TEX, bevel=0.04)
-# 雨棚前沿深灰压边
-box("ov-gym_canopy_fascia", CX, CY - 8.0 - 2.75, 3.40, 3.70, 10.5, 0.12, MAT_METAL_DARK)
-# 柱子加粗 0.6 + 柱础 0.9 + 柱头 0.8
-for sxn, xn in (("E", CX + 4.4), ("W", CX - 4.4)):
-    box("ov-gym_col_%s_base" % sxn, xn, CY - 8.0 - 2.3, 0.0, 0.5, 0.9, 0.9, MAT_CONC_TEX, bevel=0.04)
-    box("ov-gym_col_%s" % sxn, xn, CY - 8.0 - 2.3, 0.5, 3.15, 0.6, 0.6, MAT_CONC_TEX, bevel=0.04)
-    box("ov-gym_col_%s_cap" % sxn, xn, CY - 8.0 - 2.3, 3.0, 3.2, 0.8, 0.8, MAT_CONC_TEX, bevel=0.03)
+# ---------- entrance (south face): STOLEN tevy hospital canopy (R2-T21b) ----------
+# tevy hospital-building-tevy-plain.glb (CC0, SOURCES.md §12.2C) 的 `entrances`
+# mesh 裁出主雨棚 (x 10..24, y -21.5..-12.25, z -0.04..5.2, 14x9.25x5.24m,
+# 1692 面: 雨棚板+钢柱+玻璃), 按 (0.75, 0.486, 0.72) 缩到 10.5x4.5x3.78m
+# 放在南立面正门前 (y 47.4..51.9, 顶 3.80m, 离墙 0.1m), 替代手捏雨棚+双柱;
+# 台阶与玻璃正门保留原样。
+_gym_canopy = _STEAL["import_crop"](
+    os.path.join(BASE, "assets/external/buildings/tevy/hospital-building-tevy-plain.glb"),
+    "entrances", (9.5, -22.0, -0.1), (24.5, -12.0, 5.3),
+    remap={"panel_hospital-building": MAT_CONC_TEX,
+           "base_hospital-building": MAT_CONC_TEX,
+           "membrane_hospital-building": MAT_CONC_TEX,
+           "soffit_hospital-building": MAT_CONC_TEX,
+           "paving_hospital-building": MAT_CONC_TEX,
+           "steel_dark_hospital-building": MAT_METAL_DARK,
+           "frame_aluminium": MAT_METAL,
+           "windows_hospital-building": MAT_GLASS})
+_STEAL["place"](_gym_canopy, (-75.25, 47.4, 0.02), (-64.75, 51.9, 3.80),
+                "ov-gym_canopy_stolen")
+objs.append(_gym_canopy)
 # 台阶两级
 box("ov-gym_step1", CX, CY - 8.0 - 0.55, 0.25, 0.5, 7.0, 1.1, MAT_CONC_TEX, bevel=0.03)
 box("ov-gym_step2", CX, CY - 8.0 - 1.45, 0.0, 0.25, 7.6, 0.9, MAT_CONC_TEX, bevel=0.03)
@@ -453,136 +511,23 @@ cd = (ct - cam.location).normalized()
 cam.rotation_euler = cd.to_track_quat("-Z", "Y").to_euler()
 bpy.context.scene.camera = cam
 
-# ---------- 烘焙程序化纹理为图片 (glTF 无法导出 Brick/Noise/Voronoi) ----------
-# 照抄 di-walls 已验证做法: 每种不透明材质选其全部对象 -> Cycles CPU
-# samples 4 -> 烘焙 color/rough/normal 三张 1024px 图 -> 重建材质为图片纹理。
-# 玻璃材质 (ov-gym_glass) 不烘焙, 保持 Principled 玻璃透明材质原样。
-# 立方体自带 UV (每面 0~1), 程序化纹理可直接烘焙, 无需重展 UV。
-# ---------- UV 展开 (烘焙前) ----------
-# 立方体默认 UV 每面都占满 0~1: 同材质多对象烘焙时, 每对象 6 个面在同一张
-# 图上反复覆盖, 烘焙量随对象数膨胀 (实测: 1 对象屋顶约 1 分钟/张,
-# 29 对象混凝土约 10 分钟/张, 122 对象金属 20 分钟仍未出图)。
-# 先对本件全部对象做 Smart UV Project (各面不重叠), 烘焙量回到约 1 张图;
-# 只改 UV, 不改几何/配色/位置。烘焙参数本身 (Cycles CPU/4 采样/
-# margin 16px/1024px/color+rough+normal) 与 di-walls 完全一致。
-for _ob in objs:
-    if _ob.type != 'MESH':
-        continue
-    try:
-        if not _ob.data.uv_layers:
-            _ob.data.uv_layers.new()
-        bpy.ops.object.select_all(action='DESELECT')
-        _ob.select_set(True)
-        bpy.context.view_layer.objects.active = _ob
-        bpy.ops.object.mode_set(mode='EDIT')
-        bpy.ops.mesh.select_all(action='SELECT')
-        bpy.ops.uv.smart_project(angle_limit=66.0, island_margin=0.001)
-        bpy.ops.object.mode_set(mode='OBJECT')
-    except Exception as _e:
-        print("smart uv skipped:", _ob.name, _e)
-        try:
-            bpy.ops.object.mode_set(mode='OBJECT')
-        except Exception:
-            pass
-bpy.ops.object.select_all(action='DESELECT')
-print("smart uv done")
-
-TEX_DIR = os.path.join(BASE, "assets/blender/overview/ov-gym_textures")
-os.makedirs(TEX_DIR, exist_ok=True)
-_bake_scene = bpy.context.scene
-
-def _bake_images(mat, mat_objs):
-    nt = mat.node_tree
-    imgs = {}
-    specs = [("color", 'DIFFUSE', 1024, 'sRGB'),
-             ("rough", 'ROUGHNESS', 1024, 'Non-Color'),
-             ("normal", 'NORMAL', 1024, 'Non-Color')]
-    bpy.ops.object.select_all(action='DESELECT')
-    for ob in mat_objs:
-        ob.select_set(True)
-    bpy.context.view_layer.objects.active = mat_objs[0]
-    _bake_scene.render.engine = 'CYCLES'
-    _bake_scene.cycles.device = 'CPU'
-    _bake_scene.cycles.samples = 4
-    bake = _bake_scene.render.bake
-    bake.use_selected_to_active = False
-    bake.margin = 16
-    for key, btype, size, cs in specs:
-        # 断点续烘: 图已存在且能正常读入就复用 (虚拟机重启/中断后重跑不用重烘);
-        # 读入失败或文件为空则重新烘焙。
-        _fpath = os.path.join(TEX_DIR, "%s_%s.png" % (mat.name, key))
-        if os.path.exists(_fpath) and os.path.getsize(_fpath) > 1000:
-            try:
-                _img = bpy.data.images.load(_fpath)
-                _img.colorspace_settings.name = cs
-                imgs[key] = _img
-                print("reuse:", mat.name, key, _fpath,
-                      os.path.getsize(_fpath))
-                continue
-            except Exception as _e:
-                print("reload failed, re-bake:", mat.name, key, _e)
-        img = bpy.data.images.new("%s_%s" % (mat.name, key),
-                                  width=size, height=size, alpha=False)
-        img.colorspace_settings.name = cs
-        tex = nt.nodes.new("ShaderNodeTexImage")
-        tex.image = img
-        nt.nodes.active = tex
-        if btype == 'DIFFUSE':
-            bake.use_pass_direct = False
-            bake.use_pass_indirect = False
-            bake.use_pass_color = True
-        elif btype == 'NORMAL':
-            bake.normal_space = 'TANGENT'
-        bpy.ops.object.bake(type=btype)
-        img.filepath_raw = os.path.join(TEX_DIR, "%s_%s.png" % (mat.name, key))
-        img.file_format = 'PNG'
-        img.save()
-        imgs[key] = img
-        nt.nodes.remove(tex)
-        print("baked:", mat.name, key, img.filepath_raw,
-              os.path.getsize(img.filepath_raw))
-    _bake_scene.render.engine = 'BLENDER_EEVEE_NEXT'
-    return imgs
-
-def _rebuild_with_images(mat, imgs):
-    nt = mat.node_tree
-    for n in list(nt.nodes):
-        nt.nodes.remove(n)
-    bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
-    bsdf.inputs["Base Color"].default_value = (1.0, 1.0, 1.0, 1.0)
-    bsdf.inputs["Roughness"].default_value = 1.0
-    bsdf.inputs["Metallic"].default_value = 0.0
-    out = nt.nodes.new("ShaderNodeOutputMaterial")
-    nt.links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
-    tex_c = nt.nodes.new("ShaderNodeTexImage")
-    tex_c.image = imgs["color"]
-    nt.links.new(tex_c.outputs["Color"], bsdf.inputs["Base Color"])
-    tex_r = nt.nodes.new("ShaderNodeTexImage")
-    tex_r.image = imgs["rough"]
-    nt.links.new(tex_r.outputs["Color"], bsdf.inputs["Roughness"])
-    tex_n = nt.nodes.new("ShaderNodeTexImage")
-    tex_n.image = imgs["normal"]
-    nmap = nt.nodes.new("ShaderNodeNormalMap")
-    nmap.space = 'TANGENT'
-    nt.links.new(tex_n.outputs["Color"], nmap.inputs["Color"])
-    nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
-
-_by_mat = {}
-for _ob in objs:
-    if _ob.data and _ob.data.materials:
-        _by_mat.setdefault(_ob.data.materials[0], []).append(_ob)
-_baked = {}
-for _mat, _m_objs in _by_mat.items():
-    if "glass" in _mat.name.lower():
-        print("skip bake (glass):", _mat.name)
-        continue
-    _baked[_mat.name] = _bake_images(_mat, _m_objs)
-for _mat in _by_mat:
-    if _mat.name in _baked:
-        _rebuild_with_images(_mat, _baked[_mat.name])
-print("bake done, materials rebuilt with image textures")
+# ---------- R2-T21b: 烘焙取消, 改 PBR 直挂 ----------
+# 程序化 Brick/Noise/Voronoi 不再烘焙 (Cycles 烘焙每件约 1 小时); PBR 材质已在
+# 材质定义后直接链真实 CC0 照片贴图 (_pbr_link_direct), _pbr_hook 随后 swap
+# 同文件并按世界尺寸重投 UV。玻璃与素色材质保持原样。
 
 # ---------- save .blend ----------
+# R2-T9 PBR hard fix (2026-11-24): baked maps on big faces were near-flat
+# (wall normal std ~0.5-3, asphalt color std ~4 in-tile, one 1024 texture
+# stretched over 40 m walls / 260 m roads) so everything rendered as flat
+# panels. Re-link real CC0 photo textures + world-scale UVs after the bake
+# step, before save/export. Idempotent; see _pbr_apply.py in this dir.
+_pbr_hook = os.path.join(os.path.dirname(BLEND_PATH), "_pbr_apply.py")
+if os.path.exists(_pbr_hook):
+    _pbr_g = {"__name__": "_pbr_apply", "__file__": _pbr_hook}
+    exec(compile(open(_pbr_hook).read(), _pbr_hook, "exec"), _pbr_g)
+    _pbr_g["apply_pbr"](os.path.splitext(os.path.basename(BLEND_PATH))[0])
+
 bpy.ops.wm.save_as_mainfile(filepath=BLEND_PATH)
 print("SAVED", BLEND_PATH)
 
@@ -639,7 +584,13 @@ for o in imported:
             if "glass" in m.name.lower():
                 print("  (glass, unbaked by design)")
                 continue
-            assert len(imgs) >= 3, "glb material lost baked textures: %s" % m.name
+            # R2-T21b: 只有 PBR 直挂材质 (见 _pbr_apply.PBR_MAP) 须带
+            # color/rough/normal 三张图; 素色金属/框料与网上偷件的 atlas
+            # 材质 (1 张图) 只须存在。
+            _bn = m.name.rsplit(".", 1)[0] if m.name.rsplit(".", 1)[-1].isdigit() else m.name
+            if _bn in ("ov-gym_wall_red", "ov-gym_wall_red_dark",
+                          "ov-gym_roof_dark", "ov-gym_concrete_tex"):
+                assert len(imgs) >= 3, "glb PBR material lost textures: %s" % m.name
 assert len(imported) == len(objs), "glb reimport failed: expected %d objects, got %d" % (len(objs), len(imported))
 
-print("DONE ov-gym")
+print("DONE ov-gym")  # R2-T21b v3

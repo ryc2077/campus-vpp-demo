@@ -1,3 +1,8 @@
+# R2-T21b (2026-11-25): 量体重建+偷件换装版。量体/位置/层高一字未动
+# (SPEC §4: 32x13x15m 3F, 中心 (60,56)); 窗带/红饰/女儿墙/屋顶设备/
+# 空调外机/正门/台阶保留。偷件 (SOURCES.md §12): 正门柱廊改为 Grab3D 博物馆
+# `museum_body` 前廊; 室外取餐台改为 Grab3D 食堂房间 `cafeteria_body` 取餐区
+# (+玻璃罩)。材质: 烘焙取消, 改 PBR 直挂; 浅橙墙 #F6D9C0。
 # ov-canteen v2: 餐厅楼体返工 (overview piece)
 # 32(x) x 13(y) m, Blender 中心 (60, 56, 0), 3F, 示意总高 15 m
 # 位置/尺寸/朝向照旧版与 SPEC §4 + campus.json, 不改楼的位置和占地。
@@ -338,6 +343,48 @@ MAT_GLASS = glass_mat()
 MAT_FRAME = metal_mat("#C0C5C9", "Canteen_Frame_C0C5C9", 0.45, 0.35)
 MAT_SEAM = _new_mat("Canteen_FloorSeam_B7A988", "#B7A988", 0.9)[0]
 
+# ---------- R2-T21b (2026-11-25): 偷件帮手 + PBR 直挂 ----------
+# _steal.py: 网上模型裁件/放置 (import_crop/place/dup_place)。
+# PBR 直挂 (替代 Cycles 烘焙): 给 _pbr_apply.PBR_MAP 里的材质直接链真实 CC0
+# 照片贴图 (与 _pbr_apply.SETS 同源); 随后 _pbr_hook 会把同一批图再 swap
+# 一次 (同文件, 幂等) 并按世界尺寸重投 UV。程序化 Brick/Noise 节点保留在
+# 节点树里但不再连到 Principled 输入, 不参与导出。
+_STEAL = {"__name__": "_steal"}
+_steal_path = os.path.join(os.path.dirname(BLEND_PATH), "_steal.py")
+_STEAL["__file__"] = _steal_path
+exec(compile(open(_steal_path).read(), _steal_path, "exec"), _STEAL)
+_PBR_G = {"__name__": "_pbr_apply"}
+_pbr_apply_path = os.path.join(os.path.dirname(BLEND_PATH), "_pbr_apply.py")
+_PBR_G["__file__"] = _pbr_apply_path
+_PBR_G["BLEND_PATH"] = BLEND_PATH  # R2-T21b: 让 _load 存 blend 相对路径
+exec(compile(open(_pbr_apply_path).read(), _pbr_apply_path, "exec"), _PBR_G)
+
+def _pbr_link_direct(mat_name, set_key):
+    mat = bpy.data.materials.get(mat_name)
+    if mat is None:
+        print("PBR-direct: material missing", mat_name)
+        return
+    color_f, rough_f, normal_f = _PBR_G["SETS"][set_key][:3]
+    nt = mat.node_tree
+    bsdf = nt.nodes.get("Principled BSDF")
+    assert bsdf is not None, "no Principled BSDF in %s" % mat_name
+    tex_c = nt.nodes.new("ShaderNodeTexImage")
+    tex_c.image = _PBR_G["_load"](color_f, 'sRGB')
+    nt.links.new(tex_c.outputs["Color"], bsdf.inputs["Base Color"])
+    tex_r = nt.nodes.new("ShaderNodeTexImage")
+    tex_r.image = _PBR_G["_load"](rough_f, 'Non-Color')
+    nt.links.new(tex_r.outputs["Color"], bsdf.inputs["Roughness"])
+    tex_n = nt.nodes.new("ShaderNodeTexImage")
+    tex_n.image = _PBR_G["_load"](normal_f, 'Non-Color')
+    nmap = nt.nodes.new("ShaderNodeNormalMap")
+    nmap.space = 'TANGENT'
+    nt.links.new(tex_n.outputs["Color"], nmap.inputs["Color"])
+    nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+
+for _mn, _sk in _PBR_G["PBR_MAP"]["ov-canteen"].items():
+    _pbr_link_direct(_mn, _sk)
+print("PBR-direct linked for ov-canteen")
+
 
 def build():
     # ---- clean scene ----
@@ -440,12 +487,37 @@ def build():
     box("canteen_door_R", CX + 0.6, SY - 0.14, 0.5, 3.0, 1.16, 0.10, MAT_WOOD, bevel=0.02)
     box("canteen_door_handle_L", CX - 0.12, SY - 0.24, 1.35, 1.45, 0.05, 0.08, MAT_METAL, bevel=0.0)
     box("canteen_door_handle_R", CX + 0.12, SY - 0.24, 1.35, 1.45, 0.05, 0.08, MAT_METAL, bevel=0.0)
-    # canopy slab 8.0 x 2.4 at z 3.6-3.85, out from the wall
-    box("canteen_entry_canopy", CX, SY - 1.2, 3.6, 3.85, 8.0, 2.4, MAT_CONC, bevel=0.03)
-    box("canteen_canopy_edge", CX, SY - 2.34, 3.6, 3.74, 8.0, 0.12, MAT_BAND, bevel=0.02)
-    # canopy columns (0.3 sq) from ground to canopy, at the outer corners
-    box("canteen_entry_col_L", CX - 3.5, SY - 2.2, 0.0, 3.6, 0.3, 0.3, MAT_CONC, bevel=0.02)
-    box("canteen_entry_col_R", CX + 3.5, SY - 2.2, 0.0, 3.6, 0.3, 0.3, MAT_CONC, bevel=0.02)
+    # ---- 正门柱廊: STOLEN Grab3D 博物馆前廊 (R2-T21b) ----
+    # SOURCES.md §12.2B: museum-grab3d.glb (CC0) 的 `museum_body` 裁前廊
+    # (y<-8, z<9; 24.74x1.75x8.48m, 4114 面: 16 柱+额枋+台阶, 原石材 atlas
+    # 材质保留), 均匀约 x0.55 缩到 13.6x1.0x4.66m, 立在南门台阶外
+    # (y 47.0..48.0), 替代手捏雨棚+双柱; 正门与台阶保留。
+    _ct_portico = _STEAL["import_crop"](
+        os.path.join(BASE, "assets/external/buildings/grab3d/museum-grab3d.glb"),
+        "museum_body", (-13.0, -10.0, 0.0), (13.0, -8.0, 9.0))
+    _STEAL["place"](_ct_portico, (53.2, 47.0, 0.0), (66.8, 48.0, 4.66),
+                    "canteen_portico_stolen")
+    building.append(_ct_portico)
+    # ---- 室外取餐台: STOLEN Grab3D 食堂房间取餐台 (R2-T21b) ----
+    # SOURCES.md §12.2B: cafeteria-grab3d.glb (CC0, 4x4x3m 室内房间) 的
+    # `cafeteria_body` 裁取餐区 (x -0.6..1.9, y 0.2..1.9, z 0.3..1.8;
+    # 2.48x1.64x1.43m, 14528 面) + 同变换的取餐台玻璃罩
+    # `cafeteria_food_well_guard_glass`; 楼体是实心量块、室内放不下, 改为
+    # 南门西侧室外取餐台 (x 49.5..52.5, y 46.5..48.5), 与台阶/柱廊无穿插。
+    _ct_counter = _STEAL["import_crop"](
+        os.path.join(BASE, "assets/external/buildings/grab3d/cafeteria-grab3d.glb"),
+        "cafeteria_body", (-0.6, 0.2, 0.3), (1.9, 1.9, 1.8))
+    _ct_m = _STEAL["affine_for"](*_STEAL["bbox_world"](_ct_counter),
+                                  (49.5, 46.5, 0.0), (52.5, 48.5, 1.73))
+    _ct_glass = _STEAL["import_whole"](
+        os.path.join(BASE, "assets/external/buildings/grab3d/cafeteria-grab3d.glb"),
+        "cafeteria_food_well_guard_glass")
+    _STEAL["apply_matrix"](_ct_counter, _ct_m)
+    _ct_counter.name = "canteen_counter_stolen"
+    _STEAL["apply_matrix"](_ct_glass, _ct_m)
+    _ct_glass.name = "canteen_counter_glass_stolen"
+    building.append(_ct_counter)
+    building.append(_ct_glass)
     # steps: 3 steps down from plinth top 0.5 to ground, in front of the door
     box("canteen_step_1", CX, SY - 1.0, 0.33, 0.5, 4.0, 0.7, MAT_CONC, bevel=0.02)
     box("canteen_step_2", CX, SY - 1.65, 0.17, 0.33, 4.0, 0.6, MAT_CONC, bevel=0.02)
@@ -582,6 +654,17 @@ def build():
 def save_and_export(building):
     os.makedirs(PY_DIR, exist_ok=True)
     os.makedirs(os.path.dirname(GLB_PATH), exist_ok=True)
+    # R2-T9 PBR hard fix (2026-11-24): baked maps on big faces were near-flat
+    # (wall normal std ~0.5-3, asphalt color std ~4 in-tile, one 1024 texture
+    # stretched over 40 m walls / 260 m roads) so everything rendered as flat
+    # panels. Re-link real CC0 photo textures + world-scale UVs after the bake
+    # step, before save/export. Idempotent; see _pbr_apply.py in this dir.
+    _pbr_hook = os.path.join(os.path.dirname(BLEND_PATH), "_pbr_apply.py")
+    if os.path.exists(_pbr_hook):
+        _pbr_g = {"__name__": "_pbr_apply", "__file__": _pbr_hook}
+        exec(compile(open(_pbr_hook).read(), _pbr_hook, "exec"), _pbr_g)
+        _pbr_g["apply_pbr"](os.path.splitext(os.path.basename(BLEND_PATH))[0])
+
     bpy.ops.wm.save_as_mainfile(filepath=BLEND_PATH)
     print("saved blend:", BLEND_PATH, "objects:", len(building))
     bpy.ops.object.select_all(action="DESELECT")
@@ -601,134 +684,10 @@ def save_and_export(building):
 
 building = build()
 
-# ---------- 烘焙程序化纹理为图片 (glTF 无法导出 Noise/Brick/Voronoi) ----------
-# 照抄 di-walls 已验证做法: 每种不透明材质选其全部对象 -> Cycles CPU
-# samples 4 -> 烘焙 color/rough/normal 三张 1024px 图 (margin 16px) ->
-# 重建材质为图片纹理。玻璃材质 (Canteen_Glass_9FC3D8_tex) 不烘焙, 保持原样。
-# 烘焙图在 ov-canteen_textures/。
-# ---------- UV 展开 (烘焙前) ----------
-# 立方体默认 UV 每面都占满 0~1: 同材质多对象烘焙时, 每对象 6 个面在同一张
-# 图上反复覆盖, 烘焙量随对象数膨胀 (实测 ov-gym: 1 对象屋顶约 1 分钟/张,
-# 29 对象混凝土约 10 分钟/张, 122 对象金属 20 分钟仍未出图)。
-# 先对本件全部对象做 Smart UV Project (各面不重叠), 烘焙量回到约 1 张图;
-# 只改 UV, 不改几何/配色/位置。烘焙参数本身 (Cycles CPU/4 采样/
-# margin 16px/1024px/color+rough+normal) 与 di-walls 完全一致。
-for _ob in building:
-    if _ob.type != 'MESH':
-        continue
-    try:
-        if not _ob.data.uv_layers:
-            _ob.data.uv_layers.new()
-        bpy.ops.object.select_all(action='DESELECT')
-        _ob.select_set(True)
-        bpy.context.view_layer.objects.active = _ob
-        bpy.ops.object.mode_set(mode='EDIT')
-        bpy.ops.mesh.select_all(action='SELECT')
-        bpy.ops.uv.smart_project(angle_limit=66.0, island_margin=0.001)
-        bpy.ops.object.mode_set(mode='OBJECT')
-    except Exception as _e:
-        print("smart uv skipped:", _ob.name, _e)
-        try:
-            bpy.ops.object.mode_set(mode='OBJECT')
-        except Exception:
-            pass
-bpy.ops.object.select_all(action='DESELECT')
-print("smart uv done")
-
-TEX_DIR = os.path.join(PY_DIR, "ov-canteen_textures")
-os.makedirs(TEX_DIR, exist_ok=True)
-_bake_scene = bpy.context.scene
-
-def _bake_images(mat, mat_objs):
-    nt = mat.node_tree
-    imgs = {}
-    specs = [("color", 'DIFFUSE', 1024, 'sRGB'),
-             ("rough", 'ROUGHNESS', 1024, 'Non-Color'),
-             ("normal", 'NORMAL', 1024, 'Non-Color')]
-    bpy.ops.object.select_all(action='DESELECT')
-    for ob in mat_objs:
-        ob.select_set(True)
-    bpy.context.view_layer.objects.active = mat_objs[0]
-    _bake_scene.render.engine = 'CYCLES'
-    _bake_scene.cycles.device = 'CPU'
-    _bake_scene.cycles.samples = 4
-    bake = _bake_scene.render.bake
-    bake.use_selected_to_active = False
-    bake.margin = 16
-    for key, btype, size, cs in specs:
-        # 断点续烘: 图已存在且能正常读入就复用 (虚拟机重启/中断后重跑不用重烘);
-        # 读入失败或文件为空则重新烘焙。
-        _fpath = os.path.join(TEX_DIR, "%s_%s.png" % (mat.name, key))
-        if os.path.exists(_fpath) and os.path.getsize(_fpath) > 1000:
-            try:
-                _img = bpy.data.images.load(_fpath)
-                _img.colorspace_settings.name = cs
-                imgs[key] = _img
-                print("reuse:", mat.name, key, _fpath,
-                      os.path.getsize(_fpath))
-                continue
-            except Exception as _e:
-                print("reload failed, re-bake:", mat.name, key, _e)
-        img = bpy.data.images.new("%s_%s" % (mat.name, key),
-                                  width=size, height=size, alpha=False)
-        img.colorspace_settings.name = cs
-        tex = nt.nodes.new("ShaderNodeTexImage")
-        tex.image = img
-        nt.nodes.active = tex
-        if btype == 'DIFFUSE':
-            bake.use_pass_direct = False
-            bake.use_pass_indirect = False
-            bake.use_pass_color = True
-        elif btype == 'NORMAL':
-            bake.normal_space = 'TANGENT'
-        bpy.ops.object.bake(type=btype)
-        img.filepath_raw = os.path.join(TEX_DIR, "%s_%s.png" % (mat.name, key))
-        img.file_format = 'PNG'
-        img.save()
-        imgs[key] = img
-        nt.nodes.remove(tex)
-        print("baked:", mat.name, key, img.filepath_raw,
-              os.path.getsize(img.filepath_raw))
-    _bake_scene.render.engine = 'BLENDER_EEVEE_NEXT'
-    return imgs
-
-def _rebuild_with_images(mat, imgs):
-    nt = mat.node_tree
-    for n in list(nt.nodes):
-        nt.nodes.remove(n)
-    bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
-    bsdf.inputs["Base Color"].default_value = (1.0, 1.0, 1.0, 1.0)
-    bsdf.inputs["Roughness"].default_value = 1.0
-    bsdf.inputs["Metallic"].default_value = 0.0
-    out = nt.nodes.new("ShaderNodeOutputMaterial")
-    nt.links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
-    tex_c = nt.nodes.new("ShaderNodeTexImage")
-    tex_c.image = imgs["color"]
-    nt.links.new(tex_c.outputs["Color"], bsdf.inputs["Base Color"])
-    tex_r = nt.nodes.new("ShaderNodeTexImage")
-    tex_r.image = imgs["rough"]
-    nt.links.new(tex_r.outputs["Color"], bsdf.inputs["Roughness"])
-    tex_n = nt.nodes.new("ShaderNodeTexImage")
-    tex_n.image = imgs["normal"]
-    nmap = nt.nodes.new("ShaderNodeNormalMap")
-    nmap.space = 'TANGENT'
-    nt.links.new(tex_n.outputs["Color"], nmap.inputs["Color"])
-    nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
-
-_by_mat = {}
-for _ob in building:
-    if _ob.data and _ob.data.materials:
-        _by_mat.setdefault(_ob.data.materials[0], []).append(_ob)
-_baked = {}
-for _mat, _m_objs in _by_mat.items():
-    if "glass" in _mat.name.lower():
-        print("skip bake (glass):", _mat.name)
-        continue
-    _baked[_mat.name] = _bake_images(_mat, _m_objs)
-for _mat in _by_mat:
-    if _mat.name in _baked:
-        _rebuild_with_images(_mat, _baked[_mat.name])
-print("bake done, materials rebuilt with image textures")
+# ---------- R2-T21b: 烘焙取消, 改 PBR 直挂 ----------
+# 程序化 Brick/Noise/Voronoi 不再烘焙 (Cycles 烘焙每件约 1 小时); PBR 材质已在
+# 材质定义后直接链真实 CC0 照片贴图 (_pbr_link_direct), _pbr_hook 随后 swap
+# 同文件并按世界尺寸重投 UV。玻璃与素色材质保持原样。
 
 imported = save_and_export(building)
 for _ob in imported:
@@ -741,7 +700,16 @@ for _ob in imported:
             if "glass" in _m.name.lower():
                 print("  (glass, unbaked by design)")
                 continue
-            assert len(_imgs) >= 3, "glb material lost baked textures: %s" % _m.name
+            # R2-T21b: 只有 PBR 直挂材质 (见 _pbr_apply.PBR_MAP) 须带
+            # color/rough/normal 三张图; 素色金属/框料与网上偷件的 atlas
+            # 材质 (1 张图) 只须存在。
+            _bn = _m.name.rsplit(".", 1)[0] if _m.name.rsplit(".", 1)[-1].isdigit() else _m.name
+            if _bn in ("Canteen_Wall_Orange_F6D9C0_tex",
+                           "Canteen_Roof_DarkGrey_424A52_tex",
+                           "Canteen_Concrete_B9B3A8_tex",
+                           "Canteen_Cornice_D8D2C4_tex",
+                           "Canteen_RedBrick_A63A2C_tex"):
+                assert len(_imgs) >= 3, "glb PBR material lost textures: %s" % _m.name
 assert len(imported) == len(building), "glb reimport failed: expected %d objects, got %d" % (len(building), len(imported))
 
 # 清理 .blend1 备份
@@ -749,4 +717,4 @@ blend1 = BLEND_PATH + "1"
 if os.path.exists(blend1):
     os.remove(blend1)
 
-print("DONE ov-canteen")
+print("DONE ov-canteen")  # R2-T21b v3
