@@ -41,10 +41,10 @@
 | ov-bldC | 三号教学楼楼体 22×13×14m，4 层 | `_build_building(bldC)` | overview | **楼高已修正并烘焙**（2026-11-23 03:36 CST：旧件实测总高 20.02m，根因是 v2 脚本从 ov-bldA（5F/19m）照抄后未按 4F/14m 缩放、每层 4.4m，注释称“19m 包络是因光伏屋顶在 z=19 对接”是误读 SPEC §6——那个 z=19 是 A 栋屋顶机位；已改回墙体 F1–F3 0.5–10.0、F4 10.0–13.0、檐口 4.0/7.0/10.0/13.0（F5 檐口更名为 cornice_roof，4 层楼不再有 F5 对象）、屋顶板 13.0–13.25、女儿墙 13.25–13.90、压顶顶面恰好 14.00m，空调中心 1.5/5.0/8.0/11.0；平面 22×13 与浅橙墙色不动。重出 .blend 1,992,496 B、.glb 3,731,892 B，回读 136 个对象，9 种材质各含 color/rough/normal 3 张烘焙图（27 张，耗时 1657.9s），DONE ov-bldC。烘焙亦完成（2026-11-23 04:24 CST：27 张复用、9/9 全套，回读 136；A 组续跑任务复用并行另一工人先烘好的贴图只重出，未并发写同一文件）。GLB 总高 14.92m——其中 14.00m 是楼体包络，多出 0.92m 是屋顶设备盖，与 A 件同例（A 包络 19.0m、设备盖至 20.02m），SPEC 表格高度指包络。首跑在 19:04 遇运行时重启被杀后用同一修正脚本重跑成功） |
 | ov-windows-roofs | A/B/C 三栋窗户与屋顶细部（横向窗带、女儿墙压顶、屋顶设备小盒） | `_build_building` 里的窗户带（南立面每层一排亮窗贴片）+ 屋顶板 | overview | **窗带修复已核验通过**（2026-11-23 01:18 CST：GLB 回读 127 个对象，112 窗 + 15 屋顶；56 条玻璃逐条实测，S/N = 楼面长−2、E/W = 楼面宽−2，最大悬空量 0；旧 .blend1 实测证实旧 bug 确实对调。烘焙：贴图 18 张已齐，待 A 组续跑任务重出 .blend/.glb） |烘焙亦完成（2026-11-23 05:39 CST：18 张复用只重出，6/7 全套，回读 127）。
 | ov-lib | 图书馆 24×16×22m，6 层 | `_build_building(lib)` | overview | **烘焙完成**（2026-11-23 05:39 CST：39 张，新增 15/复用 24，13/15 全套，bake 1998.0s；回读 289。24/39 张时遇重启被杀，续跑只烘 15 张） |
-| ov-gym | 艺体馆 36×16×18m，3 层 | `_build_building(gym)` | overview | **烘焙完成**（2026-11-23 01:58 CST：18 张，6/6 全套；.glb 已重出，回读 192） |
-| ov-lab | 实验楼 42×12×13m，3 层 | `_build_building(lab)` | overview | **烘焙完成**（2026-11-23 04:59 CST：36 张，12/12 全套；.glb 已重出，回读 358） |
+| ov-gym | 艺体馆 36×16×18m，3 层 | `_build_building(gym)` | overview | **烘焙完成**（2026-11-23 01:58 CST：18 张，6/6 全套；.glb 已重出，回读 192） **换装 R2-T21b**（2026-11-25，见 §21）：入口雨棚换成 tevy 医院楼偷件雨棚，烘焙改 PBR 直挂；回读 181，零 Error/Traceback |
+| ov-lab | 实验楼 42×12×13m，3 层 | `_build_building(lab)` | overview | **烘焙完成**（2026-11-23 04:59 CST：36 张，12/12 全套；.glb 已重出，回读 358） **换装 R2-T21b**（2026-11-25，见 §21）：长面窗带换成 Grab3D 发电厂偷件窗行改长，烘焙改 PBR 直挂；回读 286，零 Error/Traceback |
 | ov-tower | 创造力中心 14×14×32m，8 层（窗带已修复：79 段，666 个窗带对象） | `_build_building(tower)` | overview | **烘焙完成**（2026-11-23 07:50 CST：42 张，14/14 全套；.glb 已重出，回读 929） |
-| ov-canteen | 餐厅 32×13×15m，3 层 | `_build_building(canteen)` | overview | **烘焙完成**（2026-11-23 08:44 CST：33 张，11/11 全套；.glb 已重出，回读 322） |
+| ov-canteen | 餐厅 32×13×15m，3 层 | `_build_building(canteen)` | overview | **烘焙完成**（2026-11-23 08:44 CST：33 张，11/11 全套；.glb 已重出，回读 322） **换装 R2-T21b**（2026-11-25，见 §21）：正门换成 Grab3D 博物馆偷件柱廊 + 食堂房间偷件取餐台，烘焙改 PBR 直挂；回读 321，零 Error/Traceback |
 | ov-dorm | 宿舍 A、B 两栋，各 20×12×16m，5 层（总高 16.40m，见 §5.5） | `_build_building(dormA)` + `_build_building(dormB)` | overview | **烘焙完成**（2026-11-23 11:14 CST：45 张，15/15 全套；.glb 已重出，回读 739） |
 | ov-road-main | 主干道（环校主路 + 东侧、南侧主路，沥青 + 黄色中心线 + 路缘石） | `_build_roads` | overview | **烘焙完成**（2026-11-23 00:20 CST：Asphalt/YellowLine/Curb 各 3 张，61 分钟；回读 33/33。**已返工 UV 分瓦片**（2026-11-23 04:13 CST：照抄 road-walk/track 的 `_pack_uvs`，Asphalt 10 对象→4×3 瓦片、YellowLine 2→2×1、Curb 21→5×5，烘焙 384.2s、全程约 6 分 49 秒；新 .glb 802,176 B、回读 33、3 材质各 3 张贴图齐全）。**已修沥青纯色+补环路中心线**（2026-11-23 06:59 CST：根因是 DIFFUSE 烘焙只取 Base Color、管线为保 glTF baseColorFactor 刻意不链接底色，color 图只能是平底色（唯一色 70、非黑区标准差仅 1.96），颗粒只走 Bump 但法线图也几乎是平的；材质链接本身没问题。修法：烘焙前把颗粒/磨损以 MixRGB 乘进 Base Color（重建时会删节点只连烘焙贴图，glTF 不受影响），Bump 加强 0.4→0.9、distance 0.08→0.20；第二轮重烘顶面标准差 1.8→4.1~4.4、Asphalt 唯一色 70→337、Curb 140→882、黄线 9→187、法线 R/G 标准差 1→9.04/8.61。环路中心线原为 0 个对象（.py 旧设计称“按鸟瞰图不画黄线”，但内环路基本被楼体遮挡、说法站不住），按 SPEC §5 补 8 个对象（4 直段＋4 拐角斜段）。对象 33→41，回读 41，DONE ov-road-main） |
 | ov-road-walk | 步道与铺装（南门广场浅色铺装、楼间步道、路缘） | `_build_roads` 铺装部分 | overview | **烘焙完成**（2026-11-23 03:35 CST：7 材质各 3 张，28 分钟；回读 149/149。UV 分瓦片后从 111 分钟被杀→28 分钟跑完） |
@@ -419,8 +419,10 @@
   - **改后包围盒（v3，实测）**：长短轴对调（rx28/ry40，长轴南北向）+ 中心东移 18m 至 (-62,-25)。跑道含路缘西缘 **-90.30**，距路缘石中心线 -90.85 净空 0.55m、距路缘盒东面 -90.70 净空 0.40m；东缘 -33.70、北端 y=15.30（教学楼 bldA 南缘 y=22.5，净空 7.2m）、南端 y=-65.30（南环路内缘路缘约 y=-84，净空 ~18.7m）。球场 x[-77,-47]、y[-53,3]，球网南北外伸后 y[-54.51,4.51] 仍在内椭圆内（角点归一化半径 0.885 <1）；看台后缘 -44.10，距内椭圆东缘在看台两端净空 0.64m。起跑线改到东直道、弯道标记改到南北两端弯道中点。
   - **重拼（`assets/blender/scenes/overview-refresh-r2t1b-20261124.log`）**：重跑 `assets/blender/scenes/overview.py`（脚本未改），`DONE overview`，日志零 Error/Traceback；append 13,213 + 拼装补 4 = 回读 **13,217** 对象（GLB JSON：13,217 节点 / 4,623 网格 / 203 材质 / 325 贴图 / 14,015 访问器；track 17 节点、field 30 节点齐全）。注：13,217 不是旧 13,036，差额 **+181 全是 ov-trees**（kept 292→473，`.blend` 在本轮拼装进行中由并行工人重建、mtime 2026-11-24 15:26:55 UTC，本轮 append 如实取到新版；其余 19 件 kept 数与 01:31 玻璃版逐件相同，ov-track 17 / ov-field 30 不变）。完整版 .glb 102,553,484 B（旧 121,839,792 B，-19.3MB：并行重建的楼体/路/树件烘焙贴图 427→325 张所致，非本任务改动）、.blend 68,983,428 B（旧 64,576,376 B，+181 棵树所致）。另：上一任 R2-T1 中断前已把总览 `.blend` 存到 14:57 版（内含新跑道/球场，包围盒与新版一致），但 `.glb` 仍是 01:31 旧版——本轮重跑后两者一致。
   - **瘦身（§10 口径）**：完整版 102,553,484 B → 瘦身版 **37,024,624 B**（36.1%，<40MB）；325 张贴图：5 张 alpha→PNG512、114 张 color→JPEG512 q80、184 张 normal/mr→PNG256、22 张已达标原字节保留；节点/材质/访问器全同。`verify_slim.py` 本体硬编码 13036 断言（树重建前口径）已过时——**未改共享脚本**，用 /tmp 副本（仅断言 13036→13217，用完即删）跑完验证，全绿：瘦身 GLB 13,217 对象 / 13,213 mesh / 0 无材质 primitive；瘦身 .blend 11,923,658 B、13,217 对象 / 446 贴图 / 缺失 0（`assets/blender/scenes/overview-slim-verify-r2t1b-20261124.log`，exit 0，`DONE verify_slim`）。
-  - **推送**：待推后补 commit 号（文件：ov-track .py/.blend/.glb + 9 张重烘焙贴图、ov-field .py/.blend/.glb + 15 张重烘焙贴图、瘦身 overview.glb 37,024,624 B→`assets/models/scenes/overview.glb`、压缩 overview-slim.blend 11,923,658 B→`assets/blender/scenes/overview.blend`、本文档；完整版 overview .glb/.blend 留本地未推；overview.py 未改不推）。
-  - **验证**：待新 godot-verify / blender-previews run 结论补。
+  - **推送**：commit `3a20fea3`（父 `e2172026`，2026-11-24T16:05:24Z），33 文件一次提交（commit 内文件清单 27 项——其中 6 张贴图 FieldLine/GoalFrame 各 3 张与仓库字节相同、git 树无变化而不入清单，属正常）：ov-track .py/.blend/.glb + 9 张重烘焙贴图、ov-field .py/.blend/.glb + 15 张重烘焙贴图、瘦身 overview.glb 37,024,624 B→`assets/models/scenes/overview.glb`、压缩 overview-slim.blend 11,923,658 B→`assets/blender/scenes/overview.blend`、本文档；完整版 overview .glb/.blend 留本地未推；overview.py 未改不推。推后核对：commit 文件清单含全部改动文件；contents 核对 overview.glb 37,024,624 B / blob `8791a4b8…`、overview.blend 11,923,658 B / `17c442e6…`、ov-track.glb 1,142,348 B / `98821dbf…`、ov-field.glb 2,515,508 B / `ee2bb9bf…`，均与本地一致。
+  - **验证（Godot）**：godot-verify run **#116 / 45433047551**（push 触发，HEAD `3a20fea3`），completed/**failure**——卡在第 7 步 Headless verify，VERIFY-SUMMARY **PASS=269 FAIL=2**，两项 FAIL 均为 **S4 车顶 SOC 条**（回退 1.84 / GLB 1.465，3 辆；条底贴合车舱顶 top=1.375），属充电区汽车件，与本次跑道/球场改动无关。**已证伪为旧失败**：上一 run #115 / 45431057864（HEAD `25badadb`，R2-T7 灯光提交，本次推送前）同样 failure、同样 PASS=269 FAIL=2、同样两项 S4、数值一字相同（1.84/1.465、top=1.375）；#112/#113/#114 也全部 failure。S4 根因在汽车件（R2-T19 换装 Quaternius 三车后车顶高度与 verify 旧期望不符）或 verify 期望本身，不属本任务范围（禁动 Godot scripts/scenes/data、只改 ov-track/ov-field 与总览拼装），未修；需父 agent 另派 S4 修复后重跑。因 verify 未过，Export/Screenshots 步被跳过，**#116 无 00-overview 截图 artifact**，本次 Godot 侧目视未能走 Actions。
+  - **验证（边界目视，诊断渲染）**：因 #116 无图，改用本地诊断渲染补目视（`/tmp/r2t1b-diagnostic-overview-west.png`，仅诊断、不入仓）：打开已拼好的总览 `.blend`，只留 road-main + track + field + 拼装地面（92 对象），正交俯视 150×150m（中心 (-65,-25)，覆盖 x[-140,10] y[-100,50]）、Eevee 1024×1024 渲染。目视结论：红色椭圆跑道长轴竖直（南北向），整体位于西环路（左）与南环路（下）之内、四周均留绿草带，**无出界**；场内条纹球场 + 南北两端球门 + 东侧看台齐全，球场在跑道环内。0.4–0.55m 的西缘净空在该比例下不可见，以上面实测包围盒为准（跑道西缘 -90.30 vs 路缘盒东面 -90.70）。
+  - **验证（Blender）**：blender-previews run **#93 / 45433047733**（push 触发，HEAD `3a20fea3`）待补 overview 组结论。
 
 ## §10 总览大文件瘦身入仓（2026-11-23 11:39–12:00 CST，瘦身任务 8bb03134）
 
@@ -932,3 +934,95 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 - **验证**：待填（换装任务不在本轮；本轮只核验了文件可导入与尺寸/面数，未做换装后渲染）。
 - **还剩什么**：换装待下一波任务——tower/dorm/lib 直接换、bldA/bldB 换骨架+重排窗带、
   bldC 沿用旧件、gym/lab/canteen 量体重建+偷部件；Godot 侧总览重刷与目视由终轮整合做。
+
+## §21 R2-T21b 楼房换装：gym / lab / canteen 量体重建+偷部件（2026-11-25 00:00–01:30 CST，只改这 3 栋）
+
+- **任务**：R2-T10b（SOURCES.md §12 / 本文件 §20）结论——gym、lab、canteen 网上没有
+  对应体量的整栋，只能参考局部、按 SPEC §4 实测量体重建并偷部件。用户硬性要求：
+  全部用网上的、或基于网上下载的再做修改，不要再手搓大件。本任务只改
+  `ov-gym.py/.blend/.glb`、`ov-lab.py/.blend/.glb`、`ov-canteen.py/.blend/.glb`
+  + 共用帮手 `_steal.py`（新增）、`_pbr_apply.py`（R2-T9 的本地帮手，仓库里此前
+  没有，本次首次入仓，含 R2-T21b 的 `_load` 修法）+ 本文件记录；
+  未动 tower/dorm/lib/bldA/bldB、跑道/道路/树草、Godot scripts/scenes/data、
+  未拼总览场景（总览重拼由终轮整合做）。
+- **量体一字未动**：gym 36×16×18m 3F（中心 (-70,60)）、lab 42×12×13m 3F
+  （中心 (-28,62)）、canteen 32×13×15m 3F（中心 (60,56)）；层高/檐口/女儿墙/
+  屋顶板/台阶/空调外机/屋顶设备全部保留原样。新旧 GLB 节点逐名比对：除下述
+  入口/窗带替换外无任何对象丢失（gym 188→181、lab 358→286、canteen 322→321，
+  差额与替换清单逐项对得上；旧 GLB 节点数以仓库实测为准，gym 本文件旧文称 192
+  是 11-23 烘焙跑时的计数，仓库旧 GLB 实际为 188）。
+- **偷件做法（共用帮手 `assets/blender/overview/_steal.py`）**：`import_crop`
+  导入源 GLB、按世界坐标包围盒裁出部件（只留全部顶点都在盒内的面）、按源材质名
+  重映射到本件材质；`place`/`dup_place` 按目标包围盒逐轴缩放+平移并烘进 mesh。
+  不改源文件，不改本件量体。
+
+### 逐栋结果
+
+- **ov-gym 艺体馆（回读 181，.blend 2,643,384 B / .glb 6,920,824 B）**：
+  入口雨棚+双柱（8 件手捏）换成 tevy 医院楼 `entrances` mesh 裁出的主雨棚
+  （`buildings/tevy/hospital-building-tevy-plain.glb`，CC0；裁盒 x 10..24、
+  y -21.5..-12.25、z -0.04..5.2，1692 面：雨棚板+钢柱+玻璃），按
+  (0.75, 0.486, 0.72) 缩到 10.5×4.5×3.78m，放在南立面正门前
+  （x -75.25..-64.75、y 47.4..51.9、顶 3.80m，离墙 0.1m）；台阶与玻璃正门保留。
+  vinish 超市只作量体参考（36m 宽+平屋顶与本件一致，单 mesh 不可拆，未偷件）。
+  红墙 #8E2F28 + 深灰屋顶 #424A52 不变。
+- **ov-lab 实验楼（回读 286，.blend 4,315,977 B / .glb 11,995,028 B）**：
+  长面 7 段窗带的玻璃盒+竖挺+横中挺（84 件手捏）换成 Grab3D 发电厂 `windows`
+  mesh 裁出的一行真窗（`buildings/grab3d/power-plant-grab3d.glb`，CC0；裁盒
+  y<-7、z 3.0..6.0，16.55×0.21×2.40m，158 面：白框+玻璃+薄荷绿件，薄荷绿件
+  重映射为窗框、玻璃重映射为本件玻璃 #9FC3D8），每段 1~2 块并排拼到 SPEC 带长
+  （改长：F1 南两段各 1 块、其余每段 2 块），z 拉到带高；12 条偷窗带落位实测：
+  F1 带 z 1.4..3.0、F2 带 z 5.1..6.9、F3 带 z 9.1..10.9，F1 南门洞 x -31.5..-24.5
+  留空，窗带出墙 0.03..0.15m；短面窗带、红饰带、檐口、女儿墙（顶 13.0m）、
+  空调外机 42 台、正门+台阶、屋顶设备全部保留。发电厂 `switchyard` 只作屋顶设备
+  参考，未偷件。蓝灰墙（SPEC §5，`_pbr_apply` 映射 PLASTER_DFE9F2）。
+- **ov-canteen 餐厅（回读 321，.blend 7,605,835 B / .glb 13,925,492 B）**：
+  手捏雨棚+双柱（4 件）换成 Grab3D 博物馆 `museum_body` 前廊
+  （`buildings/grab3d/museum-grab3d.glb`，CC0；裁盒 y<-8、z<9，24.74×1.75×8.48m，
+  3730 面：16 柱+额枋+台阶，原石材 atlas 材质保留），均匀约 ×0.55 缩到
+  13.6×1.0×4.66m，立在南门台阶外（x 53.2..66.8、y 47.0..48.0）；正门与台阶保留。
+  另加室外取餐台：Grab3D 食堂房间 `cafeteria_body` 裁取餐区
+  （`buildings/grab3d/cafeteria-grab3d.glb`，CC0，4×4×3m 室内房间；裁盒
+  x -0.6..1.9、y 0.2..1.9、z 0.3..1.8，2.48×1.64×1.43m，14396 面）+ 同变换的
+  取餐台玻璃罩 `cafeteria_food_well_guard_glass`，约 ×1.21 缩到 3.0×2.0×1.73m，
+  放在南门西侧（x 49.5..52.5、y 46.5..48.5）——楼体是实心量块、室内放不下，
+  故作室外取餐台，与台阶/柱廊无穿插。浅橙墙 #F6D9C0 不变。
+
+### 材质：烘焙取消，改 PBR 直挂
+
+- 三件的 Cycles 烘焙（每件约 1 小时）全部取消：PBR 材质在脚本里直接链真实 CC0
+  照片贴图（`_pbr_link_direct`，与 `_pbr_apply.SETS` 同源），`_pbr_hook` 随后把
+  同一批图再 swap 一次（幂等）并按世界尺寸重投 UV；玻璃与素色金属/框料保持原样。
+  GLB 实测：gym 9 张图（4 种 PBR 材质各 color/rough/normal 全套）、lab 13 张图
+  （5 种 PBR 材质全套）、canteen 19 张图（5 种 PBR 材质全套 + 博物馆 atlas 3 张 +
+  食堂 atlas 1 张）；回读校验改为只有 PBR 直挂材质须带 3 张图（旧校验要求全部
+  非玻璃材质带 3 张图是烘焙时代的假设；另修了校验里回读材质名带 `.001` 后缀
+  导致名字比对失效的 bug）。
+- 旧 `ov-*_textures/` 烘焙图已无任何引用，留待以后清理（本次未删）。
+
+### 修掉的两个 bug（都在共用帮手里，R2-T21b 实测定位）
+
+- **`_pbr_apply.py` 的 `_load` 存了坏的相对路径**：`bpy.path.relpath(key)` 在无
+  .blend 打开的 fresh 会话里返回家目录相对路径（`//workspace/...`），存盘后
+  解析不到文件，存盘时即卸掉像素，导出时报 `Image has no size and cannot be
+  exported`、GLB 只剩 1 张 243 字节空白图（首版 gym GLB 仅 440KB）。修法：
+  `_load` 改按 BLEND_PATH（由件脚本传入 exec globals）或已打开的 .blend 所在
+  目录算 `//../../../assets/...` 相对路径；无 BLEND_PATH 时留绝对路径。修后
+  gym GLB 6.9MB、9 张图全套，零警告。此修也惠及以后所有用 `_pbr_hook` 的件。
+- **`_steal.py` 的 `bbox_world` 用了 stale 的 `bound_box`**：bmesh 改完 mesh 后
+  `obj.bound_box` 还是旧值，`place()` 按错尺寸缩放（gym 雨棚首版只剩 4.45m 宽、
+  偏到东侧）。修法：直接读 mesh 顶点算包围盒。另：lab 窗行裁盒初版 z 只取玻璃
+  行 [3.8, 5.2]，把窗框面切掉只剩东侧 3.5m/84 面，改取整行 [3.0, 6.0] 后为
+  16.55m/158 面。
+
+### 推仓
+
+- 待填（推后补 commit 号与核对结果）。
+
+### 验证
+
+- 待填（Actions blender-previews overview 组 success 后，下载 artifact 逐张目视
+  3 栋楼：尺寸、层数感、窗带、入口、配色都对，无穿模；godot-verify 总览验收由
+  终轮整合做）。
+- **还剩什么**：tower/dorm/lib/bldA/bldB 换装（R2-T21a 另做）；总览重拼与 Godot
+  侧验收由终轮整合做；旧 `ov-gym/lab/canteen_textures/` 烘焙图已无引用，待清理。
