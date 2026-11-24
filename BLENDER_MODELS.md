@@ -1532,8 +1532,33 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
   `pack_all` 补打包 + 孤儿清理×3（30 材质→7，23 个 tevy 遗留孤儿材质含已无用户的
   yellow_paint 尽除；仓库版第 8 个材质正是 yellow_paint 本身，故 7 是准确数），
   再存盘，.glb 未受此步影响。
-- **推仓**：待填（推后补 commit 号与核对结果）。
+- **推仓**：commit `a59137dd`（`a59137dd9fcf62a65e762194149bb3fde204ae01`，父 `cd349d4a`，
+  2026-11-24T20:49:48Z）：1 批 push-files，5 个文件一次未超 40MB 单 blob（最大单文件
+  .glb 6,926,120 B）；推后核对：HEAD 即 `a59137dd`、父链连续、contents API 逐文件核对
+  5 个文件大小与 blob SHA 与本地逐项一致（.py `3f2f6b83…`、.blend `2e9ce834…`、
+  .glb `330cfd4d…`、日志 `35b12832…`、本文档 `48e82c37…`）。
 - **验证**：待填（blender-previews run 号 + ov-gym.png 目视结论）。
 - **编号说明**：本节即 §36（§35 已是 R2-T26，见协调者提示；写前已查仓库版文档确认
   §36 空闲）；§24/§29 一字未动；只改 gym 一件（`.py` / `.blend` / `.glb` + 本轮日志），
   未拼总览、未动 Godot。
+
+## §37 R2-T36 Godot 侧桌椅腿导入运行时探针（2026-11-25，只诊断、不改模型、不改机位、不改 verify_fixes.gd）
+
+- **任务**：R2-T26 §35 已证伪机位遮挡说（4 个机位 #130/#132/#133/#135 全部看不见腿），按 §35“下一步①”最优先方向做 Godot 侧导入/运行时探针：加载当前 classroom.glb，遍历 ClassroomGLB 的 desk 节点，逐项打印每个 MeshInstance3D 的 surface 数、AABB、材质与 visible，确认 student-desk_0 的 leg_metal 面是否进场景、变换是否正确、材质是否与椅腿相同。只诊断，不动手修。
+- **探针对象（推前核对）**：本地 `assets/models/scenes/classroom.glb` 19,091,264 B、md5 `fe4ecb47…`、blob `52d0ac03`（R2-T28 版）；与远端 HEAD `cd349d4a`（探针时）及 `a59137dd`（R2-T35 推后复核）的远端 blob 一致——R2-T35 只动 ov-gym + 本文档，未动 classroom.glb。Godot `4.4.stable.official.4c311cbee`，`~/workspace/tools/godot/`。
+- **探针脚本**：`tools/probe_desk_legs.gd`（verify_fixes.gd 风格，`extends SceneTree`，`-s` 无头跑，只加载 classroom.glb 一个文件，不跑全量 `--import`、不跑 Web 导出；退出码恒 0，结论在输出里）。对照真值取自 GLB JSON 直读：desk mesh 73 `student-desk_0` prim0 desk_wood 235v/96t y[0.67,0.70]、prim1 leg_metal 1610v/684t y[0,0.67]；chair mesh 74 `student-chair_0` prim0 chair_wood 466v/192t y[0.398,0.888]、prim1 leg_metal 922v/388t y[0,0.882]；leg_metal 为 opaque、doubleSided、metallicFactor 0.75、无 roughnessFactor、带 baseColor + metallicRoughness + normal 三贴图。跑通前修了脚本自身两处 4.4 API 错：`TRANSPARENCY_ALPHA_PRE_PASS` 在 4.4 不存在、`surface_get_count()` 应为 `get_surface_count()`。
+- **方法上的两个实测发现**：① 主工程 `.godot/imported/` 里从未导入过 classroom.glb（18 个文件全是贴图/字体，无 classroom），`ResourceLoader.load("res://assets/models/scenes/classroom.glb")` 在无头 `-s` 下报 `ERROR: No loader found for resource`、返回 null——脚本改走运行时 `GLTFDocument` 直读（与编辑器导入同用 glTF 解析器，无 `.import` 文件即默认设置，只不走贴图转码），先出第一份结果。② 为复核游戏/CI 实际走的编辑器导入路径，另建最小工程 `/tmp/r2t36-import-probe`（只含 classroom.glb 一份 + 同脚本，`project.godot` 渲染段照抄主工程：gl_compatibility、ETC2/ASTC、MSAA 2x），`--headless --import` 只导这一个 GLB 约 40 秒（无头 progress-dialog 报错是编辑器噪音，`.scn` + 40 张 `.ctex` 均已生成），再走 `PackedScene` 路径重跑。两份原始日志随本轮入仓：`tools/probe_desk_legs-r2t36.log`（运行时直读）、`tools/probe_desk_legs-r2t36-import.log`（编辑器导入）。
+- **逐项结果（两路径除资源实例 id 外数字一字相同；`load_path=gltfdocument-runtime` / `packedscene-imported`）**：
+  - 节点总数：441 节点 / 440 MeshInstance3D（GLB 真值 440 节点，全带 mesh）；desk 48、chair 48。
+  - `desk_r1_c1` 全量：visible=true、in_tree=true，pos (-3.180, 0, 2.800)、scale (1,1,1)，mesh 2 surfaces，meshAABB pos(-0.250, 0, -0.300) size(0.500, 0.700, 0.600)，cast_shadow=1、layers=1、vis_range [0,0]、material_override 无。surf0 `desk_wood`：235v/96t/288 索引，法线 235、UV 235，局部 AABB pos(-0.170, 0.670, -0.300) size(0.420, 0.030, 0.600)（仅桌面）。surf1 `leg_metal`：**1610v/684t/2052 索引，法线 1610、UV 1610，局部 AABB pos(-0.250, 0, -0.275) size(0.496, 0.670, 0.551)，即 y[0, 0.67] 从地面直通桌面底**；材质 albedo (1,1,1,1)、a=1.00、metallic 0.75、roughness 1.00、transp DISABLED（不透明）、cull DISABLED（双面）、shading=1，albedo/metal/rough/normal 四贴图全 YES、无自发光、surface override 无。`desk_r8_c6` 同 mesh（共享）、pos (3.820, 0, -2.800)，两面数字与 r1c1 一字相同。
+  - `chair_r1_c1` 全量（对照组）：pos (-2.740, 0, 2.800)、scale 1，2 surfaces；surf0 `chair_wood` 466v/192t、局部 AABB y[0.398, 0.888]；surf1 `leg_metal` **922v/388t、局部 AABB y[0, 0.882]**，材质参数与桌腿一字相同，且**与桌腿是同一材质实例**（两路径均 `same_leg_mat=true`）。
+  - 48 桌聚合：surf==2 的桌 48/48；leg_metal 面 48/48；desk_wood 与 leg_metal 材质实例各 1 个；共享 mesh 实例 1 个；桌腿全局 AABB y[0.000, 0.670]；桌全局位置 x[-3.18, 3.82]、z[-2.80, 2.80]（与 GLB 真值一致）。48 椅聚合：surf==2 的椅 48/48；leg_metal 面 48/48；共享 mesh 1 个；椅腿全局 AABB y[0.000, 0.882]。
+  - 共享网格几何深查（48 套共用同一 mesh，只查一份即覆盖全部）：4 个面退化三角均为 0（桌 wood 0/96、桌 leg 0/684、椅 wood 0/192、椅 leg 0/388）；零长法线均为 0；法线平均模长均为 1.000。
+  - 全扫：visible=false 节点 0 个；mesh 为空 0 个；surface 数为 0 的 0 个；任一轴 scale≈0 的 0 个；`desk_r1_c1` 祖先链 `desk_r1_c1 visible=true <- ClassroomGLB visible=true <- root`。另已读 `scripts/classroom_interior.gd` 与 `scripts/glb_loader.gd`：GLB 分支只做 `load_glb` + 挂 `ClassroomGLB` + 加两盏补光，无任何按名隐藏或材质覆盖——独立加载的探针结论可直接代表游戏内 ClassroomGLB 的运行时状态。
+  - 两 run 汇总行均为 `PROBE-SUMMARY: 导入/变换/可见性/材质/几何五层全部与 GLB 真值一致，无异常`。
+- **根因结论（定位到哪一层）**：**导入层、变换层、可见性层、材质层、几何层五层全部无罪**。腿几何进了场景（48 面、684 三角/面、1610 顶点/面，一个不少）、变换正确（单位缩放、y 从 0 落地、位置与 GLB 一致）、没被隐藏（全链 visible=true）、材质与椅腿同一实例且不透明（不是透明/alpha 0/单面剔除/贴图丢失）、三角形与法线完好（无退化、无零法线）。R2-T23 ①⑤在 Godot 图里看不见腿，**原因不在导入/运行时状态**。本探针无头不光栅化，像素层无法定夺，根因必在渲染侧三者之一：① 光照/材质交互（metallic 0.75 的深灰细管在桌面阴影下过暗）；② 光栅化/分辨率（Ø25–30mm 管在 720p + SwiftShader 下过细）；③ 取景/投影（#135 的 0.5m 近景仍无腿，需先排除腿不在框内）。其中①②与“同材质椅腿可见”并不矛盾：椅背立柱是竖向通长管、迎光面大，桌腿是桌面正下方的短管、又被桌面挡光——同一材质在不同受光/遮挡下表现可以不同，椅腿可见不能反证桌腿应可见。
+- **修复建议（按优先级，修复另派任务，本轮不动手）**：① 像素层 A/B 定位（最优先）：用 T24 款最小渲染探针在精确 03 机位渲染单桌近景并逐像素取样桌下区域，对比腿像素与椅腿像素；或把 leg_metal 临时换成亮色非金属材质重出 03 图——腿出现即①（金属暗/光照）问题，仍无即②③（光栅化/取景）问题。② 若确认为细/暗：按 §35 ② 腿管加粗 Ø25→Ø40mm + 改浅色（可并降 metallic 0.75→约 0.2 或补桌下环境光），重出 GLB 做 A/B 对照。③ 复核 #135 取景：把目标腿 3D 坐标投影到 #135 截图上确认腿确在框内（#133 已有取景失误前科，只算 3D 裕度不够），再定夺是否还需更低机位。④ 流程：本地 `.godot` 从未导入 classroom.glb，本地无头跑 `main.tscn` 会静默回退到程序化教室（箱式桌腿，非 GLB 腿），本地复现教室视觉前须先单导 classroom.glb（本任务最小工程约 40 秒）或跑全量 `--import`；CI 不受影响（先 `--import` 再验证）。
+- **推仓**：待填（推后补 commit 号与核对结果）。
+- **验证**：待填（本任务只诊断，无头探针两 run 全量输出在上；渲染侧根因待下一任务像素层定位后复验）。
+- **还剩什么**：① R2-T23 的①⑤两项仍不通过，03 机位未动；② 渲染侧根因未定位（见修复建议①）；③ 模型侧加粗/换色（建议②）待根因定位后由终轮定夺。
+- **编号说明**：本节即 §37（§35 已是 R2-T26、§36 已是 R2-T35 gym；写前已查仓库版文档确认 §37 空闲；推前重读 HEAD 为 `a59137dd`，其 §36 推仓行本地已填、远端仍“待填”，本次推送会把该行一并带上，见推仓行备注）；§24/§29 一字未动；只加探针脚本 + 两份日志 + 本节，未动模型、未动机位、未改 verify_fixes.gd。
