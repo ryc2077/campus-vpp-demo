@@ -936,7 +936,8 @@ def _import_tevy_mesh(decoded_name, mesh_name):
 def _tevy_mat(name, color_png, normal_png, roughness):
     """tevy 材质：PNG 色图直连 Base Color，Alpha 经 ROUND 进 Alpha
     （MASK、cutoff 0.5，照抄 Grass_AlphaStrip），法线图直连 NormalMap，
-    双面。贴图 pack 进 .blend，随件走。"""
+    双面；另加同色图自发光 0.35（密丛自遮光、丛心发黑的实测修复）。
+    贴图 pack 进 .blend，随件走。"""
     m = bpy.data.materials.new(name)
     m.use_nodes = True
     nt = m.node_tree
@@ -954,6 +955,13 @@ def _tevy_mat(name, color_png, normal_png, roughness):
     rnd.operation = "ROUND"
     nt.links.new(t.outputs["Alpha"], rnd.inputs[0])
     nt.links.new(rnd.outputs["Value"], bsdf.inputs["Alpha"])
+    # 自发光 0.35（同色图）：密丛卡片互相遮光，斜视/近景下丛心全黑；
+    # 2026-11-24 单丛特写实测：无自发光时丛心纯黑、仅轮廓见绿，
+    # 加 0.35 后丛心变暗绿、结构可见，亮面仍自然。强度 0.35 为实测值。
+    # glTF 导出为 emissiveTexture + emissiveFactor，Godot 与 Blender 一致；
+    # 镂空仍由 Alpha/MASK 控制，自发光不影响透明裁剪。
+    nt.links.new(t.outputs["Color"], bsdf.inputs["Emission Color"])
+    bsdf.inputs["Emission Strength"].default_value = 0.35
     img_n = bpy.data.images.load(os.path.join(TEVY_TEXDIR, normal_png))
     img_n.colorspace_settings.name = "Non-Color"
     img_n.pack()

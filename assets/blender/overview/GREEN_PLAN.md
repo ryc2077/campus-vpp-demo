@@ -260,6 +260,12 @@ drift 带内 lod2 密度 326 / 5,672 m² ≈ 0.058 丛/m²（约 1 丛/17 m²，
 总览下草层呈沿带断续的 0.76m 高点列 + 4m 色带 + 树路破面，不再追求整片草毯。
 实测（ov-lawn.py 第 4 次运行，2026-11-24 16:16 CST，日志 `ov-lawn-r2t18d.log`）：`blender_exit=0`、`DONE ov-lawn`、
 回读 8,802 对象 / 393,632 tris / 968,314 verts，0 Error / 0 Traceback；tevy 370 丛断言全过。
+第 5 次运行（16:34 CST，日志 `ov-lawn-r2t18e.log`）只加下述自发光，面数/丛数/回读对象数与第 4 次完全一致。
+**自发光修复**：本地 Cycles 预览发现 tevy 密丛斜视/近景下丛心全黑（卡片互遮、太阳背面，俯视则正常偏绿）；
+单丛特写实测：无自发光时丛心纯黑、仅轮廓见绿；5 个 tevy 材质加同色图自发光 0.35 后丛心变暗绿、结构可见，
+亮面仍自然（强度 0.35 为实测值，写在 `ov-lawn.py` 的 `_tevy_mat` 里）；GLB 直读确认 5 个 tevy 材质均带
+emissiveTexture + emissiveFactor 0.35，alphaMode 仍为 MASK，Godot 与 Blender 表现一致。
+半透明透视（Translucent BSDF）试过：会把镂空区也染成灰卡片，已否决。
 导出警告仅两类，均无害：①tevy 5 个源 mesh 自带 `_WIND`/`Color` 顶点色属性，本轮材质不用顶点色（颜色走 PNG 贴图），
 导出器丢弃并告警 5 次；②同张色图同时接 Base Color 与 Alpha（经 ROUND），导出器告警“多图节点用同一采样器”6 次
 （含 F4 旧有的 1 次），GLB 回读确认 5 个 tevy 材质均为 MASK + baseColorTexture + normalTexture 齐全，镂空正常。
