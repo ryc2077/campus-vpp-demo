@@ -33,10 +33,25 @@ _PREVIEW_NAMES = {'Ground_PreviewOnly'}
 # bbox. No extra stills are emitted, so the artifact count stays 55.
 # Everything else keeps the existing whole-piece / cluster behaviour.
 _DETAIL_FRAMING = {'cl-ac', 'ov-flag-lamp', 'pv-mount', 'ch-piles'}
+# Detail pieces whose sibling units must be hidden while the main still
+# renders (2026-11-24 R2-T13): pv-mount's three roof arrays (A/B/LAB)
+# sit 30-40m apart, so a non-framed array can wander into the detail
+# camera's frustum and appear clipped at the frame edge -- run #83目视:
+# B array intrudes at the bottom-left corner of the LAB close-up, only
+# one corner in frame. The other detail pieces keep their siblings
+# visible (adjacent units of one group, e.g. ch-piles' 4-pile row, read
+# as part of the piece, not as a clipped defect), so hiding is scoped
+# to pv-mount only. Hiding is render-session only (hide_render); the
+# .blend is never saved by this script, so the model is untouched.
+_DETAIL_HIDE_OTHERS = {'pv-mount'}
 # Dark-grey worlds that a detail piece needs brightened to sky so a dark
-# subject reads: pv-mount's steel rails on its dark-grey world were
-# unreadable. cl-ac stays dark: its white ACs pop against dark grey.
-_DETAIL_BRIGHT_BG = {'pv-mount'}
+# subject reads. pv-mount was here until 2026-11-24 (R2-T13): its rails
+# are LIGHT silver (#B9BEC2), not dark, so the sky background made them
+# unreadable -- run #83目视: silver rails melt into the pale sky, while
+# the same rails on pv-panels/pv-roof's dark-grey world read clearly.
+# pv-mount now keeps its dark-grey world; the set is empty until another
+# piece genuinely needs a bright background for a dark subject.
+_DETAIL_BRIGHT_BG = set()
 
 
 def _piece_name():
@@ -372,6 +387,15 @@ def _frame_detail_view(scene):
         d = (bb[1] - bb[0]).length
         if d > best_diag:
             best, best_diag = sub, d
+    if _piece_name() in _DETAIL_HIDE_OTHERS:
+        # Only the framed unit renders: sibling roofs stay out of the
+        # frame entirely instead of intruding clipped at an edge.
+        hidden = [ob for ob in objs if ob not in best]
+        for ob in hidden:
+            ob.hide_render = True
+        print(f"render_max: detail framing for {_piece_name()}: hiding "
+              f"{len(hidden)} sibling objects "
+              f"({', '.join(ob.name for ob in hidden)})")
     cam = _fit_camera(scene, best, "PreviewCamera")
     scene.camera = cam
     _, area, _ = _projected_stats(scene, cam, best)
@@ -397,7 +421,14 @@ def _ensure_camera(scene):
     (2) If the piece is sparse -- several well-separated clusters whose
     projected share under one whole-bbox camera is <2% -- each cluster
     is rendered as its own still (<name>-<cluster>.png) at max quality,
-    and the main <name>.png keeps the largest cluster's view.
+    and the main <name>.png keeps the WHOLE-PIECE view (whole_cam).
+    It must NOT keep the largest cluster's view: that made the main
+    still byte-identical to the largest cluster still (run #83目视,
+    maxdiff=0: di-signs == di-signs-Warn, pv-inverter ==
+    pv-inverter-LAB), so the piece had no independent main render at
+    all (2026-11-24 R2-T13 fix). The whole-piece view is small but it
+    is the only still that shows the full set (all 8 signs / all 3
+    inverters); the per-cluster stills carry the detail.
     Flat clusters (wall signs: one bbox dimension far smaller than the
     others) are viewed along their thin axis from the face side (see
     _flat_direction); a flat cluster that is really one long row is
@@ -451,7 +482,6 @@ def _ensure_camera(scene):
             range(len(work)),
             key=lambda i: -(_objects_bbox(work[i][0])[1]
                             - _objects_bbox(work[i][0])[0]).length)
-        main_cam = None
         for idx in order:
             sub, parent = work[idx]
             cmins, cmaxs = _objects_bbox(sub)
@@ -465,17 +495,18 @@ def _ensure_camera(scene):
             ccam = _fit_camera(scene, sub,
                                "PreviewCamera_" + labels[idx], direction)
             scene.camera = ccam
-            if main_cam is None:
-                main_cam = ccam
             scene.render.filepath = stem + "-" + labels[idx]
             print(f"render_max: rendering cluster {labels[idx]} "
                   f"({len(sub)} objects) -> "
                   f"{scene.render.filepath}.png")
             bpy.ops.render.render(write_still=True)
-        scene.camera = main_cam
+        # Main still: the whole-piece view (whole_cam), NOT the largest
+        # cluster's camera -- see step (2) above (R2-T13: largest-cluster
+        # main duplicated the largest cluster still pixel-for-pixel).
+        scene.camera = whole_cam
         scene.render.filepath = base
         print(f"render_max: sparse piece: {len(work)} cluster renders "
-              f"({', '.join(labels)}), main view = largest cluster")
+              f"({', '.join(labels)}), main view = whole piece")
         return
     print(f"render_max: whole-piece framing, frame share {whole_area:.3f}")
 
