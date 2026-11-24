@@ -231,15 +231,29 @@ def run_length(x1, y1, x2, y2):
 def point_on_run(x1, y1, x2, y2, t):
     return (x1 + (x2 - x1) * t, y1 + (y2 - y1) * t)
 
-# ---------- posts: 每 2m 一根，含端点 ----------
+# ---------- posts: 每段均分布点，首末正好落角点 ----------
+# R2-T20 修 v1 bug：旧循环 t=(i*2.0)/L 在段长非 2m 倍数时末点越界
+# （t>1），实测 17 根中有 4 根 stray：(60,32.5)/(68,32.5) 北出角 1.0m、
+# (68.75,28.5) 东出角 0.75m、(64,28.5) 立在南门洞正中；包围盒 8.83x4.08。
+# 新法：每段按段长均分 n=max(1,round(L/2)) 段，立柱 t=i/n，
+# 间距约 2m、首末精确落角点、无一根越界、无一根挡门洞。
+# 各段布点（去重后共 13 根）：北 60/62/64/66/68@31.5；南左 60/61.625/63.25@28.5；
+# 南右 64.75/66.375/68@28.5；西 28.5/30/31.5@60；东 28.5/30/31.5@68。
+# 包围盒应为 8.08x3.08（立柱 0.08 宽）。
 post_positions = set()
 for _name, x1, y1, x2, y2 in runs:
     L = run_length(x1, y1, x2, y2)
-    n = int(round(L / 2.0))
+    n = max(1, int(round(L / 2.0)))
     for i in range(n + 1):
-        px, py = point_on_run(x1, y1, x2, y2, (i * 2.0) / L if L > 0 else 0)
+        px, py = point_on_run(x1, y1, x2, y2, i / n)
         post_positions.add((round(px, 3), round(py, 3)))
-    post_positions.add((round(x2, 3), round(y2, 3)))
+# 校验：无越界、无挡门洞
+for _px, _py in sorted(post_positions):
+    assert X0 - 1e-6 <= _px <= X1 + 1e-6 and Y_S - 1e-6 <= _py <= Y_N + 1e-6, \
+        "post out of bounds: (%s, %s)" % (_px, _py)
+    assert not (abs(_py - Y_S) < 1e-6 and GATE_X0 < _px < GATE_X1), \
+        "post blocks gate: (%s, %s)" % (_px, _py)
+print("post positions:", sorted(post_positions))
 
 post_objs = []
 for i, (px, py) in enumerate(sorted(post_positions)):
