@@ -1291,3 +1291,13 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 - **其余 19 张扫视——无明显回归**：04-charge 三车 SOC 条各贴各自车顶（蓝/红绿条、白 SUV 条更高，独立复核 T19 修复成立）；11-charge-rain / 12-charge-sunny 同视角条变橙——对应 SOC 58/51/77%，色随电量变、属显示逻辑非回归；14-fallback-charge 块状 fallback 车三车顶条也在位。00/18/19 总览（晴/多云/阴）、01/06 光伏（雨天出力 775→231 kW 一致）、02/10/13 储能、05/17 配电、07 暴雨、08 窄屏、09 教学楼外观、15 fallback 总览、16 A/B/C 对照均正常渲染，面板数字与曲线一致，未见穿模/黑图/缺件。
 - **推仓**：commit `faed898d`（`faed898dbd36bb76fa02b2830abcee2425c84ad5`，父 `783aa8ab`，2026-11-25 01:30 CST 前后）：只推本文档 1 文件（BLENDER_MODELS.md，255,419 B，blob `3e156ee9`）；推后核对：commit 真建出、父链连续、远端文件与本地逐字节一致、含 §25。
 - **还剩什么**：① ①⑤ 两项目视不通过，需 T17 或终轮查 Godot 侧桌椅几何（cl-desks 节点是否含腿/篮/横撑、是否进 classroom.glb）；② ② 待 R2-T22 修复后新 run 复验；③ ③ 深暖褐墙色是否接受待终轮定；④ ④ 门洞需近景图或以 Blender 回读背书；⑤ 48 套总数单图数不清，以 Blender 回读 96 对象为准。
+
+## §26 R2-T25 教室展示板埋墙修复（2026-11-25，只改 cl-board.py + 教室场景重拼）
+
+- **问题**：`assets/blender/classroom/cl-board.py` 的展示板 WhiteBoard/WhiteBoardBack 板面 x=-4.80，埋进西墙内面 (-4.765) 35mm，Godot 里不可见（§22 R2-T22 修黑板时留下的同类问题，见 §22“还剩什么”①；与黑板的 18mm 不是同一修法）。
+- **修法**：只改 cl-board.py，展示板组整体沿 +x 平移 0.038m（黑板组、墙、尺寸一字未动）：WhiteBoard 中心 -4.815→-4.777（盒 x[-4.792,-4.762]，板面露出墙面 3mm，与黑板同量）；WhiteBoardBack 中心 -4.83→-4.792（盒 x[-4.802,-4.782]，背板框边仍在墙内，与黑板背面同例）；左右两块同量平移，相对位置与尺寸全未动。
+- **重建**：重跑 cl-board.py（`assets/blender/classroom/cl-board-r2t25.log`），`DONE cl-board`，零 Error/Traceback；GLB 回读 39 对象（与 R2-T22 相同）；独立回读 GLB 实测 WhiteBoardLeft/Right x[-4.792,-4.762]、WhiteBoardLeftBack/RightBack x[-4.802,-4.782]，Blackboard x[-4.802,-4.762]、BoardFrameTop x[-4.797,-4.747]、ChalkTray x[-4.802,-4.722] 均与 R2-T22 一致未动；cl-board.glb 12,450,368 B、cl-board.blend 1,874,776 B（与 R2-T22 同体积，只改位置）。
+- **场景重拼**：classroom.py 未改，重跑重拼（`assets/blender/scenes/classroom-r2t25.log`），`DONE classroom`，零 Error/Traceback；回读 440 对象（73+96+39+58+54+120，与 R2-T22 一致），门洞 clear（后排椅 y 列 ±0.8/1.8/2.8），board/desk 包围盒 x[-4.802,-3.690]；classroom.blend 5,465,640 B、classroom.glb 19,090,636 B（R2-T22 版 19,090,632 B，+4 B 只因位置数变）。
+- **推仓**：待填（推后补 commit 号与核对结果）。
+- **验证**：待填（blender-previews classroom 组 + godot-verify run 号与目视结论）。
+- **还剩什么**：① §25 ①⑤ 桌椅腿/篮/横撑 Godot 侧未见、③ 深暖褐墙色、④ 门洞 Godot 图内无法独立确认，均不在本次范围，仍待 T17/终轮；② 本次只露出白板面，背板框边仍在墙内（与黑板背面同例），属有意保留，不另修。
