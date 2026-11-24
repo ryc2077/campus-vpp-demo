@@ -798,3 +798,179 @@ red_bricks_04 rough/nor、concrete_pavement_03 rough。玻璃不贴图（透明�
 - 西沿线 3 棵旧树 (-120,-33/-25/-17) 落在操场 3m 缓冲内（跑道面外），系 v2 原位、方案未列，保持不动。
 - 密植带新旧交错 3 对间距 1.56–1.81m（D1/D5 与旧沿线柱交错，方案设计间距 2.5m、抖动后收窄），
   在密植带内属冠层交错，保留并记录；新树两两之间最小间距 ≥2m。
+
+## 12. 楼房网上模型第二轮搜寻（R2-T10b，2026-11-24 23:23–24:00 CST，只找模型、只下载、记来源）
+
+> 接替中断的 R2-T10（上一任运行时重启中断，本地 `buildings/` 里只有 11-23 的旧文件，
+> 无任何新下载，本轮等于从零开始）。背景：用户 2026-11-24 22:42 硬性要求——楼房
+> 全部用网上现成模型或基于下载修改，不再手搓；9 栋楼体（ov-bldA/B/C、ov-lib、ov-gym、
+> ov-lab、ov-tower、ov-canteen、ov-dorm）现为手捏量块+窗带，用户嫌光板假。
+> 本轮只找模型、只下载、记来源；**未改任何 ov-bld\*.py/.blend/.glb，未碰 Godot
+> scripts/scenes/data**。换装是下一波任务。
+>
+> 尺寸约定：下表尺寸均为 Blender 4.2.0 只读导入实测，**长×深×高**（Blender X×Y×Z，
+> Z-up；对应 glTF X=长、Y=高、Z=深）。SPEC §4 目标尺寸（长×深×高，米）：
+> bldA 40×15×19（5F）、bldB 32×14×19（5F）、bldC 22×13×14（4F）、lib 24×16×22（6F）、
+> gym 36×16×18、lab 42×12×13、tower 14×14×32（8F）、canteen 32×13×15、dorm 20×12×16（5F）。
+> 配色一律按 SPEC §3：墙面米白 `#F3E9D2` / 蓝灰 `#DFE9F2` / 浅橙 `#F6D9C0`、
+> 艺体馆红墙 `#8E2F28`、屋顶深灰 `#424A52`、玻璃 `#9FC3D8`。
+
+### 12.1 来源对比（8 家，5 家拿到文件）
+
+| # | 来源 | 结果 | 授权 | 直链方式 |
+|---|---|---|---|---|
+| 1 | Kenney City Kit Commercial（kenney.nl） | **拿到**：整包 ZIP + 19 个主楼 GLB | CC0（包内 License.txt 全文） | 资产页 cookie + `GET /download-link/<hex>` 拿签名链接再下（见 12.6） |
+| 2 | vinish.dev 彩色小镇（models.vinish.dev） | **拿到**：6 栋 GLB | CC BY 4.0（署名 vinish.dev） | `https://models.vinish.dev/colorful-town/<slug>.glb` 直接下，无登录 |
+| 3 | Grab3D Buildings（grab3d.com） | **拿到**：11 个 GLB（Cozy 系列为主） | CC0 1.0 | `https://grab3d.com/dl/<slug>/<slug>.glb` 直接下，无登录 |
+| 4 | tevy.dev（医院楼） | **拿到**：原文件 + 解压后的 plain 版 | CC0 | `https://tevy.dev/models/hospital-building/v2/lod0.glb` 直接下，无登录 |
+| 5 | poly.pizza（Google Poly 档案镜像） | **拿到**：9 个 GLB（2 校舍 + 7 CC0 单体） | 按模型：校舍 CC-BY 3.0，其余 7 个 CC0 | 模型页 HTML 内嵌 `https://static.poly.pizza/<uuid>.glb` 直接下，无登录；API 搜索现须 key（401），改走网站搜索页 |
+| 6 | Sketchfab CC0/可下载区 | **未下载（须登录）** | — | 搜索 API 可免 key 查到模型（如 `d34ac09a…` "school building"，CC-BY、可下载），但 `/v3/models/<uid>/download` 无 token 返回 401，无免登录直链 |
+| 7 | BlendSwap 免费区 | **未下载（须登录）** | — | 搜索页 `curl` 返回 301 空页（跳登录），无直链；与上一轮结论一致 |
+| 8 | CGTrader 免费区 | **未下载（页面被挡）** | — | 免费 school-building 页 `curl` 返回 202、0 字节；下载本来就须注册，与上一轮结论一致 |
+
+另查：itch.io reodesuxz Low Poly School Pack（27 件，免署名）下载须走 itch 流程、无 curl
+直链，且内容是课桌/书架/校车等小件而非楼体，未下（与 SOURCES.md §6 结论一致）；
+Quaternius 官网整包下载走 Google Drive、此前已报配额耗尽，但其单体已通过 poly.pizza
+拿到 CC0 版（见 12.2）；3DAssets.dev 只有小件、无楼体。
+
+### 12.2 候选实测表（全部已下载；尺寸/面数均为 Blender 4.2.0 `--background` 只读导入实测）
+
+**（A）vinish.dev（CC BY 4.0，署名 vinish.dev；全部单 mesh——窗/阳台/屋顶花园等均焊在一个 mesh 里、按材质分区，换装时只能整体缩放+整体改色，拆件须切 mesh）**
+
+| 候选 / 文件 | 资产页 | 直链 | 实测尺寸 长×深×高（m） | 面数 / mesh | 结构实测 |
+|---|---|---|---|---|---|
+| 钟楼 `vinish/clock-tower.glb` | https://vinish.dev/free-3d-models/colorful-town | https://models.vinish.dev/colorful-town/clock-tower.glb | 13.2×13.2×32.7 | 36,620 / 1 | 红砖塔身+石材带+四面钟面+铜绿尖顶+风向标，广场花坛/长椅焊在同一 mesh 里 |
+| 办公塔 `vinish/office-tower.glb` | 同上 | https://models.vinish.dev/colorful-town/office-tower.glb | 30.2×30.9×69.7 | 45,190 / 1 | 14 层蓝绿幕墙+白鳍片，2 层石灰岩裙楼带屋顶花园，旋转门雨棚；页标 70m/14 层与实测一致 |
+| 阳台公寓 `vinish/balcony-apartments.glb` | 同上 | https://models.vinish.dev/colorful-town/balcony-apartments.glb | 24.0×17.9×18.0 | 44,446 / 1 | 5 层白灰泥公寓，每户阳台+彩色门面+花箱，平屋顶带光伏板；页标 5 层与实测一致 |
+| 联排别墅 `vinish/pastel-townhouses.glb` | 同上 | https://models.vinish.dev/colorful-town/pastel-townhouses.glb | 20.9×15.7×13.4 | 51,248 / 1 | 4 栋 2 层粉彩联排，柱廊门廊+凸窗+女儿墙+烟囱，坡顶感来自屋顶造型 |
+| 购物中心 `vinish/shopping-mall.glb` | 同上 | https://models.vinish.dev/colorful-town/shopping-mall.glb | 48.0×43.1×15.9 | 22,438 / 1 | 2 层商场，玻璃中庭入口+雨棚、店面石墩、天窗、屋顶风机；含广场铺装/花坛 |
+| 超市 `vinish/supermarket.glb` | 同上 | https://models.vinish.dev/colorful-town/supermarket.glb | 36.0×38.1×9.6 | 13,354 / 1 | 单层大卖场，平屋顶+停车场划线焊在同一 mesh 里；层高感只有 1 层 |
+
+**（B）Grab3D（CC0 1.0；全部多 mesh，窗多为独立 mesh 或独立材质，拆件友好；资产页标称尺寸/三角数与 Blender 实测逐项一致，见 12.6）**
+
+| 候选 / 文件 | 资产页 | 直链 | 实测尺寸 长×深×高（m） | 面数 / mesh | 结构实测 |
+|---|---|---|---|---|---|
+| 办公楼 `grab3d/office-building-grab3d.glb` | https://grab3d.com/models/buildings/office-building/ | https://grab3d.com/dl/office-building/office-building.glb | 36.1×22.2×25.6 | 31,676 / 4 | `body` 29.4×18.7×25.6 + `facade` 32.3×15.4×24.5（玻璃幕墙窗带）+ `shell` 29.8×15.8×18.5（上部玻璃体，z 3.96–22.46）+ 地面基座；现代玻璃办公楼 |
+| 公寓楼 `grab3d/apartment-building-grab3d.glb` | https://grab3d.com/models/buildings/apartment-building/ | https://grab3d.com/dl/apartment-building/apartment-building.glb | 15.6×13.8×18.3 | 33,542 / 4 | `body` + `details` + `roof_terrace`（屋顶露台）+ `shrubs`（灌木）；5 层左右砖楼，窗带真实 |
+| 博物馆 `grab3d/museum-grab3d.glb` | https://grab3d.com/models/buildings/museum/ | https://grab3d.com/dl/museum/museum.glb | 25.4×24.8×15.0 | 25,838 / 3 | `body` + `details` + `temple_emblem`（三角楣神庙徽）；柱廊入口，石材立面 |
+| 银行 `grab3d/bank-grab3d.glb` | https://grab3d.com/models/buildings/bank/ | https://grab3d.com/dl/bank/bank.glb | 16.9×17.0×11.2 | 25,956 / 3 | `body` + `coin_emblem`（硬币徽）+ `details`；低矮石材楼，只有 2–3 层感 |
+| 影院 `grab3d/cinema-grab3d.glb` | https://grab3d.com/models/buildings/cinema/ | https://grab3d.com/dl/cinema/cinema.glb | 17.8×24.7×13.4 | 22,558 / 4 | `body` + `details` + `emblems` + `lights`（灯泡招牌）；珊瑚色立面+金色装饰 |
+| 街区填充楼 `grab3d/city-block-filler-grab3d.glb` | https://grab3d.com/models/buildings/city-block-filler/ | https://grab3d.com/dl/city-block-filler/city-block-filler.glb | 10.0×14.6×15.7 | 20,642 / 3 | `body` + `details` + **`windows` 独立 mesh**；4–5 层小楼带底层商铺+遮阳篷 |
+| 消防站 `grab3d/fire-station-grab3d.glb` | https://grab3d.com/models/buildings/fire-station/ | https://grab3d.com/dl/fire-station/fire-station.glb | 20.4×17.8×18.3 | 23,604 / 4 | `body` + `bay_doors`（车库大门）+ `details` + `sign`；珊瑚色立面 |
+| 酒店 `grab3d/hotel-grab3d.glb` | https://grab3d.com/models/buildings/hotel/ | https://grab3d.com/dl/hotel/hotel.glb | 24.0×13.5×30.1 | 36,632 / 6 | `body` 24×12×29.5 + **`detail_windows` 独立 mesh** 23.9×12×26.1 + 细部/灯泡/绿植；约 8 层 |
+| 邮局 `grab3d/post-office-grab3d.glb` | https://grab3d.com/models/buildings/post-office/ | https://grab3d.com/dl/post-office/post-office.glb | 12.0×13.3×9.8 | 17,152 / 6 | `body` + `details` + `planters` + `postboxes` + `shrubs` + `windows`；小楼，只有 2–3 层感 |
+| 发电厂 `grab3d/power-plant-grab3d.glb` | https://grab3d.com/models/buildings/power-plant/ | https://grab3d.com/dl/power-plant/power-plant.glb | 38.1×16.4×32.0 | 20,930 / 4 | `body` 26.5×16.4×32.0（高窄塔身）+ `bolt_emblem` + `switchyard`（变电场 12×11×9.6）+ `windows` 27×12.3×21.4；工业风 |
+| 食堂（室内房间，非楼体）`grab3d/cafeteria-grab3d.glb` | https://grab3d.com/models/buildings/cafeteria/ | https://grab3d.com/dl/cafeteria/cafeteria.glb | 4.0×4.0×3.0 | 40,804 / 4 | **室内取餐间**（取餐台+玻璃罩+饮水机），不是楼体；只作 canteen 室内参考，不参与楼体换装 |
+
+**（C）tevy.dev（CC0；医院楼 6 层，含场地铺装/直升机坪，楼体与场地焊在 `building` 一个 mesh 里）**
+
+| 候选 / 文件 | 资产页 | 直链 | 实测尺寸 长×深×高（m） | 面数 / mesh | 结构实测 |
+|---|---|---|---|---|---|
+| 医院楼 `tevy/hospital-building-tevy.glb`（原文件） | https://tevy.dev/models/hospital-building | https://tevy.dev/models/hospital-building/v2/lod0.glb | 与 plain 版一致（见下；原文件 Blender 4.2 打不开，见 12.6） | — / 5 | 页标：6 层、50×25m、高 25m、屋顶直升机坪；白预制带+成排亮窗+深色玻璃底层+蓝色楼梯核+救护车雨棚 |
+| 医院楼 `tevy/hospital-building-tevy-plain.glb`（解压去贴图版，供 Blender 用） | 同上 | 同上（本地由原文件解压，见 12.6） | 54.0×38.5×32.3（含场地+风向标；`building` 单 mesh 54.0×38.5×28.0） | 54,066 / 5 | `building` + `entrances` 33×9.3×5.3（入口雨棚）+ `entrance_lights` + `helipad_lights` + `roof_plant` 50.5×22.8×32.3（含风向标杆）；实测比页标大是因含场地铺装与屋顶设备 |
+
+**（D）poly.pizza（Google Poly 档案；校舍 CC-BY 3.0 须署名作者，其余 7 个 CC0；全部单 mesh）**
+
+| 候选 / 文件 | 资产页 | 直链 | 实测尺寸 长×深×高 | 面数 / mesh | 结构实测 |
+|---|---|---|---|---|---|
+| 校舍（Google Poly）`polypizza/schoolhouse-googlepoly.glb` | https://poly.pizza/m/ftnL_OvlkCx | https://static.poly.pizza/60a7b5e3-e062-41eb-804b-b218edac3783.glb | 13.2×15.3×15.0 m | 1,576 / 1 | 2 层小学校舍，单材质 `blinn1SG`，坡顶+钟楼感；CC-BY 3.0（Poly by Google） |
+| 校舍（jeremy）`polypizza/schoolhouse-jeremy.glb` | https://poly.pizza/m/5uBxCBp0os0 | https://static.poly.pizza/2cf6c213-5b5c-4ee7-9220-21e36300e2dd.glb | 6.9×6.8×10.1 m | 2,136 / 1 | 小校舍，6 色平面材质；太小，只能作体量参考；CC-BY 3.0（jeremy） |
+| Quaternius 大楼 `polypizza/quaternius-big-building.glb` | https://poly.pizza/m/AVCS8jUd2l | https://static.poly.pizza/6c49f4dd-c032-4e50-b257-68bbe01bcf16.glb | 4.71×4.39×5.68 单位 | 7,004 / 1 | 6 色平面材质低多边形楼，窗为色块面；Quaternius 套件比例尺（娃娃屋尺寸，需整体放大）；CC0 |
+| Quaternius 商务楼 `polypizza/quaternius-business-building.glb` | https://poly.pizza/m/GoF3zph6WI | https://static.poly.pizza/9cf00975-0f9f-414c-bb2d-84decf12f0e0.glb | 1.81×1.43×0.90 单位 | 8,556 / 1 | 扁平低层办公块，只有 0.9 单位高；CC0 |
+| Quaternius 联排 `polypizza/quaternius-town-house.glb` | https://poly.pizza/m/dtVrmnnCZn | https://static.poly.pizza/8919c62b-5754-45f8-8a08-4f337de61bbc.glb | 3.05×4.40×5.68 单位 | 5,242 / 1 | 5 色平面材质联排；CC0 |
+| Quaternius 大联排 `polypizza/quaternius-large-town-house.glb` | https://poly.pizza/m/Sl3ZTrWRwn | https://static.poly.pizza/cf011371-80fa-4e00-b96c-581dbb63215b.glb | 5.72×2.22×5.92 单位 | 15,072 / 1 | 同上套件，面数最高；CC0 |
+| Quaternius 小楼 `polypizza/quaternius-small-building.glb` | https://poly.pizza/m/6q5cwgep0I | https://static.poly.pizza/5f01edd6-6ffb-41be-b53e-9379f9a06ad1.glb | 3.58×2.49×4.97 单位 | 5,160 / 1 | 同上套件；CC0 |
+| KayKit 楼 `polypizza/kay-building.glb` | https://poly.pizza/m/otRsYa6pan | https://static.poly.pizza/1c40976f-9fd1-4779-ba85-8105d523f3d8.glb | 2.01×2.00×3.05 单位 | 1,885 / 1 | Kay Lousberg 城市套件单体，贴图绘制窗；CC0 |
+| Kenney 塔 `polypizza/kenney-tower.glb` | https://poly.pizza/m/5lvG0WtuTU | https://static.poly.pizza/87e91b62-442b-4251-bcfc-b89300ad4500.glb | 33.2×33.4×37.2 m | 1,004 / 1 | Kenney 塔，7 材质，含大底座/广场；底座占幅过大；CC0 |
+
+**（E）Kenney City Kit Commercial 2.1（CC0；包内 19 个主楼 GLB 已逐个实测；全部单 mesh + 单张 colormap 贴图，窗为贴图绘制、非几何）**
+
+| 候选 / 文件 | 资产页 | 直链（签名链接，见 12.6） | 实测尺寸 长×深×高（单位） | 面数 / mesh |
+|---|---|---|---|---|
+| building-a … building-n（14 栋，`kenney/glb/building-{a..n}.glb`） | https://kenney.nl/assets/city-kit-commercial | 整包 ZIP（见 12.5） | a 0.88×0.94×1.29 / b 0.97×0.94×1.29 / c 0.88×1.09×0.89 / d 0.84×0.90×1.29 / e 1.64×1.01×0.89 / f 0.84×1.03×1.69 / g 0.97×0.92×1.69 / h 0.88×1.01×1.29 / i 1.24×1.30×1.68 / j 2.08×1.34×1.69 / k 2.08×0.94×1.47 / l 1.37×1.40×2.27 / m 1.24×1.24×3.15 / n 2.32×1.82×2.48 | 1,100–5,246 / 1 |
+| building-skyscraper-a … -e（5 栋，`kenney/glb/building-skyscraper-{a..e}.glb`） | 同上 | 同上 | a 1.36×1.36×2.88 / b 1.36×1.36×4.48 / c 1.28×1.39×4.08 / d 1.28×1.39×5.47 / e 1.29×1.24×4.08 | 1,156–1,892 / 1 |
+
+包内另有 low-detail 版 16 个 + 雨棚/遮阳/阳伞细部 6 个，未逐个核验、未单独入库，
+仍在 `city-kit-commercial.zip` 里，需要时再解。
+
+### 12.3 逐栋适配推荐表（目标尺寸为 SPEC §4 实测，绝不能改尺寸去套模型；缩放系数 = 目标÷模型，按 长/深/高）
+
+| 楼栋（目标 长×深×高） | 推荐模型 | 缩放系数（长/深/高） | 改色 / 改结构 | 结论 |
+|---|---|---|---|---|
+| bldA 一号楼 40×15×19（5F） | Grab3D 办公楼 `office-building`（body 29.4×18.7×25.6；facade 32.3×15.4×24.5） | body ×1.36/×0.80/×0.74；facade ×1.24/×0.98/×0.78 | 玻璃幕墙染 SPEC 玻璃 `#9FC3D8`、墙面染米白 `#F3E9D2`、屋顶改深灰平顶+女儿墙 | **勉强换骨架**：长向拉 36%、高向压 26%，窗带会变宽变矮，需重排窗带；与 lib 共用同一模型、不同缩放与配色 |
+| bldB 二号楼 32×14×19（5F） | Grab3D 办公楼 `office-building`（facade 优先） | facade ×0.99/×0.91/×0.78；body ×1.09/×0.75/×0.74 | 同 bldA，另换一面配色（蓝灰 `#DFE9F2`）与 A 区分 | **勉强换骨架**：长/深接近，高向压 22–26%，层高感会矮，需重排窗带 |
+| bldC 三号楼 22×13×14（4F） | **沿用 11-23 已入库的 Grab3D 学校楼**（22.9×13.9×16.7，见 §5.2） | ×0.96/×0.94/×0.84 | 黄墙改浅橙 `#F6D9C0`、珊瑚红坡顶改深灰平屋顶+女儿墙、拆屋脊钟楼 | **本轮无新模型胜过旧件**：新候选 pastel-townhouses（×1.05/×0.83/×1.05）尺寸接近但只有 2 层+坡顶烟囱，改 4 层教学楼工作量更大；bldC 仍用旧件 |
+| lib 图书馆 24×16×22（6F） | Grab3D 办公楼 `office-building`（body 优先） | body ×0.82/×0.85/×0.86；facade ×0.74/×1.04/×0.90 | 玻璃幕墙染 SPEC 玻璃+蓝灰墙面、入口加 Grab3D 博物馆柱廊/`temple_emblem`部件、屋顶改深灰平顶 | **可直接换骨架**：全轮里最接近等比的一组（0.82–0.86），窗比例基本不坏；备选 tevy 医院楼体（6 层）但楼体与场地焊死、需先切场地 |
+| gym 体育馆 36×16×18 | 无整栋可用；量体参考 vinish 超市（36×38.1×9.6，宽恰好 36m、平屋顶）+ Grab3D 影院立面部件 | 超市 ×1.00/×0.42/×1.88（不可行，作废） | 超市只取 36m 宽+平屋顶+屋顶设备的量体概念，深向与高度重建；入口雨棚参考 tevy 医院 `entrances` | **只能参考局部**：所有候选不是深向压一半、就是高向拉一倍，没有大跨度低矮体育馆；量体重建、偷屋顶/入口部件 |
+| lab 实验楼 42×12×13 | 无整栋可用；量体参考 Grab3D 发电厂 `windows` mesh（27×12.3×21.4）+ 办公楼 `shell`（29.8×15.8×18.5） | —（均不贴合） | 窗带 mesh 可拆出来改长度拼成长条窗带；屋顶设备参考发电厂 `switchyard` | **只能参考局部**：42m 长条低楼网上没有，量体重建、只偷窗带与屋顶设备 |
+| tower 创造力中心 14×14×32（8F） | vinish 钟楼 `clock-tower` | ×1.06/×1.06/×0.98 | 去四面钟面+铜绿尖顶+风向标与广场花坛，加层间带读出 8 层；墙面染米白/浅橙、屋顶深灰 | **可直接换**：全轮唯一近等比（误差 ≤6%），窗比例不坏；备选 Kenney building-m（1.24×1.24×3.15 单位，等比 ×11.29 得 14×14×35.6 再高向 ×0.90），但窗是贴图绘制，弱一档 |
+| canteen 食堂 32×13×15 | 无整栋可用；量体参考 Grab3D 博物馆（25.4×24.8×15.0，高恰好）+ vinish 超市（平屋顶大卖场概念） | 博物馆 ×1.26/×0.52/×1.00（深向压一半，作废） | 博物馆只取高度与柱廊入口概念；食堂室内参考 Grab3D 食堂房间 `cafeteria`（4×4×3m 取餐台） | **只能参考局部**：没有 32m 长、13m 深、15m 高的食堂楼，量体重建 |
+| dorm 宿舍 20×12×16（5F） | Grab3D 公寓楼 `apartment-building` | ×1.29/×0.87/×0.87 | 墙面染浅橙 `#F6D9C0`、去屋顶露台花坛与 `shrubs` 灌木、屋顶改深灰平顶 | **可直接换**：缩放最均匀的住宅楼，窗带真实；备选 city-block-filler 两栋并排（每栋 10×14.6×15.7，×1.0/×0.82/×1.02 并排拼成 20m 宽，窗比例完全不坏，但接缝要处理） |
+
+### 12.4 换装工作量评估（给下一波换装任务）
+
+- **能直接换（3 栋 + 1 栋沿用旧件）**：tower（钟楼去钟面/尖顶+加层间带）、dorm（公寓楼改色+去露台花坛）、
+  lib（办公楼 body 等比缩+改色+加博物馆柱廊入口）；bldC 沿用 11-23 旧件学校楼（已评估过，见 §5.2）。
+- **勉强换骨架、窗带须重排（2 栋）**：bldA、bldB 共用 Grab3D 办公楼（不同缩放与配色区分），
+  高向压 22–26% 会把层高感压矮，窗带必须按 SPEC 层高重排，不能只缩放了事。
+- **只能参考局部、量体重建（3 栋）**：gym、lab、canteen——网上没有对应体量的整栋；
+  可偷的部件：gym 取超市 36m 宽量体概念+医院入口雨棚；lab 取发电厂 `windows` 窗带 mesh 改长
+  + `switchyard` 屋顶设备；canteen 取博物馆柱廊入口概念 + 食堂房间取餐台。
+- **共性工作**：所有 vinish / poly.pizza 单 mesh 模型只能整体缩放改色、拆件须切 mesh；
+  Grab3D 多 mesh（`windows`/`facade`/`details` 独立）拆件最友好；Kenney/Quaternius/Kay
+  均为贴图绘窗或色块窗，窗带真实度弱一档，只作备选量体。
+- **面数**：单栋换装后 17k–54k 面（医院楼 54k 最高、含场地；钟楼 36.6k、办公楼 31.7k、
+  公寓楼 33.5k），9 栋全换后总览面数增加约 25–30 万面，在可接受范围（总览现约 13,036 对象）。
+
+### 12.5 文件清单（本轮新增 48 个文件，共 62,640,082 字节，约 59.7 MiB；未覆盖 11-23 旧文件）
+
+| 目录 | 文件 | 字节 |
+|---|---|---|
+| `buildings/kenney/` | `city-kit-commercial.zip`（整包，含 License.txt CC0） | 4,096,974 |
+| `buildings/kenney/glb/` | `building-{a..n}.glb` 14 个 + `building-skyscraper-{a..e}.glb` 5 个 | 3,739,924 |
+| `buildings/vinish/` | `clock-tower` / `office-tower` / `balcony-apartments` / `pastel-townhouses` / `shopping-mall` / `supermarket` 各 1 个 `.glb` | 22,229,104 |
+| `buildings/grab3d/` | `office-building` / `apartment-building` / `museum` / `bank` / `cinema` / `city-block-filler` / `fire-station` / `hotel` / `post-office` / `power-plant` / `cafeteria` 各 1 个 `-grab3d.glb` | 22,368,448 |
+| `buildings/tevy/` | `hospital-building-tevy.glb`（原文件，meshopt+KTX2）+ `hospital-building-tevy-plain.glb`（解压去贴图版） | 6,663,288 |
+| `buildings/polypizza/` | `schoolhouse-googlepoly` / `schoolhouse-jeremy` / `quaternius-big-building` / `quaternius-business-building` / `quaternius-town-house` / `quaternius-large-town-house` / `quaternius-small-building` / `kay-building` / `kenney-tower` 各 1 个 `.glb` | 3,799,600 |
+
+授权汇总：CC0——Kenney、Grab3D、tevy、poly.pizza 内 7 个（Quaternius 5 个、Kay 1 个、
+Kenney 塔 1 个）；CC BY 4.0——vinish.dev 6 栋（署名 vinish.dev）；CC-BY 3.0——poly.pizza
+2 个校舍（署名 Poly by Google / jeremy）。无 CC-BY-NC/ND、无付费、无登录后下载。
+
+### 12.6 核验方法与坑（诚实记录）
+
+- **核验**：Blender 4.2.0（`~/workspace/tools/blender/blender-4.2.0-linux-x64/blender`）
+  `--background` 只读导入全部 47 个 GLB（19 Kenney + 6 vinish + 11 Grab3D + 2 tevy +
+  9 poly.pizza），其中 46 个成功、1 个失败（tevy 医院楼原文件，meshopt 压缩打不开，
+  见下），另逐 mesh 包围盒复核 5 个重点文件
+  （发电厂/医院 plain/办公楼/购物中心/酒店）；Grab3D 11 个资产页标称尺寸与三角数与
+  Blender 实测**逐项一致**（如办公楼 36.10×22.20×25.61m / 31,676 三角、公寓楼
+  15.56×13.83×18.30m / 33,542 三角）；vinish 页标（办公塔 70m/14 层、钟楼 33m、
+  商场 48m 宽、公寓 5 层）与实测一致；tevy 医院页标 50×25m/25m/6 层是楼体本身，
+  实测 54×38.5×32.3 含场地铺装与屋顶风向标杆。
+- **Kenney 下载法**：资产页 Download 按钮是 JS，先 `curl -c` 取 cookie 再
+  `GET https://kenney.nl/download-link/<hex(assets/city-kit-commercial)>`（须带 cookie +
+  Referer，否则 `{"error":"forbidden"}`），返回签名 URL 再下 ZIP；签名有时效，
+  本轮链接 `expires=1795534291`。包内 License.txt 为 CC0 全文。
+- **poly.pizza 下载法**：`api.poly.pizza/v1.1/search` 现须 API key（401
+  "You need an API key to do that dingus"），改走网站搜索页
+  `https://poly.pizza/search/<词>`（200，含 `/m/<id>` 链接），模型页 HTML 内嵌
+  `https://static.poly.pizza/<uuid>.glb` 直链；本轮扫了 school / office building /
+  library / apartment / tower 5 个搜索词、117 个不重复模型页，挑出 9 个入库。
+  许可证以模型页标注为准（CC0 或 CC-BY 3.0）。
+- **tevy 医院楼解压（与上一轮教室同坑）**：原文件用 EXT_meshopt_compression +
+  KTX2 贴图，Blender 4.2 打不开（`Extension EXT_meshopt_compression is not available`）。
+  解法：`npm i @gltf-transform/cli@4` 后 `gltf-transform copy` 解 meshopt，
+  再用 gltf-transform 剥全部贴图 + `dequantize()`，最后用 Python 把 GLB JSON 块里残留的
+  `KHR_texture_basisu` 从 extensionsUsed/Required 删掉（JSON 块填充必须用空格 0x20，
+  用 NUL 填充 Blender 会报 `Bad glTF: json error: Extra data`）；plain 版 3,748,024 B，
+  Blender 实测 54.0×38.5×32.34、5 mesh、54,066 面。原文件保留，plain 版只供 Blender
+  核验/换装用（贴图已剥，材质只剩 baseColor 数值）。
+- **Grab3D 的 .blend 别下**：上一轮已证实其 `.blend` 下载全是占位文件（见 §5.3），
+  本轮只下了 `.glb`。
+- **Kenney/Quaternius/Kay 的尺寸是套件单位、不是米**：文件内 1–5 个单位是娃娃屋比例尺，
+  换装时须整体放大（Kenney building-m 等比 ×11.29 才到 14m）；窗为贴图绘制或色块面，
+  非几何窗带，近景真实度弱于 Grab3D/vinish。
+- **食堂 Grab3D `cafeteria` 不是楼**：4×4×3m 室内取餐间，误当楼体会错得离谱，
+  已在 12.2 表内标明，只作 canteen 室内参考。
+

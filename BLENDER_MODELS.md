@@ -854,3 +854,50 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
   ov-parking 目视；godot-verify 新 run 号 + 04-charge 目视：车有轮有窗有灯、三色分明、
   V2G 桩前位置正确、SOC 条在车顶）。
 - **还剩什么**：待填（CI 目视结论与遗留，CI 后填；总览场景重拼由终轮整合任务做，本任务未拼）。
+
+## §20 R2-T10b 楼房网上模型第二轮搜寻（2026-11-24 23:23–24:00 CST，只 sourcing，不建模）
+
+- **任务**：接替中断的 R2-T10（上一任运行时重启中断，无任何新下载，本轮从零开始）。
+  用户 2026-11-24 22:42 硬性要求：楼房全部用网上现成模型或基于下载修改，不再手搓。
+  9 栋手捏量块楼体（ov-bldA/B/C、ov-lib、ov-gym、ov-lab、ov-tower、ov-canteen、ov-dorm）
+  要找网上模型替换。只找模型、只下载、记来源；**未改任何 ov-bld\*.py/.blend/.glb，
+  未碰 Godot scripts/scenes/data**。换装是下一波任务。
+- **来源（8 家对比，5 家拿到文件；详见 SOURCES.md §12）**：Kenney City Kit Commercial
+  2.1（CC0，cookie+签名链接下载整包）、vinish.dev 彩色小镇 6 栋（CC BY 4.0，直链）、
+  Grab3D Cozy 系列 11 个（CC0，直链 `grab3d.com/dl/<slug>/<slug>.glb`）、tevy 医院楼
+  （CC0，直链）、poly.pizza 9 个（Google Poly 档案，模型页内嵌 static 直链；API 搜索
+  现须 key，改走网站搜索页，扫了 5 个词、117 个模型页）。拿不到的 3 家均已亲手确认：
+  Sketchfab 下载接口无 token 返 401、BlendSwap 搜索页 301 空页、CGTrader 免费页 202 空页。
+- **核验（Blender 4.2.0 `--background` 只读导入）**：47 个 GLB 全部实测，46 个成功、
+  1 个失败（tevy 医院楼原文件 meshopt+KTX2 打不开，已按上一轮教室的办法解压出
+  plain 版：`gltf-transform copy` 解 meshopt → 剥贴图 + dequantize → Python 删
+  `KHR_texture_basisu` 声明，JSON 块填充须用空格、NUL 会报 `Bad glTF: Extra data`；
+  plain 版 54.0×38.5×32.34、5 mesh、54,066 面）。另逐 mesh 复核 5 个重点文件
+  （发电厂/医院 plain/办公楼/购物中心/酒店）。Grab3D 11 个资产页标称尺寸与三角数
+  与实测逐项一致；vinish 页标（办公塔 70m/14 层、钟楼 33m、商场 48m 宽）与实测一致。
+- **逐栋推荐（SPEC §4 尺寸是实测，绝不能改尺寸去套模型；详见 SOURCES.md §12.3）**：
+  - **可直接换**：tower ← vinish 钟楼 13.2×13.2×32.7（×1.06/×1.06/×0.98，全轮唯一
+    近等比；去钟面/尖顶/风向标、加层间带读 8 层）；dorm ← Grab3D 公寓楼
+    15.6×13.8×18.3（×1.29/×0.87/×0.87；改浅橙 `#F6D9C0`、去屋顶露台花坛）；
+    lib ← Grab3D 办公楼 body 29.4×18.7×25.6（×0.82/×0.85/×0.86；改色+博物馆柱廊入口）。
+  - **bldC 沿用旧件**：本轮无新模型胜过 11-23 已入库的 Grab3D 学校楼
+    （22.9×13.9×16.7，×0.96/×0.94/×0.84）；新候选 pastel-townhouses 只有 2 层+坡顶，
+    改 4 层教学楼工作量更大。
+  - **勉强换骨架、窗带须重排**：bldA / bldB 共用 Grab3D 办公楼（facade/body，不同缩放
+    与配色区分），高向压 22–26% 会把层高感压矮，窗带须按 SPEC 层高重排。
+  - **只能参考局部、量体重建**：gym（超市 36m 宽量体概念+医院入口雨棚）、lab
+    （发电厂 `windows` 窗带 mesh 改长 + `switchyard` 屋顶设备）、canteen
+    （博物馆柱廊入口概念 + 食堂房间取餐台）；网上没有对应体量的整栋。
+- **选定文件（48 个，共 62,640,082 字节，约 59.7 MiB；未覆盖 11-23 旧文件）**：
+  `buildings/kenney/`（整包 ZIP + 19 个主楼 GLB）、`buildings/vinish/`（6 栋）、
+  `buildings/grab3d/`（11 个，含食堂室内房间 1 个、只作室内参考）、`buildings/tevy/`
+  （医院楼原文件 + plain 版）、`buildings/polypizza/`（9 个）。
+  授权：CC0（Kenney、Grab3D、tevy、poly.pizza 内 7 个）；CC BY 4.0（vinish 6 栋，
+  署名 vinish.dev）；CC-BY 3.0（poly.pizza 2 个校舍，署名 Poly by Google / jeremy）。
+- **推仓**：5 批 push-files，48 个文件一次未超 40MB 单 blob（最大单文件 4,789,136 B）：
+  Kenney `f16a77d6`（20 文件）、vinish `27ac65e6`（6 文件）、Grab3D `b58612df`（11 文件）、
+  tevy `4ebc7ea0`（2 文件）、poly.pizza `a81ebbdc`（9 文件）；两份文档随第 6 批推，
+  commit 待填（推后核对 HEAD 与 blob SHA）。
+- **验证**：待填（换装任务不在本轮；本轮只核验了文件可导入与尺寸/面数，未做换装后渲染）。
+- **还剩什么**：换装待下一波任务——tower/dorm/lib 直接换、bldA/bldB 换骨架+重排窗带、
+  bldC 沿用旧件、gym/lab/canteen 量体重建+偷部件；Godot 侧总览重刷与目视由终轮整合做。
