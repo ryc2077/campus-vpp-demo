@@ -1,4 +1,11 @@
 # ov-windows-roofs.py -- v2: A/B/C 三栋教学楼窗户与屋顶细部（返工）
+# R2-T29 (2026-11-25)：A/B 窗带与屋顶膜删除——R2-T21a 把 A/B 换成 Grab3D
+#   玻璃幕墙楼体后，旧窗带与新幕墙同墙面双层（BVH 实测面片相交 7,242 对，
+#   全在 A/B；F5 顶层旧带收分 0.3m、埋进新幕墙，F1–F4 旧带浮在幕墙外
+#   ≥0.14m）；屋顶膜底面 z=18.35 与新屋顶板顶面 18.35 共面。本件自此
+#   只做 C 栋窗带 + 三栋屋顶细部（A/B 压顶/设备/风扇保留，设备落座由
+#   膜顶 18.40 降至板顶 18.35）。C 栋（旧件未换装）与 lib/tower/dorm
+#   实测零重叠，一字未动。楼体 .glb 不动。
 # 归属：只做 A/B/C 的窗与屋顶件，不动楼体（ov-bldA/B/C 负责楼体量块）。
 # 位置尺寸来源：旧版脚本 + ov-bldA/B/C.py 实测对齐——
 #   A/B 顶层（5F）收分 0.3m/边，C 每层收分 0.1m/边，窗带按各层实际墙面落位
@@ -224,6 +231,9 @@ piece_objs = []
 # 中挺前沿 +0.15，窗台板出墙 0.24；两端离墙角各留 1.0m
 for b in BUILDINGS:
     bname, cx, cy = b["name"], b["cx"], b["cy"]
+    # R2-T29: A/B 窗带删除（新玻璃幕墙自带窗带，旧带双层）；只做 C 栋。
+    if bname in ("A", "B"):
+        continue
     for fi, (z0, z1, hx, hy) in enumerate(b["floors"], start=1):
         band_h = 2.0 if fi == 1 else 1.6
         zc = (z0 + z1) / 2.0
@@ -271,7 +281,7 @@ for b in BUILDINGS:
             bm.free()
             piece_objs.append(gob)
 
-print("window objects:", len(piece_objs))  # (5+5+4)*4*2 = 112
+print("window objects:", len(piece_objs))  # R2-T29: 仅 C 栋 (4*4*2 = 32)
 
 # ---------- 屋顶：金属压顶盖板 + 防水层板 + 设备盒 + 风扇罩 ----------
 for b in BUILDINGS:
@@ -289,16 +299,21 @@ for b in BUILDINGS:
     add_box(bm, (cx + (pw / 2 - 0.245), cy, cz + 0.06), (0.49, pd - 0.98, 0.12))
     ob, me = new_mesh_object("ovw_coping_%s_EW" % bname, COPING_Y)
     bm.to_mesh(me); bm.free(); piece_objs.append(ob)
-    # 防水层板：铺在屋顶板顶面，0.05 厚
+    # 防水层板：铺在屋顶板顶面，0.05 厚。
+    # R2-T29：A/B 膜删除——底面 z=18.35 与新屋顶板顶面 18.35 共面，
+    #   新板已是成品深灰 PBR 面，膜是多余的第二层板；只留 C 栋膜。
     sw, sd = b["slab"]
     st = b["slab_top"]
-    bm = bmesh.new()
-    add_box(bm, (cx, cy, st + 0.025), (sw, sd, 0.05))
-    ob, me = new_mesh_object("ovw_roofdeck_%s" % bname, MEMBRANE)
-    bm.to_mesh(me); bm.free(); piece_objs.append(ob)
-    # 设备盒：箱体 + 顶盖 + 南面百叶 4 片 + 顶部排气管
+    if bname not in ("A", "B"):
+        bm = bmesh.new()
+        add_box(bm, (cx, cy, st + 0.025), (sw, sd, 0.05))
+        ob, me = new_mesh_object("ovw_roofdeck_%s" % bname, MEMBRANE)
+        bm.to_mesh(me); bm.free(); piece_objs.append(ob)
+    # 设备盒：箱体 + 顶盖 + 南面百叶 4 片 + 顶部排气管。
+    # R2-T29：A/B 膜删后设备/风扇落座由膜顶 (st+0.05) 降至板顶 st，
+    #   不悬空、不下沉；C 栋膜仍在，落座不变。
     ex, ey, ew, ed, eh = b["equip"]
-    z0 = st + 0.05
+    z0 = st if bname in ("A", "B") else st + 0.05
     bm = bmesh.new()
     add_box(bm, (ex, ey, z0 + eh / 2), (ew, ed, eh))
     add_box(bm, (ex, ey, z0 + eh + 0.04), (ew + 0.2, ed + 0.2, 0.08))
@@ -319,7 +334,7 @@ for b in BUILDINGS:
     ob, me = new_mesh_object("ovw_fan_%s" % bname, FAN)
     bm.to_mesh(me); bm.free(); piece_objs.append(ob)
 
-print("piece objects total:", len(piece_objs))  # 112 窗 + 15 屋顶 = 127
+print("piece objects total:", len(piece_objs))  # R2-T29: 32 窗(C) + 13 屋顶 = 45
 
 # ---------- 示意楼体量块（仅预览衬底，不导出）：只做 A 栋 ----------
 WALL_COLORS = {"A": "#F3E9D2"}

@@ -1,0 +1,279 @@
+Blender 4.2.0 (hash a51f293548ad built 2024-07-16 06:27:02)
+Info: Total files 13 | Changed 13 | Failed 0
+19:26:25 | INFO: Starting glTF 2.0 export
+19:26:25 | INFO: Extracting primitive: ovw_frame_C_F1_S
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_glass_C_F1_S
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_frame_C_F1_N
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_glass_C_F1_N
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_frame_C_F1_E
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_glass_C_F1_E
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_frame_C_F1_W
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_glass_C_F1_W
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_frame_C_F2_S
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_glass_C_F2_S
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_frame_C_F2_N
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_glass_C_F2_N
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_frame_C_F2_E
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_glass_C_F2_E
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_frame_C_F2_W
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_glass_C_F2_W
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_frame_C_F3_S
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_glass_C_F3_S
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_frame_C_F3_N
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_glass_C_F3_N
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_frame_C_F3_E
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_glass_C_F3_E
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_frame_C_F3_W
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_glass_C_F3_W
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_frame_C_F4_S
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_glass_C_F4_S
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_frame_C_F4_N
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_glass_C_F4_N
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_frame_C_F4_E
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_glass_C_F4_E
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_frame_C_F4_W
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_glass_C_F4_W
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_coping_A_NS
+19:26:25 | INFO: Primitives created: 1
+19:26:25 | INFO: Extracting primitive: ovw_coping_A_EW
+19:26:26 | INFO: Primitives created: 1
+19:26:26 | INFO: Extracting primitive: ovw_equip_A
+19:26:26 | INFO: Primitives created: 1
+19:26:26 | INFO: Extracting primitive: ovw_fan_A
+19:26:26 | INFO: Primitives created: 1
+19:26:26 | INFO: Extracting primitive: ovw_coping_B_NS
+19:26:26 | INFO: Primitives created: 1
+19:26:26 | INFO: Extracting primitive: ovw_coping_B_EW
+19:26:26 | INFO: Primitives created: 1
+19:26:26 | INFO: Extracting primitive: ovw_equip_B
+19:26:26 | INFO: Primitives created: 1
+19:26:26 | INFO: Extracting primitive: ovw_fan_B
+19:26:26 | INFO: Primitives created: 1
+19:26:26 | INFO: Extracting primitive: ovw_coping_C_NS
+19:26:26 | INFO: Primitives created: 1
+19:26:26 | INFO: Extracting primitive: ovw_coping_C_EW
+19:26:26 | INFO: Primitives created: 1
+19:26:26 | INFO: Extracting primitive: ovw_roofdeck_C
+19:26:26 | INFO: Primitives created: 1
+19:26:26 | INFO: Extracting primitive: ovw_equip_C
+19:26:26 | INFO: Primitives created: 1
+19:26:26 | INFO: Extracting primitive: ovw_fan_C
+19:26:26 | INFO: Primitives created: 1
+19:26:26 | INFO: Finished glTF 2.0 export in 1.2334473133087158 s
+19:26:26 | INFO: Data are loaded, start creating Blender stuff
+19:26:26 | INFO: Blender create Mesh node ovw_frame_C_F1_S
+19:26:26 | INFO: Blender create Mesh node ovw_glass_C_F1_S
+19:26:26 | INFO: Blender create Mesh node ovw_frame_C_F1_N
+19:26:26 | INFO: Blender create Mesh node ovw_glass_C_F1_N
+19:26:26 | INFO: Blender create Mesh node ovw_frame_C_F1_E
+19:26:26 | INFO: Blender create Mesh node ovw_glass_C_F1_E
+19:26:26 | INFO: Blender create Mesh node ovw_frame_C_F1_W
+19:26:26 | INFO: Blender create Mesh node ovw_glass_C_F1_W
+19:26:26 | INFO: Blender create Mesh node ovw_frame_C_F2_S
+19:26:26 | INFO: Blender create Mesh node ovw_glass_C_F2_S
+19:26:26 | INFO: Blender create Mesh node ovw_frame_C_F2_N
+19:26:26 | INFO: Blender create Mesh node ovw_glass_C_F2_N
+19:26:26 | INFO: Blender create Mesh node ovw_frame_C_F2_E
+19:26:26 | INFO: Blender create Mesh node ovw_glass_C_F2_E
+19:26:26 | INFO: Blender create Mesh node ovw_frame_C_F2_W
+19:26:26 | INFO: Blender create Mesh node ovw_glass_C_F2_W
+19:26:26 | INFO: Blender create Mesh node ovw_frame_C_F3_S
+19:26:26 | INFO: Blender create Mesh node ovw_glass_C_F3_S
+19:26:26 | INFO: Blender create Mesh node ovw_frame_C_F3_N
+19:26:26 | INFO: Blender create Mesh node ovw_glass_C_F3_N
+19:26:26 | INFO: Blender create Mesh node ovw_frame_C_F3_E
+19:26:26 | INFO: Blender create Mesh node ovw_glass_C_F3_E
+19:26:26 | INFO: Blender create Mesh node ovw_frame_C_F3_W
+19:26:26 | INFO: Blender create Mesh node ovw_glass_C_F3_W
+19:26:26 | INFO: Blender create Mesh node ovw_frame_C_F4_S
+19:26:26 | INFO: Blender create Mesh node ovw_glass_C_F4_S
+19:26:26 | INFO: Blender create Mesh node ovw_frame_C_F4_N
+19:26:26 | INFO: Blender create Mesh node ovw_glass_C_F4_N
+19:26:26 | INFO: Blender create Mesh node ovw_frame_C_F4_E
+19:26:26 | INFO: Blender create Mesh node ovw_glass_C_F4_E
+19:26:26 | INFO: Blender create Mesh node ovw_frame_C_F4_W
+19:26:26 | INFO: Blender create Mesh node ovw_glass_C_F4_W
+19:26:26 | INFO: Blender create Mesh node ovw_coping_A_NS
+19:26:26 | INFO: Blender create Mesh node ovw_coping_A_EW
+19:26:26 | INFO: Blender create Mesh node ovw_equip_A
+19:26:26 | INFO: Blender create Mesh node ovw_fan_A
+19:26:26 | INFO: Blender create Mesh node ovw_coping_B_NS
+19:26:26 | INFO: Blender create Mesh node ovw_coping_B_EW
+19:26:26 | INFO: Blender create Mesh node ovw_equip_B
+19:26:26 | INFO: Blender create Mesh node ovw_fan_B
+19:26:26 | INFO: Blender create Mesh node ovw_coping_C_NS
+19:26:26 | INFO: Blender create Mesh node ovw_coping_C_EW
+19:26:26 | INFO: Blender create Mesh node ovw_roofdeck_C
+19:26:26 | INFO: Blender create Mesh node ovw_equip_C
+19:26:26 | INFO: Blender create Mesh node ovw_fan_C
+19:26:26 | INFO: glTF import finished in 0.08s
+window objects: 32
+piece objects total: 45
+cubemap probe ok
+irradiance probe ok
+SSR on: True refraction: True
+bake skip (glass, kept as-is): ovw_glass
+bake skip (glass, kept as-is): ovw_glass
+bake skip (glass, kept as-is): ovw_glass
+bake skip (glass, kept as-is): ovw_glass
+bake skip (glass, kept as-is): ovw_glass
+bake skip (glass, kept as-is): ovw_glass
+bake skip (glass, kept as-is): ovw_glass
+bake skip (glass, kept as-is): ovw_glass
+bake skip (glass, kept as-is): ovw_glass
+bake skip (glass, kept as-is): ovw_glass
+bake skip (glass, kept as-is): ovw_glass
+bake skip (glass, kept as-is): ovw_glass
+bake skip (glass, kept as-is): ovw_glass
+bake skip (glass, kept as-is): ovw_glass
+bake skip (glass, kept as-is): ovw_glass
+bake skip (glass, kept as-is): ovw_glass
+uv added: ovw_frame_C_F1_S
+uv added: ovw_frame_C_F1_N
+uv added: ovw_frame_C_F1_E
+uv added: ovw_frame_C_F1_W
+uv added: ovw_frame_C_F2_S
+uv added: ovw_frame_C_F2_N
+uv added: ovw_frame_C_F2_E
+uv added: ovw_frame_C_F2_W
+uv added: ovw_frame_C_F3_S
+uv added: ovw_frame_C_F3_N
+uv added: ovw_frame_C_F3_E
+uv added: ovw_frame_C_F3_W
+uv added: ovw_frame_C_F4_S
+uv added: ovw_frame_C_F4_N
+uv added: ovw_frame_C_F4_E
+uv added: ovw_frame_C_F4_W
+uv added: ovw_coping_A_NS
+uv added: ovw_coping_B_NS
+uv added: ovw_coping_C_NS
+uv added: ovw_coping_A_EW
+uv added: ovw_coping_B_EW
+uv added: ovw_coping_C_EW
+uv added: ovw_equip_A
+uv added: ovw_equip_B
+uv added: ovw_equip_C
+uv added: ovw_fan_A
+uv added: ovw_fan_B
+uv added: ovw_fan_C
+uv added: ovw_roofdeck_C
+reuse: ovw_frame color /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/overview/ov-windows-roofs_textures/ovw_frame_color.png 30877
+reuse: ovw_frame rough /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/overview/ov-windows-roofs_textures/ovw_frame_rough.png 366992
+reuse: ovw_frame normal /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/overview/ov-windows-roofs_textures/ovw_frame_normal.png 20166
+reuse: ovw_coping color /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/overview/ov-windows-roofs_textures/ovw_coping_color.png 17446
+reuse: ovw_coping rough /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/overview/ov-windows-roofs_textures/ovw_coping_rough.png 123679
+reuse: ovw_coping normal /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/overview/ov-windows-roofs_textures/ovw_coping_normal.png 17935
+reuse: ovw_coping.001 color /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/overview/ov-windows-roofs_textures/ovw_coping.001_color.png 17595
+reuse: ovw_coping.001 rough /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/overview/ov-windows-roofs_textures/ovw_coping.001_rough.png 161674
+reuse: ovw_coping.001 normal /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/overview/ov-windows-roofs_textures/ovw_coping.001_normal.png 18056
+reuse: ovw_equip color /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/overview/ov-windows-roofs_textures/ovw_equip_color.png 20608
+reuse: ovw_equip rough /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/overview/ov-windows-roofs_textures/ovw_equip_rough.png 20649
+reuse: ovw_equip normal /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/overview/ov-windows-roofs_textures/ovw_equip_normal.png 19564
+reuse: ovw_fan color /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/overview/ov-windows-roofs_textures/ovw_fan_color.png 24203
+reuse: ovw_fan rough /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/overview/ov-windows-roofs_textures/ovw_fan_rough.png 24183
+reuse: ovw_fan normal /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/overview/ov-windows-roofs_textures/ovw_fan_normal.png 22295
+reuse: ovw_roof_membrane color /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/overview/ov-windows-roofs_textures/ovw_roof_membrane_color.png 593393
+reuse: ovw_roof_membrane rough /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/overview/ov-windows-roofs_textures/ovw_roof_membrane_rough.png 856273
+reuse: ovw_roof_membrane normal /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/overview/ov-windows-roofs_textures/ovw_roof_membrane_normal.png 289377
+bake done, materials rebuilt with image textures, mats: ['ovw_coping', 'ovw_coping.001', 'ovw_equip', 'ovw_fan', 'ovw_frame', 'ovw_roof_membrane'] elapsed: 0.8s
+PBR: ovw_roof_membrane -> CONCRETE_424A52 (1 objs, 6 faces, tile 2.0m)
+PBR: ovw_coping -> CONCRETE_B9B3A8 (3 objs, 36 faces, tile 2.0m)
+PBR: ovw_coping.001 -> CONCRETE_B9B3A8 (3 objs, 36 faces, tile 2.0m)
+PBR done ov-windows-roofs: 3 materials, 78 faces reprojected, purged 9 images
+packed image: concrete_424A52_color.jpg (1024, 1024)
+packed image: concrete_B9B3A8_color.jpg (1024, 1024)
+packed image: concrete_normal_amp15.png (1024, 1024)
+packed image: concrete_wall_007_rough_1k.jpg (1024, 1024)
+packed image: ovw_equip_color.png (1024, 1024)
+packed image: ovw_equip_normal.png (1024, 1024)
+packed image: ovw_equip_rough.png (1024, 1024)
+packed image: ovw_fan_color.png (1024, 1024)
+packed image: ovw_fan_normal.png (1024, 1024)
+packed image: ovw_fan_rough.png (1024, 1024)
+packed image: ovw_frame_color.png (1024, 1024)
+packed image: ovw_frame_normal.png (1024, 1024)
+packed image: ovw_frame_rough.png (1024, 1024)
+Info: Saved "ov-windows-roofs.blend"
+INFO Draco mesh compression is available, use library at /home/hatch/workspace/.tools/blender-4.2.0-linux-x64/4.2/python/lib/python3.11/site-packages/libextern_draco.so
+
+gltf reimport objects: 45
+GLB reimport mat: ovw_coping_A_EW.001 ovw_coping.003 images: ['concrete_B9B3A8_color', 'concrete_wall_007_rough_1k', 'concrete_normal_amp15']
+GLB reimport mat: ovw_coping_A_NS.001 ovw_coping.002 images: ['concrete_B9B3A8_color', 'concrete_wall_007_rough_1k', 'concrete_normal_amp15']
+GLB reimport mat: ovw_coping_B_EW.001 ovw_coping.003 images: ['concrete_B9B3A8_color', 'concrete_wall_007_rough_1k', 'concrete_normal_amp15']
+GLB reimport mat: ovw_coping_B_NS.001 ovw_coping.002 images: ['concrete_B9B3A8_color', 'concrete_wall_007_rough_1k', 'concrete_normal_amp15']
+GLB reimport mat: ovw_coping_C_EW.001 ovw_coping.003 images: ['concrete_B9B3A8_color', 'concrete_wall_007_rough_1k', 'concrete_normal_amp15']
+GLB reimport mat: ovw_coping_C_NS.001 ovw_coping.002 images: ['concrete_B9B3A8_color', 'concrete_wall_007_rough_1k', 'concrete_normal_amp15']
+GLB reimport mat: ovw_equip_A.001 ovw_equip.001 images: ['ovw_equip_color', 'ovw_equip_rough', 'ovw_equip_normal']
+GLB reimport mat: ovw_equip_B.001 ovw_equip.001 images: ['ovw_equip_color', 'ovw_equip_rough', 'ovw_equip_normal']
+GLB reimport mat: ovw_equip_C.001 ovw_equip.001 images: ['ovw_equip_color', 'ovw_equip_rough', 'ovw_equip_normal']
+GLB reimport mat: ovw_fan_A.001 ovw_fan.001 images: ['ovw_fan_color', 'ovw_fan_rough', 'ovw_fan_normal']
+GLB reimport mat: ovw_fan_B.001 ovw_fan.001 images: ['ovw_fan_color', 'ovw_fan_rough', 'ovw_fan_normal']
+GLB reimport mat: ovw_fan_C.001 ovw_fan.001 images: ['ovw_fan_color', 'ovw_fan_rough', 'ovw_fan_normal']
+GLB reimport mat: ovw_frame_C_F1_E.001 ovw_frame.001 images: ['ovw_frame_color', 'ovw_frame_rough', 'ovw_frame_normal']
+GLB reimport mat: ovw_frame_C_F1_N.001 ovw_frame.001 images: ['ovw_frame_color', 'ovw_frame_rough', 'ovw_frame_normal']
+GLB reimport mat: ovw_frame_C_F1_S.001 ovw_frame.001 images: ['ovw_frame_color', 'ovw_frame_rough', 'ovw_frame_normal']
+GLB reimport mat: ovw_frame_C_F1_W.001 ovw_frame.001 images: ['ovw_frame_color', 'ovw_frame_rough', 'ovw_frame_normal']
+GLB reimport mat: ovw_frame_C_F2_E.001 ovw_frame.001 images: ['ovw_frame_color', 'ovw_frame_rough', 'ovw_frame_normal']
+GLB reimport mat: ovw_frame_C_F2_N.001 ovw_frame.001 images: ['ovw_frame_color', 'ovw_frame_rough', 'ovw_frame_normal']
+GLB reimport mat: ovw_frame_C_F2_S.001 ovw_frame.001 images: ['ovw_frame_color', 'ovw_frame_rough', 'ovw_frame_normal']
+GLB reimport mat: ovw_frame_C_F2_W.001 ovw_frame.001 images: ['ovw_frame_color', 'ovw_frame_rough', 'ovw_frame_normal']
+GLB reimport mat: ovw_frame_C_F3_E.001 ovw_frame.001 images: ['ovw_frame_color', 'ovw_frame_rough', 'ovw_frame_normal']
+GLB reimport mat: ovw_frame_C_F3_N.001 ovw_frame.001 images: ['ovw_frame_color', 'ovw_frame_rough', 'ovw_frame_normal']
+GLB reimport mat: ovw_frame_C_F3_S.001 ovw_frame.001 images: ['ovw_frame_color', 'ovw_frame_rough', 'ovw_frame_normal']
+GLB reimport mat: ovw_frame_C_F3_W.001 ovw_frame.001 images: ['ovw_frame_color', 'ovw_frame_rough', 'ovw_frame_normal']
+GLB reimport mat: ovw_frame_C_F4_E.001 ovw_frame.001 images: ['ovw_frame_color', 'ovw_frame_rough', 'ovw_frame_normal']
+GLB reimport mat: ovw_frame_C_F4_N.001 ovw_frame.001 images: ['ovw_frame_color', 'ovw_frame_rough', 'ovw_frame_normal']
+GLB reimport mat: ovw_frame_C_F4_S.001 ovw_frame.001 images: ['ovw_frame_color', 'ovw_frame_rough', 'ovw_frame_normal']
+GLB reimport mat: ovw_frame_C_F4_W.001 ovw_frame.001 images: ['ovw_frame_color', 'ovw_frame_rough', 'ovw_frame_normal']
+GLB reimport mat: ovw_glass_C_F1_E.001 ovw_glass.001 images: []
+GLB reimport mat: ovw_glass_C_F1_N.001 ovw_glass.001 images: []
+GLB reimport mat: ovw_glass_C_F1_S.001 ovw_glass.001 images: []
+GLB reimport mat: ovw_glass_C_F1_W.001 ovw_glass.001 images: []
+GLB reimport mat: ovw_glass_C_F2_E.001 ovw_glass.001 images: []
+GLB reimport mat: ovw_glass_C_F2_N.001 ovw_glass.001 images: []
+GLB reimport mat: ovw_glass_C_F2_S.001 ovw_glass.001 images: []
+GLB reimport mat: ovw_glass_C_F2_W.001 ovw_glass.001 images: []
+GLB reimport mat: ovw_glass_C_F3_E.001 ovw_glass.001 images: []
+GLB reimport mat: ovw_glass_C_F3_N.001 ovw_glass.001 images: []
+GLB reimport mat: ovw_glass_C_F3_S.001 ovw_glass.001 images: []
+GLB reimport mat: ovw_glass_C_F3_W.001 ovw_glass.001 images: []
+GLB reimport mat: ovw_glass_C_F4_E.001 ovw_glass.001 images: []
+GLB reimport mat: ovw_glass_C_F4_N.001 ovw_glass.001 images: []
+GLB reimport mat: ovw_glass_C_F4_S.001 ovw_glass.001 images: []
+GLB reimport mat: ovw_glass_C_F4_W.001 ovw_glass.001 images: []
+GLB reimport mat: ovw_roofdeck_C.001 ovw_roof_membrane.001 images: ['concrete_424A52_color', 'concrete_wall_007_rough_1k', 'concrete_normal_amp15']
+DONE ov-windows-roofs
+
+Blender quit
