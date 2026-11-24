@@ -1,4 +1,6 @@
 # cl-floor-walls: 教室内部·地面墙面
+# 返工 R2-T17 (2026-11-24): 墙面偏青绿只调颜色 -- 见文件末尾
+#   BASE_COLOR_FACTOR (暖色补偿, 抵消 Godot 绿天光); 尺寸结构一字未动。
 # 纹理已固化进脚本（见文件末尾 _apply_pbr_textures，2026-11-23）：
 # 染色贴图 assets/blender/tex/ + 原图 assets/external/，材质节点直连
 # Base Color/Roughness/Normal；重跑不再丢贴图。
@@ -284,7 +286,24 @@ print("floor-walls built: %d objects" % len(piece_objs))
 # 没有 UV 的网格补 Smart UV Project（已有 UV 的不动）。
 TEX_DIR = os.path.join(BASE, "assets/blender/tex")
 EXT_DIR = os.path.join(BASE, "assets/external")
-# 材质名: (tex/ 染色 color 图, external rough 图, external normal 图, Mapping 缩放)
+# 墙面暖色补偿 (R2-T17, 2026-11-24): 只改颜色, 不动尺寸结构。
+# 实测根因不在材质本身 -- 墙贴图 white_stucco__F3E9D2.jpg 100% 像素暖色
+# (均值 243,232,210 = #F3E9D2, 0% 像素偏绿), Blender 预览也是米白;
+# 但在 Godot 里墙渲成青绿 (94,136,118): 天空材质 ground_bottom_color
+# #4a6b38 (绿) 是室内环境光 AMBIENT_SOURCE_SKY 的地面色
+# (scripts/weather_system.gd:52), 白墙被绿天光照绿 (白空调壳同渲
+# (93,132,124) 作证)。按线性光模型反推: 渲染 = 反照率 x 环境光,
+# 环境光线性比约 (0.125, 0.306, 0.281); 要渲染回暖色 (约 97,88,68),
+# 反照率须乘线性因子 (1.0, 0.39, 0.32)。做法: 墙材质的 color 贴图后
+# 串一个 MixRGB MULTIPLY 节点 (常量 = 该因子), glTF 导出器把它写成
+# baseColorFactor 与贴图相乘 (socket 默认值在贴图链接时不被导出, 故
+# 不能只改默认值); 等效反照率 sRGB 约 (243,151,123)。代价: Blender 预览
+# (中性光) 下墙会直接显出这层暖粉补偿色, Godot 侧验收以
+# 03-classroom 为准。只补墙面; 天花板同理发绿但 03 取景内不可见, 不动。
+BASE_COLOR_FACTOR = {
+    "cl-floor-walls_wall": (1.0, 0.39, 0.32),  # 线性值
+}
+
 PBR_TEXTURES = {
     "cl-floor-walls_floor": ("concrete_wall_007__D8D2C4.jpg",
         "polyhaven/concrete_wall_007_rough_1k.jpg",
@@ -342,7 +361,25 @@ def _apply_pbr_textures():
         tex_c = nt.nodes.new("ShaderNodeTexImage")
         tex_c.image = _pbr_load_image(os.path.join(TEX_DIR, color_f), "sRGB")
         nt.links.new(mapping.outputs["Vector"], tex_c.inputs["Vector"])
-        nt.links.new(tex_c.outputs["Color"], bsdf.inputs["Base Color"])
+        # 墙面暖色补偿 (见 BASE_COLOR_FACTOR): Base Color 已链接贴图时,
+        # 导出器不读 socket 默认值, 只认新 Mix 节点 (type MIX, 非旧
+        # MixRGB) 的 MULTIPLY 常量 (detect_multiply_by_constant), 把它
+        # 写成 baseColorFactor 与贴图相乘; 其余材质仍直连。
+        # 注意: Mix 节点有 10 个输入槽, RGBA 的 A/B 是 inputs[6]/[7]
+        # (4 元), 输出 RGBA 是 outputs[2]; 按名字取 "A" 会取到 VALUE 槽。
+        factor = BASE_COLOR_FACTOR.get(mat_name)
+        if factor is not None:
+            mix = nt.nodes.new("ShaderNodeMix")
+            mix.data_type = "RGBA"
+            mix.blend_type = "MULTIPLY"
+            mix.inputs[0].default_value = 1.0  # Fac 须为 1, 导出器才认
+            mix.inputs[6].default_value = (1.0, 1.0, 1.0, 1.0)
+            mix.inputs[7].default_value = (*factor, 1.0)
+            nt.links.new(tex_c.outputs["Color"], mix.inputs[6])
+            nt.links.new(mix.outputs[2], bsdf.inputs["Base Color"])
+            print("PBR color-factor:", mat_name, factor)
+        else:
+            nt.links.new(tex_c.outputs["Color"], bsdf.inputs["Base Color"])
         tex_r = nt.nodes.new("ShaderNodeTexImage")
         tex_r.image = _pbr_load_image(os.path.join(EXT_DIR, rough_f), "Non-Color")
         nt.links.new(mapping.outputs["Vector"], tex_r.inputs["Vector"])

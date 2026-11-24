@@ -1,0 +1,55 @@
+15:24:20 | INFO: Data are loaded, start creating Blender stuff
+15:24:20 | INFO: Blender create Mesh node student-desk_0
+15:24:20 | INFO: Blender create Mesh node student-desk_1
+15:24:20 | INFO: glTF import finished in 0.08s
+15:24:20 | INFO: Data are loaded, start creating Blender stuff
+15:24:20 | INFO: Blender create Mesh node student-chair_0
+15:24:20 | INFO: Blender create Mesh node student-chair_1
+15:24:20 | INFO: glTF import finished in 0.02s
+Blender 4.2.0 (hash a51f293548ad built 2024-07-16 06:27:02)
+Info: Total files 9 | Changed 0 | Failed 0
+15:24:21 | INFO: Starting glTF 2.0 export
+15:24:21 | INFO: Extracting primitive: student-desk_0
+15:24:23 | INFO: Primitives created: 2
+15:24:23 | INFO: Extracting primitive: student-chair_0
+15:24:24 | INFO: Primitives created: 2
+15:24:25 | INFO: Finished glTF 2.0 export in 3.234398365020752 s
+15:24:25 | INFO: Data are loaded, start creating Blender stuff
+15:24:25 | INFO: Blender create Mesh node student-desk_0
+15:24:25 | INFO: Blender create Mesh node student-chair_0
+15:24:25 | INFO: glTF import finished in 0.08s
+desk imported: [('student-desk', 'EMPTY'), ('student-desk_0', 'MESH'), ('student-desk_1', 'MESH')]
+desk mesh student-desk_0: faces=96 z[0.670, 0.700] ground verts(z<0.02)=0/217
+desk mesh student-desk_1: faces=684 z[0.000, 0.670] ground verts(z<0.02)=508/1578
+desk joined: desk_template faces=780 mats=['desk_wood', 'leg_metal']
+desk bbox before centering: x[-0.300, 0.300] y[-0.290, 0.210] z[0.000, 0.700] centre=(0.000, -0.040)
+desk template ready: x[-0.250, 0.250] y[-0.300, 0.300] z[0.000, 0.700]
+chair imported: [('student-chair', 'EMPTY'), ('student-chair_0', 'MESH'), ('student-chair_1', 'MESH')]
+chair mesh student-chair_0: faces=192 z[0.398, 0.888] ground verts(z<0.02)=0/424
+chair mesh student-chair_1: faces=388 z[0.000, 0.882] ground verts(z<0.02)=508/882
+chair joined: chair_template faces=580 mats=['chair_wood', 'leg_metal']
+chair bbox before centering: x[-0.190, 0.190] y[-0.190, 0.233] z[0.000, 0.888] centre=(0.000, 0.021)
+chair template ready: x[-0.212, 0.212] y[-0.190, 0.190] z[0.000, 0.888]
+chair backrest verts: n=213 x[0.127, 0.212]
+single desk faces=780 single chair faces=580 per-set=1360 48-set total=65280
+desks: 48 chairs: 48
+GROUP_DX: -0.14 CHAIR_DX: 0.44
+row_x: [-3.18, -2.18, -1.1800000000000002, -0.18000000000000016, 0.8199999999999998, 1.8199999999999998, 2.82, 3.82]
+col_y: [-2.8, -1.8, -0.8, 0.8, 1.8, 2.8]
+desk world z range: (0.0, 0.700015127658844) chair world z range: (0.0, 0.8883469104766846)
+desks bbox x[-3.430, 4.070] y[-3.100, 3.100] z[0.000, 0.700]
+chairs bbox x[-2.952, 4.472] y[-2.990, 2.990] z[0.000, 0.888]
+gap front (nearest desk edge to podium front -3.695): 0.265
+gap rear (last chair back to east wall 4.765): 0.293
+PBR textured: desk_wood wooden_floor_01__C8A06A.jpg scale (1.0, 1.0)
+PBR textured: leg_metal blue_metal_plate__424A52.jpg scale (1.0, 1.0)
+PBR textured: chair_wood WoodFloor051__7A4A2B.jpg scale (1.0, 1.0)
+UV OK: all meshes have UVs
+Info: Saved "cl-desks.blend"
+INFO Draco mesh compression is available, use library at /home/hatch/workspace/tools/blender/blender-4.2.0-linux-x64/4.2/python/lib/python3.11/site-packages/libextern_draco.so
+
+gltf reimport objects: 96
+REMOVED /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/classroom/cl-desks.blend1
+DONE cl-desks
+
+Blender quit
