@@ -33,6 +33,7 @@ var _t := 0.0
 var _shot_mode := false
 var _url_params := {} # ?scene=&wx=&hour=&fallback=&close=…：_ready 开头解析一次，build 前置开关用
 var _close_cam := false # ?close=1：储能场景改用柜面近拍机位（截图验收用）
+var _transformer_closeup := false # ?close=1 变压器近景（总览改近景机位）：V2G 弧线藏起
 var _freeze_u := -1.0 # ?freeze=0..1：冻结在飞行进度 u 处（慢速/逐帧检查缓动与弧线）
 var _glass_mode := "auto" # ?glass=0 关闭 / low 低质量 / high 高质量 / auto（窄屏自动降质）
 var _reduced := false # 减弱动效：停闪电/云漂移/树摆（P3-4），由 _set_reduced_motion 设置
@@ -394,6 +395,7 @@ func _enter_frozen(key: String, u: float) -> void:
 	_apply_bldA_anchor(key == "overview")
 	if key == "overview":
 		_snap_to(scenes_data["overview"]["cam"])
+		_transformer_closeup = false # 冻结帧走总览正常机位，不用近景藏弧线
 		return
 	_restore_scene_state()
 	active_scene = key
@@ -434,8 +436,12 @@ func _enter_instant(key: String) -> void:
 			_snap_to({"az": 0.73, "el": 0.29, "dist": 14.0, "target": [74.0, 2.0, -30.0]})
 			rig.set_limits({"dist": [3.0, 36.0], "el": [0.08, 1.15]})
 			rig.arm_limits(true)
+			# 近景藏 V2G 弧线：弧线远段（贝塞尔后半程贴近储能站一侧）在该机位下
+			# 恰成横贯左草地的水平细线，初看像 stray 光效；只藏近景，总览/充电区不动。
+			_transformer_closeup = true
 		else:
 			_snap_to(scenes_data["overview"]["cam"])
+			_transformer_closeup = false
 		return
 	_restore_scene_state()
 	active_scene = key
@@ -490,6 +496,7 @@ func _scene_cam(key: String) -> Dictionary:
 
 func _restore_scene_state() -> void:
 	# 恢复所有宿主楼体、藏起内景、关闭外壳半透明
+	_transformer_closeup = false # 离开近景机位：弧线门控回到按场景判定
 	for id in ["bldA", "dist"]:
 		campus.set_host_visible(id, true)
 	cls_interior.visible = false
@@ -577,6 +584,7 @@ func _on_landed(key: String) -> void:
 		rig.arm_limits(true)
 
 func exit_scene() -> void:
+	_transformer_closeup = false # 回总览正常机位：弧线重新按场景判定
 	_apply_c3_anchor(true)
 	_apply_bldA_anchor(true)
 	if active_scene == "" and not _pending_exit:
@@ -712,7 +720,10 @@ func _update_visuals(st: Dictionary, delta: float) -> void:
 	# = false，且射线是 2.2m 宽的半透明带，形态与 01-pv 里的四条宽带一致，
 	# 与储能图里的细线完全不同）。总览保留弧线（_setup_interiors 注释的
 	# 原设计意图：总览可见跨校园能量流），充电区保留，内景不再画。
-	var _arc_scene := active_scene == "" or active_scene == "charge"
+	# 例外：变压器近景（?close=1，active_scene 仍是总览 ""）再藏一次——
+	# 弧线远段在该机位下恰成横贯左草地的水平细线（17 图调查），只藏近景，
+	# _close_cam 常驻也不影响切场景：进任何场景都经 _restore_scene_state 清标志。
+	var _arc_scene := (active_scene == "" or active_scene == "charge") and not _transformer_closeup
 	chg_detail.visible = _arc_scene
 	if _arc_scene:
 		chg_detail.update_frame(float(st["ev"]), hour, _t, float(current_wx.get("pv_factor", 1.0)))

@@ -820,6 +820,40 @@ func _process(_delta: float) -> bool:
 				if _body12 != null:
 					_body_sp = _cam12.unproject_position(_body12.global_position)
 				_chk("T2 近景：箱体在场、可见、屏内（无回归）", _body12 != null and _body12.visible and _body_sp.x >= 0.0 and _body_sp.x <= 1280.0 and _body_sp.y >= 0.0 and _body_sp.y <= 720.0, "body=" + str(_body12) + " sp=" + str(_body_sp))
+			# ---- 变压器近景 ?close=1 隐藏 V2G 弧线（17 图左草地横线）----
+			# 17-transformer-closeup.png 里左草地的细橙色横线是弧线远段：
+			# 近景机位下贝塞尔后半程恰成水平细线，初看像 stray 光效。
+			# 只藏近景：_transformer_closeup 只在 _enter_instant("overview")
+			# 的 close 分支置起，进场景/回总览即清；总览与充电区的弧线
+			# 门控（7.5<hour<17.5、pv_factor>0.30）一行不动。
+			# 此时态：_close_cam=true、已 _enter_instant("overview")、
+			# active_scene=""、hour 9 晴天（弧线本应显示的阳性条件）。
+			# 注意：_enter_instant("overview") 的总览分支不赋值 active_scene，
+			# 前面的 phase 把它留在了 "storage"；真实 17 截图流是全新加载、
+			# active_scene 本就是 ""，这里按既有弧线门控检查的写法显式置 ""。
+			_main.active_scene = ""
+			_main.hour = 9.0
+			_main.set_weather("sunny")
+			_main.call("_update_visuals", _main.sim.state_at(_main.hour), 0.016)
+			_chk("变压器近景：近景标志置起", _main._transformer_closeup, str(_main._transformer_closeup))
+			_chk("变压器近景：V2G 弧线整组隐藏", not _main.chg_detail.visible, str(_main.chg_detail.visible))
+			_chk("变压器近景：弧线流光点不在树上可见", not (_main.chg_detail.arc_dots[0] as MeshInstance3D).is_visible_in_tree(), "")
+			_chk("变压器近景：弧线基线不在树上可见", not (_main.chg_detail.arc_segs[0] as MeshInstance3D).is_visible_in_tree(), "")
+			# 回总览正常机位：标志清掉、弧线回来（不粘滞）。
+			_main._close_cam = false
+			_main.call("_restore_scene_state")
+			_main.call("_enter_instant", "overview")
+			_main.call("_update_visuals", _main.sim.state_at(_main.hour), 0.016)
+			_chk("回总览：近景标志清掉", not _main._transformer_closeup, str(_main._transformer_closeup))
+			_chk("回总览：V2G 弧线重新显示", _main.chg_detail.visible, str(_main.chg_detail.visible))
+			_chk("回总览：弧线流光点重新显示", (_main.chg_detail.arc_dots[0] as MeshInstance3D).visible, "")
+			# _close_cam 常驻也不误藏充电区：带 close 进充电区，标志应清、弧线仍在。
+			_main._close_cam = true
+			_main.call("_enter_instant", "charge")
+			_main.call("_update_visuals", _main.sim.state_at(_main.hour), 0.016)
+			_chk("充电区（带 close）：近景标志清掉", not _main._transformer_closeup, str(_main._transformer_closeup))
+			_chk("充电区（带 close）：V2G 弧线仍显示", _main.chg_detail.visible, str(_main.chg_detail.visible))
+			_main._close_cam = false
 			print("VERIFY-SUMMARY: PASS=", _passes, " FAIL=", _fails)
 			quit(1 if _fails > 0 else 0)
 		return false
