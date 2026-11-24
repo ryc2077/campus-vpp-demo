@@ -840,7 +840,8 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 
 - **任务**：R2-T8 选定的 Quaternius Cars 包三辆（SOURCES.md §9，CC0）替换 ch-cars 与
   ov-parking 的 3+3 辆手捏小车；重拼 charge 场景；总览场景不拼（ov-parking 进总览由
-  终轮整合任务统一做；R2-T1 也在重拼总览，不要抢）。Godot scripts/scenes/data 一字未动。
+  终轮整合任务统一做；R2-T1 也在重拼总览，不要抢）。产品代码（Godot scripts/scenes/data）
+  一字未动；验收脚本 tools/verify_fixes.gd 随 S4 修复改了一处（见验证，协调者紧急授权）。
 - **朝向实测（Blender 4.2.0 导入探针）**：三车 glTF 前向 +Z，导入后长在 Y 轴、车头
   （Headlights 面质心）在 -Y（car y=-1.99、suv y=-1.91、sports y=-1.80；尾灯在 +Y）；
   轮底 z≈0（car +0.01、suv -0.02、sports -0.01），基本贴地；每车 4 mesh（车身 +
@@ -871,7 +872,7 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
   `position.y + mesh AABB.y/2` 算车顶高、沿组局部 x 挂 3.4 m SOC 条。Quaternius
   无独立车顶 mesh，故车身主 mesh 改名 `_roof`、原点移到 mesh 高度中点
   （L = zmax - h/2，mesh 数据反向平移 -L，世界几何不动），使
-  `position.y + AABB.y/2` 恰为车顶高（蓝 1.23/红 1.28/白 1.60 m，含轮底 lift）。
+  `position.y + AABB.y/2` 恰为车顶高（Godot 实测蓝 1.233/红 1.269/白 1.578 m，含轮底 lift）。
   GLB 导出保留节点 TRS（旧 charge.glb 实测），锚点关系可进 Godot：GLB 里
   `_roof` 节点 T=(0, L, 0)（L=0.705/0.729/0.912）、组节点绕 Y 转 -90°，与旧车一致。
   ov-parking 的车身主 mesh 同命名 `_roof`（仅为两件统一；总览不挂 SOC 条）。
@@ -900,10 +901,37 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
   charge.glb 7,093,272 B、ch-cars.blend 2,096,408 B、ov-parking.blend 2,446,596 B、
   charge.blend 3,002,296 B）；ch-cars.glb 本地重出后 531,580 B（首版记录 531,560 B
   为旧值，已修正）。
-- **验证**：待填（blender-previews charge 组 run 号 + ch-cars 目视；overview 组 run 号 +
-  ov-parking 目视；godot-verify 新 run 号 + 04-charge 目视：车有轮有窗有灯、三色分明、
-  V2G 桩前位置正确、SOC 条在车顶）。
-- **还剩什么**：待填（CI 目视结论与遗留，CI 后填；总览场景重拼由终轮整合任务做，本任务未拼）。
+- **验证**：
+  - blender-previews run **45428349915**（push 触发，HEAD `f868be10`）：completed/**success**，
+    6 组全绿（charge 组 success、overview 组 success）。artifact `blender-previews-charge`
+    （3,942,972 B）：ch-cars.png 已目视——蓝/红/白三色分明，各车 4 轮 + 深色车窗 + 前后灯
+    齐全，车头朝南，红车呈红非橙（#C4534E 改色生效）；artifact `blender-previews-overview`
+    （18,405,530 B）：ov-parking.png 已目视——灰 SUV 2 号位/蓝 5 号位/红 9 号位，各在
+    划线内无压线（灰 SUV 两侧留空隙），三色分明，车轮车窗车灯齐全，车头朝北。
+  - godot-verify run **45428350351**（HEAD `f868be10`）：completed/**failure**——VERIFY-SUMMARY
+    **PASS=261 FAIL=2**，两项 FAIL 全是 S4 车顶 SOC 条（回退 1.84 / GLB 1.465，条底
+    top=1.375）。根因：`tools/verify_fixes.gd` S4 GLB 分支写死旧手捏小车车顶 1.375/
+    条中心 1.465，而三辆 Quaternius 真车车顶高不同（蓝 1.233/红 1.269/白 1.578）；
+    `campus_builder.gd` 本就逐车算（`position.y + AABB.y/2`），条子实际位置正确，
+    错的是检查的期望值。该失败还阻塞全线：verify 失败后 Export/截图步不跑、0 artifact，
+    run #112–#116 全部同因同败（R2-T17/T18 核实）。
+  - **S4 修法**（commit `0b6b8ae8`，`0b6b8ae8acee34015eb89455a5d73f3eb9ba1dae`，父 `b93368de`，
+    协调者紧急授权）：只改 `tools/verify_fixes.gd` S4 GLB 分支——逐车从本车 `_roof` mesh
+    算期望车顶（`roof.position.y + mesh.get_aabb().size.y/2`，与 campus_builder 同口径），
+    条中心期望 = 车顶+0.09、条底期望 = 车顶，不再写死 1.375/1.465；回退分支（1.84/1.75）
+    不动；产品代码与车几何一字未动。本地 Godot 4.4 `--check-only` 校验通过（exit 0）。
+    曾考虑的另两条路均否决：① 锚点谎报 1.375——条子会浮在蓝/红车顶上 0.15/0.10 m、
+    埋进白 SUV 车顶内（条顶 1.555 < 车顶 1.578），CI 绿但图错；② 三车高向压到统一
+    1.375——SUV 被压扁 13%、轿车拉长 8–11%，违背任务缩放口径。
+  - godot-verify run **#119 / 45437816576**（HEAD `0b6b8ae8`）：completed/**success**，
+    VERIFY-SUMMARY **PASS=271 FAIL=0**；S4 三项 PASS（条底 ch-cars_blue=1.233、
+    ch-cars_red=1.269、ch-cars_white=1.578）；godot-screenshots artifact（12,362,828 B）
+    19 张。04-charge.png 已目视——三车在桩前雨棚下，蓝/红/白分明，车顶 SOC 条各贴在
+    各自车顶（白 SUV 条子位置更高），V2G 桩前位置正确，面板“在场车辆 3 辆（带 SOC 条）”；
+    12-charge-sunny.png 同视角确认（V2G 放电 54 kW）。
+- **还剩什么**：总览场景重拼由终轮整合任务做，本任务未拼；ov-parking GLB 材质 13
+  （车漆 3→4 种），总览重刷时材质总数 202 会变，终轮整合注意。S4 已全绿，run #112–#116
+  的阻塞已解除，其他任务的 Godot 目视可在后续全绿 run 出图后补。
 
 ## §20 R2-T10b 楼房网上模型第二轮搜寻（2026-11-24 23:23–24:00 CST，只 sourcing，不建模）
 
