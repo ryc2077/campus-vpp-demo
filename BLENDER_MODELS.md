@@ -1149,6 +1149,7 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 - **偏差（重要）**：R2-T10b 的“13.2×13.2×32.7m ×1.06/×1.06/×0.98”是文件包围盒（含广场 + 尖顶），不是塔身。实测可用砖塔身仅约 4.52×4.52×19.08m（x ±2.26，z 0.12–19.2；钟面 z 16.1–18.4，钟楼/尖顶 z 19.2–32.7）。按任务硬性规则“改模型不改尺寸”：删广场/钟面/钟楼/尖顶/风向标/门廊/花草后，塔身按实测保留包围盒缩放 **×3.097/×3.097/×1.677** 至 14×14×32（终包围盒 x[3.00,17.00] y[47.00,61.00] z[0.00,32.00]）；照搬 ×1.06 会得到 4.6m 宽、19m 高的针塔，违反 SPEC。钟面未挖洞（背后砖墙完整性未验证）：表盘面重赋墙色，成空白墙面圆盘，无指针/数字。石材收边几何比例拉长，读作角隅壁柱 + 层间带。
 - **新增**：勒脚 0–0.5、层间檐口 + 缝线（F1 0.5–4.5、F2–F8 每层 3.9m 至 31.8）、屋顶板 31.8–32.0、女儿墙至 32.65、屋顶设备 + 通风管（顶 33.12）、南门 + 雨棚 + 台阶（F1 南面窗段外移 ±4.75 让位）、64 台空调外机（沿外墙分层挂）。
 - **文件**：812 对象（回读 812/812），ov-tower.blend 6,622,648 B、ov-tower.glb 11,347,476 B；零 Error/Traceback，`DONE ov-tower`。
+- **返工（品红缺陷，2026-11-24 晚）**：run #99 的 ov-tower.png 全塔品红——墙/屋顶/混凝土/檐口四种 hook 换入材质全品红。根因：ov-tower.py 首版 `save_and_export` 漏了贴图打包循环（其余 4 件首版即有），10 张 PBR 图只存相对路径 `//../../external/...`、未打包进 .blend；Actions 检出后路径找不到，渲成品红（缺失贴图色）。修法：补打包循环（与 dorm/bldA/bldB/lib 同款），重建后 10 张图全 packed（`packed: 10 unpacked: 0`）、.blend 6.6MB→14.2MB（.glb 未变，blob 同值）；`DONE ov-tower`，812/812 回读。教训：凡 hook 换入的图必须打包，仅靠相对路径不可靠。
 
 ### dorm 宿舍 A/B 各 20×12×16m 5F @ (84, -8)/(84, -44)——Grab3D 公寓楼
 
@@ -1177,12 +1178,15 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 ### 推仓
 
 - **ba5f08b2**（tower + dorm：6 文件，父 71952d0d）与 **b9748d4d**（lib + bldA + bldB：9 文件，父 ba5f08b2），均经 API 核对 commit 真建出、父链连续；远端 ov-lib.glb 大小 7,761,784 B 与本地一致。单 blob 均 <40MB（最大 11.3MB）。
+- **77c73269**（塔品红修复：ov-tower.py/.blend/.glb，父 a16a56c8；.glb blob 与首版同值，只改 .blend 打包）。
 - 本记录 §23 随推 bb61bd8e（首版；本行补填在后续 docs 提交）。
 
 ### 验证
 
-- 待填（Actions blender-previews overview 组 success 后，下载 artifact 逐张目视 5 栋楼：尺寸、层数感、窗带、入口、配色都对，无穿模；godot-verify 总览验收由终轮整合做）。
-- **还剩什么**：① 终轮整合：总览重拼 + Godot 侧验收；② **ov-windows-roofs 的 A/B 窗带与屋顶膜是按旧实心楼体做的，与本件玻璃幕墙重叠**（窗带双层、屋顶膜与本件屋顶板 18.1–18.35 共面）——终轮须更新 ov-windows-roofs（A/B 窗带与屋顶膜改 C 栋专用或删除），本任务未动它；③ 塔 F1 南面窗段为让位正门外移 ±4.75、塔钟面为空白圆盘，目视时确认读感。
+- **blender-previews run #99**（head b9748d4d，overview 作业 success；artifact `blender-previews-overview` 17.6MB，2026-11-24 17:51）：下载逐张目视——dorm ✓（两栋桃砖 + 白饰 + 薄荷阳台，5 层可读，深灰屋顶 + 设备盒，两栋间绿草坪）、lib ✓（6 层蓝玻璃幕墙 + 白框，深灰屋顶 + 两设备盒，柱廊台阶 + 蓝雨棚 + 木门 + 横幅 + 白柱 + 山花 + 纹章）、bldA ✓（5 层蓝玻璃幕墙 + 白横带，深灰屋顶 + 两设备盒，东雨棚入口）、bldB ✓（同款 5 层，较短，无屋顶设备）；**tower ✗ 全塔品红**（见上返工），其余 4 件通过。
+- **blender-previews run #106**（head 77c73269，整 run completed success；overview 作业 success，artifact `blender-previews-overview` 18.0MB，2026-11-24 19:15）：下载复查——**tower ✓ 已修复**：米白灰泥墙（PBR 灰泥纹 + 石材收边读作角隅壁柱 + 层间带），8 层窗带、空白钟面圆盘（淡圆轮廓）、深灰屋顶 + 设备、64 台空调、南门深灰雨棚 + 台阶，比例 14×14×32 正确；dorm/bldA/bldB 三图与 #99 **逐像素一致**（mean abs diff 0.00），lib 复看一致（柱廊裁切放大确认：台阶、雨棚、木门、横幅、白柱、山花、纹章俱在；山花斜边近看略碎，鸟瞰距离可接受）。**5 栋楼全部目视通过。**
+- godot-verify 总览验收由终轮整合做。
+- **还剩什么**：① 终轮整合：总览重拼 + Godot 侧验收；② **ov-windows-roofs 的 A/B 窗带与屋顶膜是按旧实心楼体做的，与本件玻璃幕墙重叠**（窗带双层、屋顶膜与本件屋顶板 18.1–18.35 共面）——终轮须更新 ov-windows-roofs（A/B 窗带与屋顶膜改 C 栋专用或删除），本任务未动它；③ 塔 F1 南面窗段为让位正门外移 ±4.75、塔钟面为空白圆盘，目视已确认读感可接受。
 
 ## §24 R2-T9b PBR 材质硬性整改收尾（2026-11-25 00:18–01:00 CST，接替中断的 R2-T9；只改材质与贴图挂接）
 
@@ -1378,6 +1382,6 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 - **关键坑——Blender 4.2 导出器硬 clamp（与 T27 同坑）**：`__gather_base_color_factor()` 里 `rgb = [max(min(c, 1.0), 0.0) for c in rgb]`，>1 的因子导不出。`cl-board.py` 与 `classroom.py` 各加 `_patch_glb_factors()`（与 T27 的 `cl-floor-walls.py` 同款）：导出后直接改 GLB 的 JSON chunk，把 `WhiteBoard` 的 baseColorFactor 写回 (8.6, 3.5, 3.6, 1.0)，只动 JSON chunk、不动 BIN chunk；两处补丁须保持同步（classroom.py 从 .blend 重导出，同样触发 clamp）。因子存在 .blend 的 Mix MULTIPLY 常量里，补丁后 .blend 与 .glb 一致。
 - **重建**：重跑 cl-board.py（`assets/blender/classroom/cl-board-r2t28.log`），`DONE cl-board`，零 Error/Traceback；GLB 回读 39 对象；`cl-board.glb` 12,450,404 B，JSON 实测 WhiteBoard [8.6, 3.5, 3.6, 1.0]、BoardGreen 无因子（未动）；独立核对 WhiteBoardLeft/Right x[-4.792,-4.762]、Blackboard x[-4.802,-4.762]，与 R2-T25 一致、几何一字未动。重跑 classroom.py（`assets/blender/scenes/classroom-r2t28.log`），`DONE classroom`，零 Error/Traceback；APPEND 73+96+39+58+54+120，TOTAL/回读 **440** 对象（与 R2-T22/R2-T25/R2-T27 一致）；补丁命中 ['cl-floor-walls_wall_back', 'WhiteBoard']；classroom.glb 19,091,264 B、classroom.blend 5,536,236 B；wall_back [1.85, 0.62, 0.45, 1.0] 未动。
 - **本地 Web 探针（最终重建件复核，非候选副本）**：把重建后的 classroom.glb（md5 `fe4ecb4751bce256ead0c1cac24b9807`）拷回探针工程重导出实拍，0 console errors，与候选 B 逐字节同图：白板左 **(166,170,169)**、右 **(171,168,165)**（改前 (76,109,106)/(75,103,98)）；黑板 (22,36,30) 仍墨绿；后墙 (94,86,68)、右墙 (170,154,137) 均未动；桌椅/讲台/空调/窗户无回归。截图 `~/workspace/review-rework-r2/r2t28-web-final-classroom.png`。
-- **推仓**：待填（推后补 commit 号与核对结果）。
+- **推仓**：commit `d25cb58a`（`d25cb58a2f03761525ce139c20c1c0b3253a9804`，父 `17723f0a`，2026-11-25 约 03:15 CST）：9 文件，blob SHA 已逐项核对与本地一致（cl-board.py `b8d4fcfe`、cl-board.blend `7d5810ac`、cl-board.glb `bfb7193a`、cl-board-r2t28.log `d69b193b`、classroom.py `50f2a5b1`、classroom.blend `6a93b1bb`、classroom.glb `52d0ac03`、classroom-r2t28.log `556f3517`、BLENDER_MODELS.md `40a09a2b`）；推后核对 HEAD 即 d25cb58a。注：推前重读 HEAD 为 `3a454919`，推仓瞬间并行任务 R2-T14b 的 `17723f0a`（道路两件 .py + BLENDER_MODELS.md 表格行）先落库，本提交以其为父、未撞车；已逐行 diff 核对：远端 BLENDER_MODELS.md 含 T14b 表格行与本 §28 两者，无覆盖丢失。
 - **验证**：待填（blender-previews classroom 组 + godot-verify run 号与目视结论）。
 - **还剩什么**：① 南墙/北墙遮光面仍偏暗橄榄、天花板仍暗（T27 遗留②③，根治需动灯光/天光，不在本任务范围）；② 白板因子 R=8.6 极大，若未来某时段直射阳光打上西墙白板（如清晨东向日光），板面会过曝成纯白、贴图斑驳消失——03 图 10:00 验收时段无此问题，属已知边界，不另修；③ Blender 中性光预览下白板显过曝粉白，属补偿因子本色，验收以 Godot 为准。
