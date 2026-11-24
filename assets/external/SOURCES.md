@@ -975,3 +975,59 @@ Kenney 塔 1 个）；CC BY 4.0——vinish.dev 6 栋（署名 vinish.dev）；C
 - **食堂 Grab3D `cafeteria` 不是楼**：4×4×3m 室内取餐间，误当楼体会错得离谱，
   已在 12.2 表内标明，只作 canteen 室内参考。
 
+
+## PBR 源文件入仓记录（R2-T31，2026-11-25 04:14–04:35 CST，只审计与补推，不改模型）
+
+审计范围：本地 `assets/external/` 下全部 PBR 贴图原图共 **73 张**（`pbr-tinted/` 20 张 + `polyhaven/` 27 张 + `ambientcg/` 4 套共 26 张 JPG/PNG；ambientCG 各套附带的 `.blend` / `.mtlx` / `.tres` / `.usdc` 共 16 个文件是厂商格式包、不是贴图原图，不在本次范围，仍只在本地）。
+
+审计方法：本地逐文件算 git blob SHA，与远端 HEAD（审计时 `defe5ad1`）的递归 tree 逐项比对；大小与 SHA 均一致才算入仓。
+
+审计结论（HEAD `defe5ad1` 时）：73 张中 **46 张已入仓、27 张缺失、0 张内容漂移**（本地与远端 SHA 全部一致，无需重推已入仓文件）。
+
+已入仓的 46 张（按入仓 commit）：
+
+| 组 | 文件数 | 入仓 commit | 备注 |
+|---|---|---|---|
+| `pbr-tinted/` 19 张（除 track 外全部） | 19 | `4228878e`（2026-11-24 17:24Z） | 该 commit 消息称“25 张”，实推 24 个文件（19 张 pbr-tinted + 5 张 polyhaven），数字以实推为准 |
+| `pbr-tinted/track_B8543F_color.jpg` | 1 | `f39cd380`（2026-11-24 16:51Z） | 跑道红环染色图，随 R2-T9b 硬性整改推仓 |
+| `polyhaven/` 15 张（blue_metal_plate / concrete_wall_007 / corrugated_iron_02 / white_stucco / wooden_floor_01 各 3 图） | 15 | `967a3f28` | “5 polyhaven + 2 ambientcg sets”那批 |
+| `polyhaven/` 5 张（concrete_pavement_03_rough、grey_roof_01_nor_gl、grey_roof_01_rough、red_bricks_04_nor_gl、red_bricks_04_rough） | 5 | `4228878e` | 只推了 rough/nor，diff 漏了，见下 |
+| `ambientcg/` 6 张（Plaster001 与 WoodFloor051 各 Color / NormalGL / Roughness） | 6 | `967a3f28` | 只推了 hook 在用的 3 图，其余图漏了，见下 |
+
+本次补推的 27 张（commit **`3360dea6`**，2026-11-25 04:2x CST，一次 push-files 提交；总计 22,028,101 B，单张最大 2,339,612 B，均 <40MB Git Data API 单 blob 上限；推后已核对 HEAD 与 27/27 blob SHA 与本地一致；仓库内 PBR 贴图现为 73/73 全量）：
+
+| 文件 | 大小 (B) | 来源 / 授权 | blob SHA | 用处 |
+|---|---|---|---|---|
+| `polyhaven/asphalt_01_diff_1k.jpg` | 739,513 | Poly Haven `asphalt_01`，CC0 | `96f84520539e617b8e47294821f0573b2d4a4b19` | pbr-tinted asphalt 系列染色源图 |
+| `polyhaven/asphalt_01_nor_gl_1k.jpg` | 1,237,059 | 同上，CC0 | `64776c5406ac89dba70135d4445e1f048c4f74b9` | 同上 |
+| `polyhaven/asphalt_01_rough_1k.jpg` | 344,964 | 同上，CC0 | `1080500f437c7b29a386d2dd8f7a1dee2287edb5` | 同上 |
+| `polyhaven/concrete_pavement_03_diff_1k.jpg` | 830,452 | Poly Haven `concrete_pavement_03`，CC0 | `72a8ff882e0afdd293687a5b6c1f3c0f920c80ac` | ov-road-walk 步道铺装 diff（`ov-road-walk.py` 直接引用） |
+| `polyhaven/concrete_pavement_03_nor_gl_1k.jpg` | 1,017,387 | 同上，CC0 | `bf083f5657571d757054bc91a07042235ccfd00c` | 同上，法线图（`ov-road-walk.py` 直接引用；此前是 hook 活引用缺图） |
+| `polyhaven/grey_roof_01_diff_1k.jpg` | 419,760 | Poly Haven `grey_roof_01`，CC0 | `182c2b0ee0f556121aa1586fd610c6366db806b6` | pbr-tinted roof_424A52 染色源图（`tint_textures.py` 引用） |
+| `polyhaven/red_bricks_04_diff_1k.jpg` | 283,965 | Poly Haven `red_bricks_04`，CC0 | `d69372f6bd45eae774ebde2063e46d372a8731fd` | pbr-tinted brick 系列染色源图 |
+| `ambientcg/Concrete034/Concrete034.png` | 229,324 | ambientCG `Concrete034`，CC0 | `27569149cb874e8dfe2492f5093e2eb57e7b51b1` | 预览图 |
+| `ambientcg/Concrete034/Concrete034_1K-JPG_Color.jpg` | 269,501 | 同上，CC0 | `ecbd2f572a5d43d8c9fa8d86b32e0f541d2d8daa` | 混凝土原图（st-base / ch-piles 引用） |
+| `ambientcg/Concrete034/Concrete034_1K-JPG_Displacement.jpg` | 189,234 | 同上，CC0 | `a0d538e80a967145084f18dc88a3297181069f9b` | 置换图 |
+| `ambientcg/Concrete034/Concrete034_1K-JPG_NormalDX.jpg` | 822,978 | 同上，CC0 | `fe812088c7d9a19195edeecd03b201dcfb54dbdd` | DirectX 法线图 |
+| `ambientcg/Concrete034/Concrete034_1K-JPG_NormalGL.jpg` | 821,681 | 同上，CC0 | `8de165228a9b1ae80ce0b6dbd21a2422678c5021` | OpenGL 法线图（st-base / ch-piles 引用） |
+| `ambientcg/Concrete034/Concrete034_1K-JPG_Roughness.jpg` | 217,708 | 同上，CC0 | `8283c7762ee3152810747b33621b564a8f2523c7` | 粗糙度图 |
+| `ambientcg/Grass004/Grass004.png` | 546,989 | ambientCG `Grass004`，CC0 | `26c832da51c913721fa46a0e7e9f16dedc6c9937` | 预览图 |
+| `ambientcg/Grass004/Grass004_1K-JPG_AmbientOcclusion.jpg` | 904,824 | 同上，CC0 | `d5478f19003a2b270360ba147dab76f2ffa98313` | 环境光遮蔽图 |
+| `ambientcg/Grass004/Grass004_1K-JPG_Color.jpg` | 1,985,561 | 同上，CC0 | `5c67d6e5193c2596a3cd70c633e86ccfe072eb5e` | 草地地面原图 |
+| `ambientcg/Grass004/Grass004_1K-JPG_Displacement.jpg` | 918,011 | 同上，CC0 | `e32208f81e10cfdef8486909ebb667907f3f84ff` | 置换图 |
+| `ambientcg/Grass004/Grass004_1K-JPG_NormalDX.jpg` | 2,339,065 | 同上，CC0 | `57d15c381a9a11f8edb8ba064dac717c00008861` | DirectX 法线图 |
+| `ambientcg/Grass004/Grass004_1K-JPG_NormalGL.jpg` | 2,339,612 | 同上，CC0 | `ba329e472a4f7defbfde9be33768466a9e3f42f5` | OpenGL 法线图 |
+| `ambientcg/Grass004/Grass004_1K-JPG_Roughness.jpg` | 851,664 | 同上，CC0 | `2eeb2dcefd2dbd57f64bed2e5bc01f02a9eb07ec` | 粗糙度图 |
+| `ambientcg/Plaster001/Plaster001.png` | 329,146 | ambientCG `Plaster001`，CC0 | `85e8e364109d28553f1e312a807035be3e3e3182` | 预览图 |
+| `ambientcg/Plaster001/Plaster001_1K-JPG_Displacement.jpg` | 601,909 | 同上，CC0 | `a318d06244310132616c9dbe36c121c0c8f5afad` | 置换图 |
+| `ambientcg/Plaster001/Plaster001_1K-JPG_NormalDX.jpg` | 2,088,321 | 同上，CC0 | `49b7cb70953ee33cfa802b03de4448e4a9867c16` | DirectX 法线图 |
+| `ambientcg/WoodFloor051/WoodFloor051.png` | 265,985 | ambientCG `WoodFloor051`，CC0 | `fd0b3b43b08c16fe117c2f05852ca18b0af59c6d` | 预览图 |
+| `ambientcg/WoodFloor051/WoodFloor051_1K-JPG_AmbientOcclusion.jpg` | 131,406 | 同上，CC0 | `a3dd3c2e470f07564eac06b221484efcbd549698` | 环境光遮蔽图 |
+| `ambientcg/WoodFloor051/WoodFloor051_1K-JPG_Displacement.jpg` | 512,771 | 同上，CC0 | `a6181996728534c8102b720cb756ce48d49aec1a` | 置换图 |
+| `ambientcg/WoodFloor051/WoodFloor051_1K-JPG_NormalDX.jpg` | 789,311 | 同上，CC0 | `4f669a0d72badc414ba8c548e4deccfc3037665f` | DirectX 法线图 |
+
+说明：
+
+- 缺失成因：此前推仓只推了 hook 当时直接引用的图（`4228878e` 漏了 5 张 polyhaven diff/nor、`967a3f28` 只推了 ambientCG 每套 3 张 hook 用图），染色源图与非 hook 用图一直只在本地；`.blend` 靠打包自给自足，渲染不受影响，但干净检出重跑烘焙 / PBR hook 会因文件缺失失败。
+- 本次未动任何 `.blend` / `.glb` / `.py`，未重跑烘焙与渲染；补推未触发任何 workflow run（blender-previews 只监听 `assets/blender/**` 等路径，本次只动 `assets/external/**`，按 head SHA 查 runs 为 0）。
+- 还剩：ambientCG 4 套附带的 `.blend` / `.mtlx` / `.tres` / `.usdc` 共 16 个文件仍只在本地（非贴图源文件，不在本次审计范围）；如以后需要干净检出重建厂商材质包，再另行补推。

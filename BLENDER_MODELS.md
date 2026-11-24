@@ -1410,3 +1410,14 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 - **推仓**：待填（推后补 commit 号与核对结果）。
 - **验证**：待填（godot-verify run 号 + PASS/FAIL + 20 张截图目视结论，重点 03-classroom 与草地五档 G）。
 - **还剩什么**：① 南墙西端窄条（03 图左缘、窗下墙，(73,69,54)，R 已略大于 G、不发绿但仍暗）——聚光锥角边缘 + 掠射角所致，再抬能量会先吹亮北墙窗间墙与天花板中央，留终轮定夺；② 天花板四角仍略暗（锥角边缘，目视已不发绿）；③ 窗玻璃仍蓝绿（玻璃材质本身不吃灯光，非墙面，不在范围）；④ 补光不随天气变（晴/雨/暴雨档教室内亮度相同，03 图只验晴 10:00；教室无雨天截图在 shots 清单内，CI 不覆盖）。
+
+## §31 R2-T31 PBR 源文件入仓审计 + 补推（2026-11-25 04:14–04:35 CST，只审计与补推源文件，不改模型、不重跑烘焙/渲染）
+
+- **背景**：R2-T14b 查实 PBR 源文件有一批只在本地、未入仓；`.blend` 现靠打包自给自足，渲染不受影响，但干净检出重跑烘焙 / PBR hook 会因文件缺失失败（hook 有断言）。另 R2-T9b 称 R2-T21b 已于 17:24Z 在 `4228878e` 补推过 24 个文件——本次先审计、再补推缺的，不重复推已入仓的。
+- **审计（HEAD `defe5ad1`，2026-11-25 04:14 CST）**：本地 `assets/external/` 下 PBR 贴图原图共 **73 张**（`pbr-tinted/` 20 + `polyhaven/` 27 + `ambientcg/` 4 套共 26 张 JPG/PNG；ambientCG 各套附带的 `.blend` / `.mtlx` / `.tres` / `.usdc` 共 16 个文件是厂商格式包、不是贴图原图，不在本次范围）。本地逐文件算 git blob SHA，与远端递归 tree 逐项比对：**46 张已入仓、27 张缺失、0 张内容漂移**（已入仓的本地与远端 SHA 全部一致，无需重推）。
+- **已入仓的 46 张**：`pbr-tinted/` 19 张 → `4228878e`（其消息称“25 张”，实推 24 个文件：19 张 pbr-tinted + 5 张 polyhaven，数字以实推为准）；`pbr-tinted/track_B8543F_color.jpg` → `f39cd380`；`polyhaven/` 15 张（blue_metal_plate / concrete_wall_007 / corrugated_iron_02 / white_stucco / wooden_floor_01 各 3 图）→ `967a3f28`；`polyhaven/` 5 张（concrete_pavement_03_rough、grey_roof_01_nor_gl、grey_roof_01_rough、red_bricks_04_nor_gl、red_bricks_04_rough）→ `4228878e`；`ambientcg/` 6 张（Plaster001 与 WoodFloor051 各 Color / NormalGL / Roughness）→ `967a3f28`。
+- **缺失的 27 张（本次补推）**：`polyhaven/` 7 张——`asphalt_01_diff/_nor_gl/_rough_1k.jpg`（asphalt 染色源图）、`concrete_pavement_03_diff/_nor_gl_1k.jpg`（ov-road-walk 步道铺装，`ov-road-walk.py` 直接引用，其中 nor_gl 是 hook 活引用缺图）、`grey_roof_01_diff_1k.jpg`（roof 染色源图，`tint_textures.py` 引用）、`red_bricks_04_diff_1k.jpg`（brick 染色源图）；`ambientcg/` 20 张——Concrete034 全套 6 张、Grass004 全套 7 张、Plaster001 剩余 3 张（预览图 / Displacement / NormalDX）、WoodFloor051 剩余 4 张（预览图 / AO / Displacement / NormalDX）。缺失成因：此前只推了 hook 当时直接引用的图，染色源图与非 hook 用图一直只在本地。单张最大 2,339,612 B（Grass004 NormalGL），合计 22,028,101 B，均 <40MB 单 blob 上限，无跳过文件。
+- **推仓**：已推 **`3360dea6`**（一次 push-files 提交，27 个文件，父 commit `defe5ad1`），已核对建出：HEAD 即 `3360dea6`，27/27 blob SHA 与本地一致；仓库内 PBR 贴图现为 73/73 全量。文件级来源、授权（全部 CC0）与 blob SHA 见 `assets/external/SOURCES.md` 新增“PBR 源文件入仓记录”一节。
+- **验证**：本次未改任何 `.blend` / `.glb` / `.py`，未重跑烘焙与渲染；补推未触发任何 workflow run（blender-previews 只监听 `assets/blender/**` 等路径，本次只动 `assets/external/**`，按 head SHA 查 runs 为 0），无需等 run。
+- **编号说明**：任务书称“新起 §30”，但 §30 已被 R2-T30（教室补光）占用，故本节顺延为 §31；§24/§29 一字未动。
+- **还剩什么**：ambientCG 4 套附带的 `.blend` / `.mtlx` / `.tres` / `.usdc` 共 16 个文件仍只在本地（非贴图源文件）；如以后需要干净检出重建厂商材质包，再另行补推。
