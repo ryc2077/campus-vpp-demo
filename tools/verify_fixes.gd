@@ -34,6 +34,34 @@ func _chk(name: String, ok: bool, detail: String = "") -> void:
 		print("FAIL: ", name, " ", detail)
 
 
+func _count_wx_class(path: String) -> int:
+	# 递归数全仓行首声明全局天气类的 .gd 文件数（#97 回归即第二处）。
+	# 跳过隐藏目录（.godot 等）与 export/（导出产物不参与类注册）。
+	# 只认行首声明（文件首行或换行后紧跟），不认字符串/注释里的提及——
+	# 本文件自身就在字串与注释里提及该类名，不能算进去。
+	var n := 0
+	var d := DirAccess.open(path)
+	if d == null:
+		return 0
+	d.list_dir_begin()
+	var f := d.get_next()
+	while f != "":
+		if f != "." and f != "..":
+			var p: String = path + ("" if path.ends_with("/") else "/") + f
+			if d.current_is_dir():
+				if not f.begins_with(".") and f != "export":
+					n += _count_wx_class(p)
+			elif f.ends_with(".gd"):
+				var fa := FileAccess.open(p, FileAccess.READ)
+				if fa != null:
+					var t := fa.get_as_text()
+					if t.begins_with("class_name WeatherSystem") or t.contains("\nclass_name WeatherSystem"):
+						n += 1
+		f = d.get_next()
+	d.list_dir_end()
+	return n
+
+
 func _init() -> void:
 	var packed := load("res://scenes/main.tscn") as PackedScene
 	_main = packed.instantiate()
@@ -1217,6 +1245,29 @@ func _process(_delta: float) -> bool:
 	var _sto_e: float = _wx.sun.light_energy
 	_chk("天气冒烟：晴天 09:00 太阳光 >0.5（调光在工作）", _sun_e > 0.5, str(_sun_e))
 	_chk("天气冒烟：暴雨 09:00 太阳光 < 晴天一半（天气压暗生效，非洗白）", _sto_e < _sun_e * 0.5, "storm=" + str(_sto_e) + " sunny=" + str(_sun_e))
+	# ---- 天气冒烟补项（本轮新增，与上面两项太阳光检查互补）----
+	# A：节点/setup 断言——#97 里脚本加载失败时 setup() 不跑，main.tscn 的
+	# Environment_main 本就没有 sky（background_mode=1 纯色），sky 没挂即 setup 没跑。
+	_chk("天气冒烟：Weather 节点在场且 setup 已跑（sky 已挂、雨粒子在场）", _main.weather != null and _main.env_node.environment.sky != null and _wx.rain != null, "weather=" + str(_main.weather != null) + " sky=" + str(_main.env_node.environment.sky != null) + " rain=" + str(_wx.rain != null))
+	# B：重名类扫描——#97 的真根因：demo-godot/ 副本与根副本同名类冲突，
+	# 导出包天气系统根本没加载；daaad2b7 已去掉副本类名，本项锁死“全仓仅一处”，
+	# 后人再推带类名的副本时 verify 直接 FAIL。
+	var _wx_n := _count_wx_class("res://")
+	_chk("天气冒烟：class_name WeatherSystem 全仓仅一处（无重名类冲突）", _wx_n == 1, "count=" + str(_wx_n))
+	# C：天空压暗——任务项 1 的状态版（无头不渲染，量决定渲染的天空顶色）：
+	# 09:00 晴天顶色 #63a9b4（亮度约 0.61），暴雨同公式压到约 0.49（Δ≈0.11）。
+	# 截图定标：#96 天空区（y80–180）晴 162.5 / 暴雨 128.4（Δ34.1），
+	# #97 同区晴 161.1 / 暴雨 161.3（Δ−0.2，逐像素相同）。阈值 Δ≥0.05
+	# 介于好坏之间（好约 0.11 / 坏 0.0），两边各留约 2 倍余量。
+	_main.call("set_weather", "sunny")
+	_wx.update_frame(9.0, 0.016)
+	var _top_sun: Color = (_main.env_node.environment.sky.sky_material as ProceduralSkyMaterial).sky_top_color
+	_main.call("set_weather", "storm")
+	_wx.update_frame(9.0, 0.016)
+	var _top_sto: Color = (_main.env_node.environment.sky.sky_material as ProceduralSkyMaterial).sky_top_color
+	var _lum_sun := 0.2126 * _top_sun.r + 0.7152 * _top_sun.g + 0.0722 * _top_sun.b
+	var _lum_sto := 0.2126 * _top_sto.r + 0.7152 * _top_sto.g + 0.0722 * _top_sto.b
+	_chk("天气冒烟：暴雨 09:00 天空顶色亮度低于晴天 ≥0.05（#96 Δ0.11 / #97 Δ0.0）", _lum_sto < _lum_sun - 0.05, "sunny=" + str(snappedf(_lum_sun, 0.001)) + " storm=" + str(snappedf(_lum_sto, 0.001)))
 	_main.call("set_weather", "sunny")
 	# ---- 回退演练开关 ?fallback=1（验收缺口 5：S1/S3/S5 演练截图用）----
 	# 开关在 GlbLoader.load_glb 入口，不改名/不移走 GLB 文件；main.gd 在
