@@ -1,0 +1,536 @@
+{
+ "3dassets/student-desk.glb": {
+  "kind": "desk",
+  "objects": 3,
+  "meshes": 2,
+  "tris": 780,
+  "bboxXYZ": [
+   0.6,
+   0.5,
+   0.7
+  ],
+  "zmin": 0.0,
+  "zmax": 0.7,
+  "floorVerts": 508,
+  "verdict": "LEGS-OK",
+  "per_mesh": [
+   {
+    "name": "student-desk_0",
+    "tris": 96,
+    "verts": 217,
+    "bbox": [
+     0.6,
+     0.42,
+     0.03
+    ],
+    "zmin": 0.67,
+    "zmax": 0.7,
+    "floor_verts_z<0.02": 0,
+    "low_verts_z<0.10": 0
+   },
+   {
+    "name": "student-desk_1",
+    "tris": 684,
+    "verts": 1578,
+    "bbox": [
+     0.551,
+     0.496,
+     0.67
+    ],
+    "zmin": 0.0,
+    "zmax": 0.67,
+    "floor_verts_z<0.02": 508,
+    "low_verts_z<0.10": 508
+   }
+  ]
+ },
+ "3dassets/student-chair.glb": {
+  "kind": "chair",
+  "objects": 3,
+  "meshes": 2,
+  "tris": 580,
+  "bboxXYZ": [
+   0.38,
+   0.424,
+   0.888
+  ],
+  "zmin": 0.0,
+  "zmax": 0.888,
+  "floorVerts": 508,
+  "verdict": "LEGS-OK",
+  "per_mesh": [
+   {
+    "name": "student-chair_0",
+    "tris": 192,
+    "verts": 424,
+    "bbox": [
+     0.38,
+     0.386,
+     0.49
+    ],
+    "zmin": 0.398,
+    "zmax": 0.888,
+    "floor_verts_z<0.02": 0,
+    "low_verts_z<0.10": 0
+   },
+   {
+    "name": "student-chair_1",
+    "tris": 388,
+    "verts": 882,
+    "bbox": [
+     0.351,
+     0.424,
+     0.882
+    ],
+    "zmin": 0.0,
+    "zmax": 0.882,
+    "floor_verts_z<0.02": 508,
+    "low_verts_z<0.10": 508
+   }
+  ]
+ },
+ "3dassets/seminar-table.glb": {
+  "kind": "desk",
+  "objects": 5,
+  "meshes": 4,
+  "tris": 912,
+  "bboxXYZ": [
+   1.8,
+   0.8,
+   0.94
+  ],
+  "zmin": -0.0,
+  "zmax": 0.94,
+  "floorVerts": 590,
+  "verdict": "LEGS-OK",
+  "per_mesh": [
+   {
+    "name": "seminar-table_0",
+    "tris": 688,
+    "verts": 1459,
+    "bbox": [
+     1.568,
+     0.668,
+     0.705
+    ],
+    "zmin": -0.0,
+    "zmax": 0.705,
+    "floor_verts_z<0.02": 590,
+    "low_verts_z<0.10": 882
+   },
+   {
+    "name": "seminar-table_1",
+    "tris": 96,
+    "verts": 217,
+    "bbox": [
+     1.8,
+     0.8,
+     0.025
+    ],
+    "zmin": 0.705,
+    "zmax": 0.73,
+    "floor_verts_z<0.02": 0,
+    "low_verts_z<0.10": 0
+   },
+   {
+    "name": "seminar-table_2",
+    "tris": 64,
+    "verts": 142,
+    "bbox": [
+     1.3,
+     0.018,
+     0.3
+    ],
+    "zmin": 0.64,
+    "zmax": 0.94,
+    "floor_verts_z<0.02": 0,
+    "low_verts_z<0.10": 0
+   },
+   {
+    "name": "seminar-table_3",
+    "tris": 64,
+    "verts": 142,
+    "bbox": [
+     1.44,
+     0.12,
+     0.03
+    ],
+    "zmin": 0.64,
+    "zmax": 0.67,
+    "floor_verts_z<0.02": 0,
+    "low_verts_z<0.10": 0
+   }
+  ]
+ },
+ "3dassets/seminar-chair.glb": {
+  "kind": "chair",
+  "objects": 4,
+  "meshes": 3,
+  "tris": 848,
+  "bboxXYZ": [
+   0.44,
+   0.491,
+   0.941
+  ],
+  "zmin": 0.0,
+  "zmax": 0.941,
+  "floorVerts": 580,
+  "verdict": "LEGS-OK",
+  "per_mesh": [
+   {
+    "name": "stackable-chair_0",
+    "tris": 288,
+    "verts": 634,
+    "bbox": [
+     0.428,
+     0.348,
+     0.452
+    ],
+    "zmin": 0.0,
+    "zmax": 0.452,
+    "floor_verts_z<0.02": 132,
+    "low_verts_z<0.10": 132
+   },
+   {
+    "name": "stackable-chair_1",
+    "tris": 240,
+    "verts": 448,
+    "bbox": [
+     0.436,
+     0.354,
+     0.012
+    ],
+    "zmin": 0.0,
+    "zmax": 0.012,
+    "floor_verts_z<0.02": 448,
+    "low_verts_z<0.10": 448
+   },
+   {
+    "name": "stackable-chair_2",
+    "tris": 320,
+    "verts": 604,
+    "bbox": [
+     0.44,
+     0.491,
+     0.501
+    ],
+    "zmin": 0.44,
+    "zmax": 0.941,
+    "floor_verts_z<0.02": 0,
+    "low_verts_z<0.10": 0
+   }
+  ]
+ },
+ "3dassets/desk-1400.glb": {
+  "kind": "desk",
+  "objects": 5,
+  "meshes": 4,
+  "tris": 680,
+  "bboxXYZ": [
+   1.4,
+   0.7,
+   0.736
+  ],
+  "zmin": -0.0,
+  "zmax": 0.736,
+  "floorVerts": 448,
+  "verdict": "LEGS-OK",
+  "per_mesh": [
+   {
+    "name": "desk-1400_0",
+    "tris": 288,
+    "verts": 643,
+    "bbox": [
+     1.4,
+     0.7,
+     0.7
+    ],
+    "zmin": 0.03,
+    "zmax": 0.73,
+    "floor_verts_z<0.02": 0,
+    "low_verts_z<0.10": 142
+   },
+   {
+    "name": "desk-1400_1",
+    "tris": 240,
+    "verts": 448,
+    "bbox": [
+     1.35,
+     0.618,
+     0.012
+    ],
+    "zmin": -0.0,
+    "zmax": 0.012,
+    "floor_verts_z<0.02": 448,
+    "low_verts_z<0.10": 448
+   },
+   {
+    "name": "desk-1400_2",
+    "tris": 96,
+    "verts": 194,
+    "bbox": [
+     0.072,
+     0.072,
+     0.006
+    ],
+    "zmin": 0.729,
+    "zmax": 0.735,
+    "floor_verts_z<0.02": 0,
+    "low_verts_z<0.10": 0
+   },
+   {
+    "name": "desk-1400_3",
+    "tris": 56,
+    "verts": 123,
+    "bbox": [
+     0.056,
+     0.055,
+     0.002
+    ],
+    "zmin": 0.734,
+    "zmax": 0.736,
+    "floor_verts_z<0.02": 0,
+    "low_verts_z<0.10": 0
+   }
+  ]
+ },
+ "polypizza/quaternius-desk.glb": {
+  "kind": "desk",
+  "objects": 6,
+  "meshes": 5,
+  "tris": 2640,
+  "bboxXYZ": [
+   1.822,
+   0.847,
+   0.922
+  ],
+  "zmin": -0.001,
+  "zmax": 0.922,
+  "floorVerts": 48,
+  "verdict": "LEGS-OK",
+  "per_mesh": [
+   {
+    "name": "Desk_Drawer3",
+    "tris": 320,
+    "verts": 596,
+    "bbox": [
+     0.421,
+     0.748,
+     0.142
+    ],
+    "zmin": 0.71,
+    "zmax": 0.853,
+    "floor_verts_z<0.02": 0,
+    "low_verts_z<0.10": 0
+   },
+   {
+    "name": "Desk_Drawer4",
+    "tris": 320,
+    "verts": 580,
+    "bbox": [
+     0.421,
+     0.748,
+     0.154
+    ],
+    "zmin": 0.539,
+    "zmax": 0.694,
+    "floor_verts_z<0.02": 0,
+    "low_verts_z<0.10": 0
+   },
+   {
+    "name": "Desk_Drawer2",
+    "tris": 320,
+    "verts": 566,
+    "bbox": [
+     0.421,
+     0.748,
+     0.154
+    ],
+    "zmin": 0.539,
+    "zmax": 0.694,
+    "floor_verts_z<0.02": 0,
+    "low_verts_z<0.10": 0
+   },
+   {
+    "name": "Desk_Drawer1",
+    "tris": 320,
+    "verts": 582,
+    "bbox": [
+     0.421,
+     0.748,
+     0.142
+    ],
+    "zmin": 0.71,
+    "zmax": 0.853,
+    "floor_verts_z<0.02": 0,
+    "low_verts_z<0.10": 0
+   },
+   {
+    "name": "Desk",
+    "tris": 1360,
+    "verts": 2271,
+    "bbox": [
+     1.822,
+     0.847,
+     0.922
+    ],
+    "zmin": -0.001,
+    "zmax": 0.922,
+    "floor_verts_z<0.02": 48,
+    "low_verts_z<0.10": 48
+   }
+  ]
+ },
+ "polypizza/quaternius-chair.glb": {
+  "kind": "chair",
+  "objects": 2,
+  "meshes": 1,
+  "tris": 216,
+  "bboxXYZ": [
+   0.762,
+   0.825,
+   1.768
+  ],
+  "zmin": -0.003,
+  "zmax": 1.764,
+  "floorVerts": 48,
+  "verdict": "LEGS-OK",
+  "per_mesh": [
+   {
+    "name": "Chair_1",
+    "tris": 216,
+    "verts": 432,
+    "bbox": [
+     0.762,
+     0.825,
+     1.768
+    ],
+    "zmin": -0.003,
+    "zmax": 1.764,
+    "floor_verts_z<0.02": 48,
+    "low_verts_z<0.10": 48
+   }
+  ]
+ },
+ "kenney/desk.glb": {
+  "kind": "desk",
+  "objects": 2,
+  "meshes": 2,
+  "tris": 198,
+  "bboxXYZ": [
+   0.734,
+   0.392,
+   0.384
+  ],
+  "zmin": 0.0,
+  "zmax": 0.384,
+  "floorVerts": 60,
+  "verdict": "LEGS-OK",
+  "per_mesh": [
+   {
+    "name": "desk(Clone)",
+    "tris": 154,
+    "verts": 236,
+    "bbox": [
+     0.734,
+     0.39,
+     0.384
+    ],
+    "zmin": 0.0,
+    "zmax": 0.384,
+    "floor_verts_z<0.02": 60,
+    "low_verts_z<0.10": 84
+   },
+   {
+    "name": "drawer",
+    "tris": 44,
+    "verts": 72,
+    "bbox": [
+     0.197,
+     0.176,
+     0.05
+    ],
+    "zmin": 0.274,
+    "zmax": 0.324,
+    "floor_verts_z<0.02": 0,
+    "low_verts_z<0.10": 0
+   }
+  ]
+ },
+ "kenney/chair.glb": {
+  "kind": "chair",
+  "objects": 1,
+  "meshes": 1,
+  "tris": 170,
+  "bboxXYZ": [
+   0.2,
+   0.2,
+   0.47
+  ],
+  "zmin": 0.0,
+  "zmax": 0.47,
+  "floorVerts": 48,
+  "verdict": "LEGS-OK",
+  "per_mesh": [
+   {
+    "name": "chair(Clone)",
+    "tris": 170,
+    "verts": 230,
+    "bbox": [
+     0.2,
+     0.2,
+     0.47
+    ],
+    "zmin": 0.0,
+    "zmax": 0.47,
+    "floor_verts_z<0.02": 48,
+    "low_verts_z<0.10": 122
+   }
+  ]
+ },
+ "kenney/chair-desk.glb": {
+  "kind": "desk-chair",
+  "objects": 2,
+  "meshes": 2,
+  "tris": 588,
+  "bboxXYZ": [
+   0.335,
+   0.314,
+   0.608
+  ],
+  "zmin": 0.0,
+  "zmax": 0.608,
+  "floorVerts": 75,
+  "verdict": "LEGS-OK",
+  "per_mesh": [
+   {
+    "name": "chairDesk(Clone)",
+    "tris": 68,
+    "verts": 122,
+    "bbox": [
+     0.288,
+     0.274,
+     0.19
+    ],
+    "zmin": 0.0,
+    "zmax": 0.19,
+    "floor_verts_z<0.02": 75,
+    "low_verts_z<0.10": 105
+   },
+   {
+    "name": "chair",
+    "tris": 520,
+    "verts": 788,
+    "bbox": [
+     0.335,
+     0.314,
+     0.418
+    ],
+    "zmin": 0.19,
+    "zmax": 0.608,
+    "floor_verts_z<0.02": 0,
+    "low_verts_z<0.10": 0
+   }
+  ]
+ }
+}

@@ -438,3 +438,57 @@
 - **标签**：删 pin 机制（`scripts/labels.gd` + `scripts/main.gd`），GLB/回退总览同走正常去重叠；变压器 +44 档（868.9,435.1），与 SOC 盒底净空 26.8px，宿舍楼 A/B +66，18 条全可见、0 重叠。详见 PROGRESS.md 同名一节。
 - **配电房**：黄雾根因是暖米色墙（Wall_Cream 亮部 #D7C8A5）× F4 关阴影后漏进来的暖阳光 × 天顶 B 下调，非雾密度问题；`scripts/dist_interior.gd` 在 GLB 加载后复制墙/顶 7 个材质做冷色补偿（墙 0.88/0.90/1.15、顶 0.90/0.92/1.20），目标中性浅灰（#B9B3A8 系）。模型文件、data、weather/灯光全局一律未动（灯光由 R2-T7 另做）。
 - **验证**：本地无头 PASS=232 FAIL=0；CI run 与 00/05 目视结论待补（见 PROGRESS.md 同名一节）。
+
+## §14 课桌椅网上模型 sourcing（R2-T2，2026-11-24 22:39–23:10 CST）
+
+- **起因**：用户 2026-11-24 22:36 反馈桌椅建模还是不对，要求去网上找现成的桌椅 Blender 模型。
+  上一轮 tevy 教室拆件用户仍不满意，本次只找模型、只下载、记来源，不建模、不手捏。
+- **选定（3DAssets.dev，CC0）**：Student Desk + Student Chair（Japanese School and City Street 系列，
+  同款层压木面 + 弯钢圆管架）：桌 0.60×0.50×0.70m、780 面，椅 0.38×0.42×0.89m、座高 0.42、580 面；
+  48 套合计 65,280 面。文件 `assets/external/desks/3dassets/student-desk.glb` /
+  `student-chair.glb`（资产页与直链见 `assets/external/SOURCES.md` §7.1）。
+- **为什么 tevy 不行**：`desks`/`chairs` mesh 全是未焊接碎面（2,832/3,072 个 loose 碎片），只能 Voronoi
+  聚类硬拆；椅 mesh 混进 2 个 1.16m 高柜、4 张椅各带 135–236 张柜面切不干净；单桌是双人桌一切二
+  （0.61m 宽），桌腿不是完整几何；GLB 三重压缩（meshopt + quantization + KTX2）Blender 4.2 打不开；
+  tevy 站内也没有独立的课桌椅模型。详见 SOURCES.md §7.3 与 `assets/blender/classroom/cl-desks.py` 头注。
+- **对比过的其他家**：② 3DAssets Seminar Table + Chair（CC0，桌 1.8m 带桌面隔断屏，81 分）；
+  ③ 3DAssets 1400mm desk + ②的椅（CC0，板脚办公桌，87 分）；④ poly.pizza Quaternius Desk + Chair
+  （CC0，古董办公桌 + 2 倍比例尺餐椅，70 分）；⑤ Kenney Furniture Kit（CC0，玩具比例尺卡通方块，
+  须约 ×2 缩放，74 分）。打分：结构真实度 40 / 尺寸合规 30 / 面数 15 / 授权与可取性 15。
+  试过没成的：BlendSwap / Sketchfab / CGTrader（须登录或页面被挡，2026-11-24 复测）、
+  Poly Haven（API 522）、BlenderKit（须账号 + 插件）、polyfork（CC-BY 且只有教师桌）、
+  Vorpal 3D（授权不明）、itch.io 学校包（无直链）。全部见 SOURCES.md §7.2/§7.5。
+- **核验**：10 个 `.glb` 全部 Blender 4.2.0 `--background` 只读导入实测（对象/面数/包围盒/
+  逐 mesh 落地顶点数）+ Eevee 预览各 1 张（`assets/external/desks/previews/`，640×360），
+  明细 `assets/external/desks/verify_results.json`。选定两件均真腿落地（各 508 个顶点在地面 z<0.02），
+  目视确认桌架 4 管腿 + 钢丝书篮、椅架 4 管腿 + 横撑。
+- **换装提示（下一波任务）**：两件米制实尺、落地点 y=0，单桌 0.60×0.50 与现行 tevy 单桌 0.61×0.61
+  同级，6 列×8 排=48 套布局不用重排；桌高 0.70（SPEC 0.75，差 5cm 实测值不改比例）、椅座高 0.42；
+  材质按 SPEC §3 染色（桌面 `#C8A06A`、椅面深色、钢架浅灰），原材质仅 2 种、无贴图。
+  任务口径“桌 1.1–1.3m”指双人桌：两张选定单桌并排 = 1.20m，或改用备选 ③（1.40m 单张双人桌）。
+- **未动**：`cl-desks.py` / `.blend` / `.glb`、Godot scripts/scenes/data 一律未碰；换装是下一波任务。
+
+## §14 R2-T11 草地网上模型第二轮搜寻（2026-11-24 22:46–23:05 CST，只 sourcing，不建模）
+
+- **起因**：用户 2026-11-24 22:42 硬性要求——草地去网上搜更好的现成模型，全部用网上的或基于网上下载的再改，
+  不要再手搓。上一轮草（程序化 94,761 叶 0.15–0.35 m + 真草丛 8,140 株）总览仍是平板绿。
+- **来源（7 家，3 家拿到）**：poly.pizza（Quaternius 草，CC0，直链）、tevy.dev（CC0，直链）、3DAssets.dev（CC0，直链）拿到文件；
+  Poly Haven API 本轮连接失败（000）、Sketchfab 可下载模型是 CC-BY 且下载 401 需登录、CGTrader 空响应、
+  BlendSwap 需登录（沿用上轮记录），均未拿到。详见 `assets/external/SOURCES.md` §6（含每家链接与授权）。
+- **选定（CC0，可自由改）**：主选 **tevy 草甸草块 Meadow Grass Patch**（lod1 大面积 + lod0 近景 + lod2 远景），
+  点缀 **tevy 红燕麦草丛 Red Oat Grass Clump**（lod1，lod0/lod2 备用）。文件在 `assets/external/grass/tevy/`，
+  原文件（pinned v1）+ `-decoded.glb` 各一份，共 12 个 GLB 已推仓。
+- **实测（Blender 4.2.0 只读）**：草甸 0.76 m 高、1.89×1.95 m 幅、lod1 2,030 面 / lod0 11,024 面 / lod2 304 面，
+  核心 1×1 m 可 1 m 网格无缝拼，1024 KTX2 贴图（绿→枯黄叶尖 + 干草叶 + 穗）；红燕麦 0.98 m 高、0.98×0.93 m、
+  lod1 824 面，锈红贴图点缀。比上一轮好在：高 0.76 m（程序化最高档 2.2 倍）、单丛覆盖大 19 倍、
+  贴图渐变代替六色平片、整块草坪可拼满成片可见。完整对比表与打分见 SOURCES.md §6.2–6.3。
+- **解码说明（格式转换，非手捏）**：tevy 原文件是 `EXT_meshopt_compression` + KTX2，Blender 4.2 与 Godot 内置导入器
+  均不直读；用 glTF-Transform 4.5.1 无损解码 meshopt 生成 `-decoded.glb`（几何零改动，面数与原文件 accessor 计数一致，
+  KTX2 贴图原样保留；Blender 实测包围盒与页标一致）。Godot 4.4 读 KTX2 以整合时 CI run 为准。
+- **密度估算（草坪 1,911 m²，现行 ov-lawn.py 口径；R2-T3 GREEN_PLAN 未出，以它为准再定）**：
+  lod1 拼满 1/m² = 3.88M 面；lod2 拼满 = 0.58M 面；推荐混合（程序化底保留 + lod1 0.25/m² + 红燕麦 lod1 0.05/m²）
+  新增约 1.05M 面。换装/重铺是下一波施工任务，本轮未动 ov-lawn.py/.blend/.glb、ov-field 与任何 Godot 文件。
+- **推仓**：12 个选定 GLB + `assets/external/SOURCES.md` + 本文档，一次 push-files，commit `TODO`（推后填写）。
+  其余 10 个候选 GLB（poly-pizza 2、3dassets 4、tevy 茅草/剪草坪簇 4）留本地，凭 SOURCES.md §6 直链可重下。
+- **还剩什么**：① 下一波施工按 GREEN_PLAN 把选定模型铺进 ov-lawn（换装/重铺）并重出总览；② 整合时 CI run 核对
+  Godot 4.4 对 `-decoded.glb`（KTX2 贴图）的导入；③ R2-T3 绿化方案出后复核本轮密度估算档位。
