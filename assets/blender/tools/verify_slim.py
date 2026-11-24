@@ -20,6 +20,12 @@
 #     否则在写 overview-slim.blend 之前就报错退出。
 #   - 当前实测期望值 13217（2026-11-24 R2-T1b 重拼：append 13213 + 拼装 4），
 #     仅作注释参考，不参与断言。
+#
+# 退出码（R2-T45）：断言失败时打印 `VERIFY-FAIL ...` 后 `os._exit(1)`。
+# Blender 4.2.0 无头跑 --python 会吞掉 AssertionError / sys.exit /
+# 自定义 excepthook 的退出码（§40 实测：失败仍 exit 0），只有 os._exit
+# 能把失败带出进程；成功仍打印 `DONE verify_slim` 后正常退出 0。
+# os._exit 跳过清理——本脚本是无头校验脚本，无需保存中间状态。
 
 import bpy
 import os
@@ -36,6 +42,25 @@ FULL_BLEND = os.path.join(SCENES, "overview.blend")
 SLIM_BLEND = os.path.join(SCENES, "overview-slim.blend")
 
 
+def _fail(msg):
+    """断言失败出口：打印清晰失败行后 os._exit(1)。
+
+    不能用 assert / sys.exit：Blender 4.2.0 无头 --python 会吞掉
+    它们的退出码（失败仍 exit 0，见 §40）；只有 os._exit 能把
+    失败带出进程。先 flush 再 _exit，失败行才不会丢在缓冲里。
+    """
+    print("VERIFY-FAIL %s" % msg, flush=True)
+    sys.stdout.flush()
+    os._exit(1)
+
+
+def _parse_expected(raw, src):
+    try:
+        return int(raw)
+    except ValueError:
+        _fail("bad %s value %r (not an integer)" % (src, raw))
+
+
 def _expected_objects():
     """返回 (期望对象数或 None, 来源说明)。
 
@@ -47,12 +72,15 @@ def _expected_objects():
     args = argv[argv.index("--") + 1:] if "--" in argv else []
     for i, a in enumerate(args):
         if a == "--expected-objects" and i + 1 < len(args):
-            return int(args[i + 1]), "--expected-objects"
+            return _parse_expected(args[i + 1], "--expected-objects"), \
+                "--expected-objects"
         if a.startswith("--expected-objects="):
-            return int(a.split("=", 1)[1]), "--expected-objects"
+            return _parse_expected(a.split("=", 1)[1],
+                                   "--expected-objects"), "--expected-objects"
     env = os.environ.get("VERIFY_SLIM_EXPECTED_OBJECTS", "").strip()
     if env:
-        return int(env), "VERIFY_SLIM_EXPECTED_OBJECTS"
+        return _parse_expected(env, "VERIFY_SLIM_EXPECTED_OBJECTS"), \
+            "VERIFY_SLIM_EXPECTED_OBJECTS"
     return None, None
 
 
@@ -84,7 +112,8 @@ print("VERIFY-GLB objects=%d mesh=%d no_material_prims=%d"
       % (n_glb, n_mesh, nomat))
 # 对象数不断言在这里：期望值取自完整版 .blend（下一步才打开），
 # 先只断言无材质 primitive；对象数一致性在第 2 步后统一断言。
-assert nomat == 0, "slim GLB has %d no-material prims" % nomat
+if nomat != 0:
+    _fail("slim GLB has %d no-material prims" % nomat)
 
 # ---------- 2. gzip 瘦身 .blend（原目录内另存） ----------
 bpy.ops.wm.open_mainfile(filepath=FULL_BLEND)
@@ -96,12 +125,12 @@ if EXPECTED is None:
 else:
     expected, expected_src = EXPECTED, EXPECTED_SRC
 print("EXPECTED objects=%d source=%s" % (expected, expected_src))
-assert n_glb == expected, \
-    "slim GLB objects %d != expected %d (%s)" % (n_glb, expected,
-                                                 expected_src)
-assert n_full == expected, \
-    "full blend objects %d != expected %d (%s)" % (n_full, expected,
-                                                   expected_src)
+if n_glb != expected:
+    _fail("slim GLB objects %d != expected %d (%s)" % (n_glb, expected,
+                                                       expected_src))
+if n_full != expected:
+    _fail("full blend objects %d != expected %d (%s)" % (n_full, expected,
+                                                         expected_src))
 bpy.ops.wm.save_as_mainfile(filepath=SLIM_BLEND, compress=True)
 print("SAVED-SLIM-BLEND %s size=%d (full %d)"
       % (SLIM_BLEND, os.path.getsize(SLIM_BLEND),
@@ -118,8 +147,9 @@ for img in bpy.data.images:
         missing.append(img.name)
 print("VERIFY-BLEND-SLIM objects=%d images=%d missing_files=%d %s"
       % (n_slim, len(bpy.data.images), len(missing), missing))
-assert n_slim == n_full == expected, \
-    "slim blend objects %d != full %d (expected %d, %s)" % (
-        n_slim, n_full, expected, expected_src)
-assert len(missing) == 0, "missing files: %s" % missing
+if not (n_slim == n_full == expected):
+    _fail("slim blend objects %d != full %d (expected %d, %s)" % (
+        n_slim, n_full, expected, expected_src))
+if missing:
+    _fail("missing files: %s" % missing)
 print("DONE verify_slim")
