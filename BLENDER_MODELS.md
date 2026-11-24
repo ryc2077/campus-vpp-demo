@@ -1537,7 +1537,13 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
   .glb 6,926,120 B）；推后核对：HEAD 即 `a59137dd`、父链连续、contents API 逐文件核对
   5 个文件大小与 blob SHA 与本地逐项一致（.py `3f2f6b83…`、.blend `2e9ce834…`、
   .glb `330cfd4d…`、日志 `35b12832…`、本文档 `48e82c37…`）。
-- **验证**：blender-previews run **#113**（45484839169，head a59137dd），截至 05:26 仍 in_progress（4/6 组 success：classroom/pv/storage/charge；overview + dist 仍在渲染）；待 overview 组出图后由 T35 下载 artifact 逐张目视 ov-gym.png，结论待补。
+- **验证**：blender-previews run **#113** / 45484839169（head `a59137dd`），completed/**success**
+  （6/6 组全绿，overview 组约 70 分钟）；artifact `blender-previews-overview`
+  （17,944,600 B）20 张已下载。**ov-gym.png 逐张目视通过**：雨棚下地面 3 条黄线已消除
+  （全图强黄像素 0/921,600，雨棚区 2 倍放大亦无黄线），雨棚（浅灰混凝土板 + 细柱）与馆体、
+  台阶、玻璃正门完好，红砖墙 #8E2F28 + 深灰屋顶 + 3 层蓝玻璃窗带正常，无穿模。其余 19 张
+  扫视无回归——无空白/品红/缺件（bldA/bldB、canteen、lab、lib、tower、dorm、track、
+  parking 三车、trees 等均正常）。
 - **编号说明**：本节即 §36（§35 已是 R2-T26，见协调者提示；写前已查仓库版文档确认
   §36 空闲）；§24/§29 一字未动；只改 gym 一件（`.py` / `.blend` / `.glb` + 本轮日志），
   未拼总览、未动 Godot。
