@@ -692,6 +692,20 @@ for _im in bpy.data.images:
         print("PBR path fix:", _im.name, _fp, "->", _new)
         _im.filepath = _new
 
+# R2-T14b: 贴图打包进 .blend (Actions 渲染用; hook 换入的 PBR 图只存相对路径
+# //../../external/..., 而 pbr-tinted/concrete_pavement_03 等源文件不在仓库里,
+# 不打包会在 Actions 检出后找不到而渲成品红; run 45440253728 的 ov-road-walk
+# 品红即为此因, R2-T9b 18:56 补打包 8 个 .blend 后才修复; 与 ov-tower.py 同款)。
+for _im in list(bpy.data.images):
+    if _im.name in ("Render Result", "Viewer Node"):
+        continue
+    if _im.packed_file is None:
+        try:
+            _im.pack()
+            print("packed image:", _im.name, _im.size[:])
+        except Exception as _e:
+            print("pack image skip:", _im.name, _e)
+
 bpy.ops.wm.save_as_mainfile(filepath=BLEND_PATH)
 print("saved blend:", BLEND_PATH)
 if os.path.exists(BLEND_PATH + "1"):
