@@ -788,8 +788,11 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 - **最终混合配比（GREEN_PLAN.md §8.3，施工与验收以此为准）**：tevy 草甸 lod2 340 丛
   （drift 带 326 + 旧草坪叠加 14）103,360 面 + lod1 10 丛 20,300 面 + lod0 2 丛 22,048 面
   + 红燕麦 lod1 8 丛 6,592 面 + 红燕麦 lod2 10 丛 1,100 面 = **tevy 370 丛、153,400 面**；
-  色带底板 164 块 1,968 面（4m 相间 `#69B45E`/`#57A04B`，每 5 条 `#7FC46A`，覆盖 22,829 m²）；
-  既有程序化草 + 边缘真草 + 花坛/灌木/旧底板 238,276 面全留；**ov-lawn 总计约 393,644 面 ≤400k**。
+  色带底板 163 块 1,956 面（4m 相间 `#69B45E`/`#57A04B`，每 5 条 `#7FC46A`，覆盖 22,472 m²）；
+  既有程序化草 + 边缘真草 + 花坛/灌木/旧底板 238,276 面全留；**ov-lawn 总计 393,632 面 ≤400k**。
+  （初版写 164 块 / 1,968 面 / 22,829 m² / 总计 393,644 面是旧跑道椭圆口径的估算；
+  R2-T1b 操场收界后禁入椭圆改走新跑道（中心 (-62,-25)、长轴南北向、外椭圆 rx28/ry40 +1m），
+  实测为 163 块 / 1,956 面 / 22,472 m² / 总计 393,632 面，余量 6,368。）
   §7 验收条“新高草丛 ≥21,500 丛”作废，改为 370 丛 + drift 带覆盖 + 4m 色带 100%。
   lod2 按区：G1 64 / G2 65 / G3 96 / G4 29 / G5 21 / G6 36 / G7 15；红燕麦点缀见 §8.3。
 - **施工（`assets/blender/overview/ov-lawn.py`，只改本件；ov-field.py 未动）**：
@@ -802,6 +805,11 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
   法线图直连 NormalMap，双面；绝不走 ColorRamp）。KTX2 贴图实测尺寸：草甸 lod0 色 1024²/法线 256²、
   lod1 色 512²/法线 256²、lod2 色 256²/法线 128²；红燕麦 lod1 色 512²、lod2 色 256²
   （SOURCES.md §6.2“1024 KTX2”只对 lod0 成立，已按实测更正）。
+  禁入椭圆跟 R2-T1b 新跑道走（中心 (-62,-25)、rx28/ry40 +1m；旧椭圆 (-80,-25) rx40/ry28 已废，
+  旧口径草会压到新跑道东沿/南北端）。另：5 个 tevy 材质加同色图自发光 0.35——
+  本地 Cycles 预览发现密丛斜视/近景下丛心全黑（卡片互遮、太阳背面，俯视正常偏绿），
+  单丛特写实测 0.35 后丛心变暗绿、结构可见（Translucent BSDF 试过，会把镂空区染成灰卡片，已否决）；
+  GLB 直读确认 5 个 tevy 材质均带 emissiveTexture + emissiveFactor 0.35，alphaMode 仍为 MASK。
 - **KTX2 导入结论（实测，非猜）**：Godot 4.4 **认 KTX2**（KHR_texture_basisu）——
   去量化后的 `-dequant.glb`（见下）本地 Godot 4.4 `--headless --import` 5 个全部通过，
   贴图转码为 `.ctex`（`.scn` + grass_color/normal `.ctex` 齐全，日志里只有无头 progress-dialog 噪音，
@@ -821,9 +829,20 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
   `tevy-meadow-grass-patch-lod2-dequant.glb`（109,948 B）、
   `tevy-red-oat-grass-clump-lod1-dequant.glb`（172,260 B）、
   `tevy-red-oat-grass-clump-lod2-dequant.glb`（45,128 B）。
-- **验证**：待填（本地运行日志 tris 实测 + Actions blender-previews overview 组 run 号与逐张目视结论）。
-- **推仓**：待填（commit / HEAD，推后填）。
-- **还剩什么**：待填。
+- **验证**：本地 Blender 4.2.0 第 5 次运行（`ov-lawn-r2t18e.log`，2026-11-24 16:34 CST）：
+  `blender_exit=0`、`DONE ov-lawn`，回读 8,802 对象 / 393,632 tris / 968,314 verts，0 Error / 0 Traceback，
+  tevy 370 丛断言全过；本地 Cycles 双视角预览已目视（近景单丛结构可见、远景色带与草层可见，
+  自发光修复后近景丛心由纯黑变暗绿）。Actions `blender-previews` run **45439933216**
+  （head `4374a14b`）：**overview 组 success**，artifact `blender-previews-overview`（17,608,316 B）已下载逐张目视——
+  `ov-lawn.png`：4m 色带全区清晰、drift 带点状草层沿带可见、旧草坪两块深绿区、池塘环、花坛与边缘真草都在，
+  新跑道/球场禁入区干净无草；整 run 当时仍在等无关的 dist 组，结论以 overview 组为准。
+- **推仓**：两 commit——`b93368de`（2026-11-24 16:25 UTC，22 文件：ov-lawn.py/.blend/.glb + GREEN_PLAN.md §8 +
+  13 张新 PNG + 5 个 `-dequant.glb`）与 `4374a14b`（2026-11-24 16:40 UTC，4 文件：ov-lawn.py/.blend/.glb +
+  GREEN_PLAN.md，自发光 0.35 修复 + §8 补记）；推仓时两次撞上并行任务的 422 not-a-fast-forward，重试后成功。
+  另：BLENDER_MODELS.md §18 本段在 R2-T1b 提交 `3a20fea3` 时已被顺带推入（共享工作区文件被其 push-files 读到），
+  本轮只补填本段的验证/推仓/还剩什么。
+- **还剩什么**：总览重拼与 godot-verify 总览验收由终轮整合做；R-N2 路（x=-33）与新跑道 +3m 缓冲东尖（x=-31）
+  约 1.5m 重叠，是路任务的遗留问题，本轮草地已同时避开路廊与新椭圆，不受影响。
 
 ## §18 R2-T17 桌椅换装（3DAssets）+ 教室墙面偏青绿修复（2026-11-24，只做教室）
 
