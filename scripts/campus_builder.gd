@@ -468,8 +468,16 @@ func set_night_windows(night_f: float) -> void:
 ## 户外变压器组 [74,-30] 无 Blender 件（§6 缺口），始终保留程序化。
 func _load_scene_glbs() -> void:
 	# 总览：地面/道路/操场/池塘/树/旗门 + 全部宿主楼体（含配电房外壳）
-	if GlbLoader.attach(self, "overview", "OverviewGLB") != null:
+	var _ov_glb := GlbLoader.attach(self, "overview", "OverviewGLB")
+	if _ov_glb != null:
 		overview_glb_active = true
+		# R2-T41 探针：藏 bldA 三件实心底座。body 底盖 y=0.50（法线朝下、双面）、
+		# plinth 顶盖 y=0.50、plinth_cap 顶盖 y=0.68，三盖均为整幅 40×15m 不透明面，
+		# 盖住教室体积内的全部桌椅腿（腿 y 0–0.67、桌面顶 0.70 在盖面之上）。
+		for _pn in ["bldA_body_F1_F4", "bldA_plinth", "bldA_plinth_cap"]:
+			var _pnode := _ov_glb.find_child(_pn, true, false)
+			if _pnode != null:
+				_pnode.visible = false
 		for n in _proc_overview_nodes:
 			n.visible = false
 		for id in hosts.keys():
