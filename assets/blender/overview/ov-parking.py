@@ -1,11 +1,29 @@
-# ov-parking v2: 停车区返工（总览件）
+# ov-parking v3: 停车区返工（总览件）——R2-T19 汽车换装
 # Blender 坐标 x 向东、y 向北、z 向上，单位米
 # 内容：停车场 20x12m（中心 (-30,-90)，程序化沥青）+ 北侧一排 10 个车位
 #      + 白色车位线（轻微磨损）+ 每个车位末端轮挡 + 南侧行车道导向箭头/虚线
-#      + 3 辆升级小车（灰 / 蓝 / 红，按 ch-cars v2 做法：倒角车身 + 分层车窗
-#        + 车灯 + 后视镜 + 轮胎/轮毂分开）
+#      + 3 辆 Quaternius 网上车（灰 SUV / 蓝 Car / 红 Sports 2，见下文换装说明）
 # 不做主干道（ov-road-main）、不做充电区。
 # 新规矩：渲染全部走 GitHub Actions，本地不渲染、不出预览图。
+#
+# 换装（R2-T19，2026-11-24；来源 assets/external/SOURCES.md §9，CC0）：
+# 三辆手捏小车换成 poly.pizza Quaternius Cars 包：car-quaternius.glb（蓝）、
+# suv-quaternius.glb（白→灰）、sports-car-2-quaternius.glb（橙→红）。
+# 实测：glTF 前向 +Z，Blender 导入后长在 Y 轴、车头在 -Y；每车绕 Z 转 +90°
+# 烘进 mesh（车头 -Y -> +X、车长落到 X 轴），与旧手捏车局部系一致，
+# empty 保持旧旋转 +90°（车头朝 +Y/北）。车身主 mesh 命名 _roof（与 ch-cars
+# 同口径的 Godot SOC 锚点命名，原点移到 mesh 高度中点；本件总览不挂 SOC 条，
+# 仅为两件命名统一）。
+# 缩放：车位 2.0 m 宽（线内缘 ±0.94 m），三车长统一缩到 4.4 m、宽统一夹到
+# 1.80 m（与旧手捏车同宽，每侧余 0.04 m 不压线）：灰 SUV (0.8531, 1.0451,
+# 1.0451)、蓝 Car (0.9945, 1.0427, 1.0427)、红 Sports (1.0, 1.1083, 1.1083)
+# （sx=宽、sy=长、sz=高，按导入轴向）。Sports 橙改 SPEC 红 #C4534E（Orange
+# + DarkOrange 两材质均改，只改数值）；灰 #8A8F94、蓝 #3B82C4 沿用旧色。
+# 车漆复用 ch-cars 旧清漆配方（1.0/0.05），车窗用已验证深色镀膜玻璃
+# （透射 0.10、alpha 0.90、粗糙度 0.15、#33505F）。
+# 位置：灰 2 号位、蓝 5 号位、红 9 号位（与 v1 一致），车头朝北；灰 SUV
+# 前轮北缘离轮挡仅 0.04 m（原 -86.5 时会顶轮挡 0.04 m），故 SUV 中心
+# 南移 0.10 m 至 y=-86.6（仍在 2 号位内，南缘 -88.8 > -89）。
 #
 # 尺寸说明：任务给 10 个车位 × 2.5m 宽 = 25m，装不进 20m 宽的停车场；
 # 停车场 20x12m 与车位 10 个是硬指标，故车位宽取 20/10 = 2.0m、深 5m，
@@ -14,7 +32,7 @@
 import bpy
 import math
 import os
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 PIECE = "ov-parking"
 BASE = os.path.expanduser("~/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot")
@@ -134,20 +152,22 @@ def make_worn_white(name, hexstr="#F2F2F2"):
 
 
 def make_paint(name, hexstr):
-    """车漆：Principled，Noise 粗糙度 0.35 +/- 0.08，轻 Bump（同 ch-cars v2）。
-    2026-11-24 返工 R1（验收 run #72：本件车漆根本无 clearcoat——060877f4
-    只给 ch-cars 挂了清漆，ov-parking 的 make_paint 从没设 Coat，且
-    _apply_pbr 挂图时也不会补；GLB 实测无 KHR_materials_clearcoat）：
-    make_car 里挂图后补 Coat Weight 1.0 / Coat Roughness 0.05（与 ch-cars
-    同口径），底漆粗糙度仍由 Paint* rough 贴图驱动。"""
+    """车漆（ch-cars 旧清漆配方）：Metallic 0.15 / Roughness 0.25 固定值 +
+    Coat Weight 1.0 / Coat Roughness 0.05 + 细颗粒 Bump（只进 EEVEE）。
+    Base Color / Roughness 不链接，保证 glTF factor 保留。
+    注意：旧版曾挂 Paint* PBR 贴图（_apply_pbr），R2-T19 换装后车漆改用
+    导入材质直接染色，不再挂图；ov-parking_textures/ 下 Paint* 三件套
+    留在磁盘未删，但本件已不再引用。"""
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
     ntree = mat.node_tree
     bsdf = ntree.nodes["Principled BSDF"]
     bsdf.inputs["Base Color"].default_value = srgb_to_linear(hexstr)
     bsdf.inputs["Metallic"].default_value = 0.15
-    _noise_roughness(ntree, bsdf, scale=6.0, r_min=0.27, r_max=0.43)
-    _noise_bump(ntree, bsdf, scale=18.0, strength=0.06)
+    bsdf.inputs["Roughness"].default_value = 0.25
+    bsdf.inputs["Coat Weight"].default_value = 1.0
+    bsdf.inputs["Coat Roughness"].default_value = 0.05
+    _noise_bump(ntree, bsdf, scale=40.0, strength=0.10)
     return mat
 
 
@@ -161,7 +181,7 @@ def make_glass(name):
     Roughness 0.05→0.15（镜面越锐越忠实映出暗地面；稍放宽 lobe 才能
     蹭进地平线附近亮天光）、Specular IOR Level 1.0 不变（掠射更亮）。
     Metallic 仍 0。R1 加的细噪波 Bump 删掉：它把镜面 lobe 打散成均匀
-    雾面，正是“平板感”的帮凶。"""
+    雾面，正是“平板感”的帮凶。另加 Transmission 0.10（与 ch-cars 同配方）。"""
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
     ntree = mat.node_tree
@@ -169,8 +189,10 @@ def make_glass(name):
     bsdf.inputs["Base Color"].default_value = srgb_to_linear("#33505F")
     bsdf.inputs["Roughness"].default_value = 0.15
     bsdf.inputs["Metallic"].default_value = 0.0
+    bsdf.inputs["Transmission Weight"].default_value = 0.10
     bsdf.inputs["Alpha"].default_value = 0.90
     bsdf.inputs["Specular IOR Level"].default_value = 1.0
+    bsdf.inputs["IOR"].default_value = 1.45
     mat.surface_render_method = "DITHERED"
     return mat
 
@@ -188,14 +210,14 @@ def make_tire(name):
 
 
 def make_hub(name):
-    """金属轮毂：metallic 0.8，粗糙度 0.35 +/- 0.08（同 ch-cars v2）。"""
+    """金属轮毂：metallic 0.8，粗糙度 0.35 固定值（同 ch-cars v2）。"""
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
     ntree = mat.node_tree
     bsdf = ntree.nodes["Principled BSDF"]
     bsdf.inputs["Base Color"].default_value = srgb_to_linear("#C0C5C9")
     bsdf.inputs["Metallic"].default_value = 0.8
-    _noise_roughness(ntree, bsdf, scale=6.0, r_min=0.27, r_max=0.43)
+    bsdf.inputs["Roughness"].default_value = 0.35
     return mat
 
 
@@ -226,12 +248,18 @@ MAT_ASPHALT = make_asphalt("ov-parking_asphalt")
 MAT_LINE = make_worn_white("ov-parking_line_white")        # 车位线
 MAT_MARKING = make_worn_white("ov-parking_marking_white")  # 导向箭头/虚线
 MAT_STOP = make_simple("ov-parking_wheelstop_concrete", "#B9B3A8", 0.95)  # 轮挡
+# ---- 车材质（R2-T19 换装：导入材质 base 名 -> 本件规范材质）----
+# 三车导入后同名材质（Windows/Black/Grey/Headlights/TailLights）各出现 3 份，
+# 全部 remap 到同一份规范材质；Orange/DarkOrange 两档红各留一份。
+MAT_PAINT_GREY = make_paint("ov-parking_paint_grey", "#8A8F94")
+MAT_PAINT_BLUE = make_paint("ov-parking_paint_blue", "#3B82C4")
+MAT_PAINT_RED = make_paint("ov-parking_paint_red", "#C4534E")
+MAT_PAINT_RED_DARK = make_paint("ov-parking_paint_red_dark", "#C4534E")
 MAT_GLASS = make_glass("ov-parking_glass")
 MAT_TIRE = make_tire("ov-parking_tire")
 MAT_HUB = make_hub("ov-parking_hub")
 MAT_HEAD = make_lamp("ov-parking_headlamp", "#FFF6D8", "#FFF2CC", strength=1.0)
 MAT_TAIL = make_lamp("ov-parking_taillamp", "#C03028", "#D04030", strength=0.8)
-MAT_DARK = make_simple("ov-parking_dark", "#3A3F42", 0.7)
 
 # ---- PBR 贴图挂接（返工）：下载的 CC0 实拍贴图经亮度映射到 SPEC 色
 # （assets/external/* -> ov-parking_textures/ 衍生 PNG）；车漆/轮胎/
@@ -321,12 +349,10 @@ _apply_pbr(MAT_ASPHALT, "Asphalt")
 _apply_pbr(MAT_LINE, "WhiteWorn")
 _apply_pbr(MAT_MARKING, "WhiteWorn")
 _apply_pbr(MAT_STOP, "Concrete")
-_apply_pbr(MAT_TIRE, "Tire")
-_apply_pbr(MAT_HUB, "HubMetal")
-# 车漆在 make_car 里现做现挂（PaintGrey/PaintBlue/PaintRed）。
+# 车材质（车漆/车窗/轮胎/轮毂/车灯）不挂图：导入材质直接染色（见上文）。
 # 贴图 UV 按米缩放：{材质: 一重复多少米}
 UV_TILE = {MAT_ASPHALT: 3.0, MAT_LINE: 1.0, MAT_MARKING: 1.0,
-           MAT_STOP: 2.0, MAT_TIRE: 1.0, MAT_HUB: 1.0}
+           MAT_STOP: 2.0}
 
 # ---- clean scene ----
 bpy.ops.object.select_all(action="SELECT")
@@ -398,103 +424,106 @@ for k, dx in enumerate((-9.0, -7.0, -3.0, -1.0, 3.0, 5.0, 7.0, 9.0)):
         (LOT_CX + dx, LANE_Y, 0.11), (1.0, 0.12, 0.02), MAT_MARKING)
 
 
-# ---- 车辆（同 ch-cars v2 做法；局部坐标车长沿 X、车头 +X）----
-def wheel(name, loc):
-    """轮胎圆柱 + 金属轮毂盘 + 每面 5 根辐条。"""
-    parts = []
-    bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=0.33, depth=0.22,
-                                        location=loc)
-    tire = bpy.context.active_object
-    tire.name = name + "_tire"
-    tire.rotation_euler = (math.radians(90), 0, 0)  # 轴沿 Y
-    tire.data.materials.append(MAT_TIRE)
-    objs.append(tire)
-    parts.append(tire)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=0.19, depth=0.24,
-                                        location=loc)
-    hub = bpy.context.active_object
-    hub.name = name + "_hub"
-    hub.rotation_euler = (math.radians(90), 0, 0)
-    hub.data.materials.append(MAT_HUB)
-    objs.append(hub)
-    parts.append(hub)
-    for side in (+1, -1):
-        for k in range(5):
-            ang = math.radians(k * 72.0)
-            sp = box("%s_spoke_%s%d" % (name, "L" if side > 0 else "R", k),
-                     (loc[0], loc[1] + side * 0.125, loc[2]),
-                     (0.34, 0.02, 0.08), MAT_HUB)
-            sp.rotation_euler = (0, ang, 0)
-            parts.append(sp)
-    return parts
+# ---- 车辆（R2-T19 换装：Quaternius 网上车；局部坐标车长沿 X、车头 +X）----
+# 导入材质 base 名 -> 本件规范材质（White 只出现在 SUV 上，染成灰色）。
+CANON = {"Blue": MAT_PAINT_BLUE, "White": MAT_PAINT_GREY,
+         "Orange": MAT_PAINT_RED, "DarkOrange": MAT_PAINT_RED_DARK,
+         "Windows": MAT_GLASS, "Black": MAT_TIRE, "Grey": MAT_HUB,
+         "Headlights": MAT_HEAD, "TailLights": MAT_TAIL}
+CARS_DIR = os.path.join(BASE, "assets/external/cars/quaternius")
 
 
-def make_car(tag, color_hex, cx, cy, rot_z_deg):
-    """整车挂在一个 empty 下，旋转/摆放一次完成。车头朝北（+Y）故 rot_z=+90。"""
-    mat_body = make_paint("ov-parking_body_" + tag, color_hex)
-    # 车漆挂图（返工）：细噪波车漆纹理，颜色即车身色
-    _apply_pbr(mat_body, "Paint" + tag.capitalize())
-    # 返工 R1：挂图后补清漆（_apply_pbr 只动 Base Color/Roughness/Normal，
-    # Coat 默认值须另设；此前从未设过，GLB 里无 clearcoat）
-    _paint_bsdf = mat_body.node_tree.nodes["Principled BSDF"]
-    _paint_bsdf.inputs["Coat Weight"].default_value = 1.0
-    _paint_bsdf.inputs["Coat Roughness"].default_value = 0.05
-    UV_TILE[mat_body] = 1.0
-    parts = []
-    # 车身 4.5 x 1.8 x 0.55，中心 z 0.60，倒角
-    parts.append(box("ov-parking_%s_body" % tag, (0, 0, 0.60),
-                     (4.5, 1.8, 0.55), mat_body, bevel=0.04))
-    # 车顶 2.2 x 1.6 x 0.5，中心 z 1.125，略偏后（x -0.2）
-    parts.append(box("ov-parking_%s_roof" % tag, (-0.2, 0, 1.125),
-                     (2.2, 1.6, 0.5), mat_body, bevel=0.04))
-    # 分层车窗：每侧前后两块（B 柱留缝）
-    for side in (+1, -1):
-        s = "L" if side > 0 else "R"
-        parts.append(box("ov-parking_%s_glass_front_%s" % (tag, s),
-                         (0.35, side * 0.805, 1.12),
-                         (0.85, 0.02, 0.35), MAT_GLASS))
-        parts.append(box("ov-parking_%s_glass_rear_%s" % (tag, s),
-                         (-0.75, side * 0.805, 1.12),
-                         (0.85, 0.02, 0.35), MAT_GLASS))
-    # 前风挡 + 后窗
-    parts.append(box("ov-parking_%s_glass_wind" % tag,
-                     (0.91, 0, 1.12), (0.02, 1.40, 0.38), MAT_GLASS))
-    parts.append(box("ov-parking_%s_glass_back" % tag,
-                     (-1.31, 0, 1.12), (0.02, 1.40, 0.38), MAT_GLASS))
-    # 前灯（+X）与尾灯（-X），弱发光
-    for side in (+1, -1):
-        s = "L" if side > 0 else "R"
-        parts.append(box("ov-parking_%s_head_%s" % (tag, s),
-                         (2.26, side * 0.55, 0.78),
-                         (0.06, 0.50, 0.12), MAT_HEAD))
-        parts.append(box("ov-parking_%s_tail_%s" % (tag, s),
-                         (-2.26, side * 0.55, 0.78),
-                         (0.06, 0.50, 0.12), MAT_TAIL))
-    # 前格栅
-    parts.append(box("ov-parking_%s_grille" % tag,
-                     (2.26, 0, 0.45), (0.06, 1.20, 0.15), MAT_DARK))
-    # 后视镜：支杆 + 镜体，A 柱两侧
-    for side in (+1, -1):
-        s = "L" if side > 0 else "R"
-        parts.append(box("ov-parking_%s_mirror_stalk_%s" % (tag, s),
-                         (0.75, side * 0.90, 1.02),
-                         (0.10, 0.14, 0.05), MAT_DARK))
-        parts.append(box("ov-parking_%s_mirror_%s" % (tag, s),
-                         (0.75, side * 0.98, 1.04),
-                         (0.16, 0.06, 0.14), mat_body, bevel=0.02))
-    # 4 轮：r 0.33，x +-1.5，y +-0.80，z 0.33（局部坐标；整车由 empty 抬高 LOT_Z1）
-    for i, wx in enumerate((-1.5, 1.5)):
-        for j, wy in enumerate((-0.80, 0.80)):
-            parts.extend(wheel("ov-parking_%s_wheel_%d%d" % (tag, i, j),
-                               (wx, wy, 0.33)))
+def _mat_face_centroid(obj, mat_name):
+    """World-space centroid of faces using the given material slot."""
+    idx = [i for i, m in enumerate(obj.data.materials)
+           if m and m.name.split(".")[0] == mat_name]
+    assert idx, f"{obj.name}: no material slot {mat_name}"
+    mi = idx[0]
+    pts = [obj.matrix_world @ p.center for p in obj.data.polygons
+           if p.material_index == mi]
+    assert pts, f"{obj.name}: no faces with {mat_name}"
+    return sum(pts, Vector((0, 0, 0))) / len(pts)
+
+
+def import_car(tag, filename, scale, cx, cy, rot_z_deg):
+    """Import one Quaternius car (same pipeline as ch-cars v3, see its
+    header): remap materials, bake +90 deg Z-rotation (front -Y -> +X)
+    + scale into mesh data, body mesh origin shifted to height midpoint
+    (named _roof, Godot anchor convention), parent under an empty at
+    (cx, cy, LOT_Z1) with rotation rot_z_deg. scale is (sx, sy, sz) in
+    the IMPORTED local axes (x=width, y=length, z=height)."""
+    before = set(bpy.context.scene.objects)
+    bpy.ops.import_scene.gltf(filepath=os.path.join(CARS_DIR, filename))
+    meshes = [o for o in bpy.context.scene.objects
+              if o not in before and o.type == 'MESH']
+    assert len(meshes) == 4, f"{tag}: expected 4 meshes, got {len(meshes)}"
+    body = max(meshes, key=lambda o: len(o.data.materials))
+    assert len(body.data.materials) >= 6, \
+        f"{tag}: body has {len(body.data.materials)} materials, expected >=6"
+    hl = _mat_face_centroid(body, "Headlights")
+    tl = _mat_face_centroid(body, "TailLights")
+    assert hl.y < -1.0 and tl.y > 1.0, \
+        f"{tag}: headlight centroid y={hl.y:.2f}, taillight y={tl.y:.2f} " \
+        "(expected front at -Y)"
+    print(f"IMPORT {tag}: {filename} headlight y={hl.y:.2f} "
+          f"taillight y={tl.y:.2f} (front -Y confirmed)")
+    for o in meshes:
+        for i, m in enumerate(list(o.data.materials)):
+            base = m.name.split(".")[0]
+            assert base in CANON, f"{tag}: unexpected material {m.name}"
+            o.data.materials[i] = CANON[base]
+    # bake rotation + scale directly into mesh data (deterministic;
+    # bpy.ops.object.transform_apply silently skipped the rotation
+    # in the 2026-11-24 ch-cars probe — scale baked, rotation not baked).
+    bake = (Matrix.Rotation(math.radians(90), 4, 'Z')
+            @ Matrix.Diagonal(scale + (1.0,)))
+    for o in meshes:
+        o.data.transform(bake)
+    bpy.context.view_layer.update()
+    hl2 = _mat_face_centroid(body, "ov-parking_headlamp")
+    tl2 = _mat_face_centroid(body, "ov-parking_taillamp")
+    assert hl2.x > 1.0 and tl2.x < -1.0, \
+        f"{tag}: after bake headlight x={hl2.x:.2f}, taillight x={tl2.x:.2f} " \
+        "(expected front at +X)"
+    zs = [v.co.z for v in body.data.vertices]
+    zmin, zmax = min(zs), max(zs)
+    L = zmax - (zmax - zmin) / 2.0
+    body.data.transform(Matrix.Translation((0, 0, -L)))
+    body.location = (0, 0, L)
+    print(f"IMPORT {tag}: roof top z={zmax:.3f} origin L={L:.3f}")
+    all_zmin = min(min(v.co.z for v in o.data.vertices) + o.location.z
+                   for o in meshes)
+    lift = -all_zmin  # lowest point (wheel bottom) exactly at z=0, pre-empty
+    body.name = "ov-parking_%s_roof" % tag
+    bpy.context.view_layer.update()
+    for o in meshes:
+        if o is body:
+            continue
+        c = sum((o.matrix_world @ Vector(v) for v in o.bound_box),
+                Vector((0, 0, 0))) / 8.0
+        if c.x < 0:
+            o.name = "ov-parking_%s_wheels_rear" % tag
+        elif c.y > 0:
+            o.name = "ov-parking_%s_wheel_FL" % tag
+        else:
+            o.name = "ov-parking_%s_wheel_FR" % tag
     # empty 抬高 LOT_Z1（0.08）：轮底正好落在沥青顶面，车身不悬空、不下陷
-    bpy.ops.object.empty_add(type="PLAIN_AXES", location=(cx, cy, LOT_Z1))
+    bpy.ops.object.empty_add(type="PLAIN_AXES",
+                             location=(cx, cy, LOT_Z1 + lift))
     grp = bpy.context.active_object
     grp.name = "ov-parking_%s" % tag
     grp.rotation_euler = (0, 0, math.radians(rot_z_deg))
-    for p in parts:
-        p.parent = grp
+    for o in meshes:
+        o.parent = grp
     objs.append(grp)
+    objs.extend(meshes)
+    bpy.context.view_layer.update()
+    for o in meshes:
+        bb = [o.matrix_world @ Vector(v) for v in o.bound_box]
+        mn = [min(v[i] for v in bb) for i in range(3)]
+        mx = [max(v[i] for v in bb) for i in range(3)]
+        print(f"  PLACED {o.name}: x[{mn[0]:.2f},{mx[0]:.2f}] "
+              f"y[{mn[1]:.2f},{mx[1]:.2f}] z[{mn[2]:.2f},{mx[2]:.2f}]")
     return grp
 
 
@@ -503,12 +532,26 @@ def space_center_x(i):
     return lot_x0 + (i - 0.5) * SPACE_W
 
 
-# 3 辆车：灰 2 号位、蓝 5 号位、红 9 号位（位置与 v1 一致），车头朝北
-make_car("grey", "#8A8F94", space_center_x(2), SPACE_Y_C, 90)
-make_car("blue", "#3B82C4", space_center_x(5), SPACE_Y_C, 90)
-make_car("red", "#C4534E", space_center_x(9), SPACE_Y_C, 90)
+# 3 辆车：灰 SUV 2 号位（y -86.6，南移 0.10 避轮挡）、蓝 5 号位、红 9 号位
+# （位置与 v1 一致），车头朝北（rot +90°：局部 +X -> +Y）。
+# 缩放（sx=宽、sy=长、sz=高）：长 4.4 m、宽 1.80 m（见文件头换装说明）。
+import_car("grey", "suv-quaternius.glb",
+           (1.80 / 2.11, 4.4 / 4.21, 4.4 / 4.21),
+           space_center_x(2), SPACE_Y_C - 0.10, 90)
+import_car("blue", "car-quaternius.glb",
+           (1.80 / 1.81, 4.4 / 4.22, 4.4 / 4.22),
+           space_center_x(5), SPACE_Y_C, 90)
+import_car("red", "sports-car-2-quaternius.glb",
+           (1.80 / 1.80, 4.4 / 3.97, 4.4 / 3.97),
+           space_center_x(9), SPACE_Y_C, 90)
 
 print("parking objects:", len(objs))
+
+# ---- drop orphaned imported materials (replaced by CANON) ----
+for _m in list(bpy.data.materials):
+    if _m.users == 0:
+        bpy.data.materials.remove(_m)
+print("materials in blend:", sorted(m.name for m in bpy.data.materials))
 
 # ---- UV 按米缩放（返工）：贴图 1 重复 = tile 米，无 UV 的箭头先补 UV ----
 bpy.context.view_layer.update()
@@ -522,10 +565,12 @@ for _o in objs:
     _scale_uvs_to_meters(_o, _tile)
 print("UV scaled to meters for textured mats")
 
-# ---- 材质校验（返工 R1 防回归）：3 台车漆须带 clearcoat ----
+# ---- 材质校验（R2-T19 换装防回归）：4 种车漆须带清漆、颜色不链接 ----
 for _m in [m for m in bpy.data.materials
-           if m.name.startswith("ov-parking_body_")]:
+           if m.name.startswith("ov-parking_paint_")]:
     _b = _m.node_tree.nodes["Principled BSDF"]
+    assert not _b.inputs["Base Color"].is_linked, f"{_m.name}: Base Color linked!"
+    assert not _b.inputs["Roughness"].is_linked, f"{_m.name}: Roughness linked!"
     assert abs(_b.inputs["Coat Weight"].default_value - 1.0) < 1e-6, \
         f"{_m.name}: Coat Weight != 1.0"
     assert abs(_b.inputs["Coat Roughness"].default_value - 0.05) < 1e-6, \
@@ -534,6 +579,8 @@ print("MATERIAL CHECK PASS: car paint clearcoat Coat Weight 1.0 / "
       "Coat Roughness 0.05")
 # glass fix 2026-11-24: tinted glass, low see-through, strong specular
 _g = MAT_GLASS.node_tree.nodes["Principled BSDF"]
+assert abs(_g.inputs["Transmission Weight"].default_value - 0.10) < 1e-6, \
+    "ov-parking_glass: Transmission Weight != 0.10"
 assert abs(_g.inputs["Alpha"].default_value - 0.90) < 1e-6, \
     "ov-parking_glass: Alpha != 0.90"
 assert abs(_g.inputs["Roughness"].default_value - 0.15) < 1e-6, \
@@ -541,7 +588,8 @@ assert abs(_g.inputs["Roughness"].default_value - 0.15) < 1e-6, \
 assert abs(_g.inputs["Specular IOR Level"].default_value - 1.0) < 1e-6, \
     "ov-parking_glass: Specular IOR Level != 1.0"
 assert not _g.inputs["Normal"].is_linked, "ov-parking_glass: Normal linked (bump)!"
-print("GLASS CHECK PASS: alpha 0.90 / roughness 0.15 / specular 1.0, no bump")
+print("GLASS CHECK PASS: transmission 0.10 / alpha 0.90 / roughness 0.15 / "
+      "specular 1.0, no bump")
 
 # ---- 世界背景：Nishita 天空（返工 R2，与 ch-cars 同口径） ----
 # 返工 R2（验收 run 45251171902：ov-parking 同 ch-cars 一样，纯色平坦世界里

@@ -104,18 +104,20 @@ for i in (1, 2, 3, 4):
         print(f"CHECK pile{i}: center_x={cx:.2f} y=[{bb[2]:.2f},{bb[3]:.2f}] z=[{bb[4]:.2f},{bb[5]:.2f}] "
               f"vs bay{i} center_x={(bays[i][0]+bays[i][1])/2:.2f} dx={cx-(bays[i][0]+bays[i][1])/2:.2f}")
 
-# 车辆：ch-cars_<color>_body / _roof（父级 EMPTY 给出朝向）
+# 车辆：ch-cars_<color>_roof 是车身主 mesh（R2-T19 换装后兼任 Godot
+# SOC 条锚点，见 ch-cars.py 头注；旧 _body 已无独立 mesh）。整车包围盒
+# 取 empty 下全部子 mesh 的并集（车身 + 3 个轮 mesh）。
 cars = {}
 for color in ("blue", "red", "white"):
-    body = bpy.data.objects.get(f"ch-cars_{color}_body")
-    roof = bpy.data.objects.get(f"ch-cars_{color}_roof")
+    main = bpy.data.objects.get(f"ch-cars_{color}_roof")
     empty = bpy.data.objects.get(f"ch-cars_{color}")
-    if body:
-        bb = wbbox(body)
-        rbb = wbbox(roof) if roof else bb
-        full = (min(bb[0], rbb[0]), max(bb[1], rbb[1]),
-                min(bb[2], rbb[2]), max(bb[3], rbb[3]),
-                min(bb[4], rbb[4]), max(bb[5], rbb[5]))
+    if main and empty:
+        kids = [c for c in empty.children if c.type == 'MESH']
+        assert len(kids) == 4, f"car {color}: expected 4 child meshes, got {len(kids)}"
+        bbs = [wbbox(c) for c in kids]
+        full = (min(b[0] for b in bbs), max(b[1] for b in bbs),
+                min(b[2] for b in bbs), max(b[3] for b in bbs),
+                min(b[4] for b in bbs), max(b[5] for b in bbs))
         cars[color] = full
         rot_z = empty.matrix_world.to_euler().z if empty else 0.0
         front = "north(+y)" if rot_z > 0 else "south(-y)"

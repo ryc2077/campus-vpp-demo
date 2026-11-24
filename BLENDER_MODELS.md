@@ -54,7 +54,7 @@
 | ov-lawn | 草坪花坛（大面积草地、门前花坛、灌木球；v3 加密版草） | `_build_ground` 草地部分 | overview | **烘焙完成**（2026-11-23 04:04 CST：Lawn_Green/边框/土面/3 色花/灌木各 3 张，16 分钟；回读 129/129，111,917 tris。6 种草叶程序化保留；烘焙范围含花坛边框等，见 §5.1 待确认项） |
 | ov-flag-lamp | 旗杆路灯（南门广场 3 根旗杆、沿路路灯杆） | `_build_flag_and_gate` | overview | Bump-only |
 | ov-gate | 校门（南门门楼 + 门柱 + 伸缩门示意 + 围墙一段） | `_build_flag_and_gate` | overview | Bump-only |
-| ov-parking | 停车区（南门广场旁停车位划线 + 3 辆简易小车） | Godot 无对应程序化模型（新增细节） | overview | **PBR 已挂**（Paint* 三件套）+ **返工 R1**（2026-11-24，验收 run #72：本件车漆从未挂清漆，GLB 实测无 KHR_materials_clearcoat——060877f4 只给 ch-cars 挂了；make_car 挂图后补 Coat Weight 1.0 / Coat Roughness 0.05，车窗加细噪波 Bump、粗糙度 0.06→0.05；回读 233，零 Error/Traceback）**返工 R2**（2026-11-24：与 ch-cars 同因同修，.blend 留 Nishita 天空世界；回读 233，零 Error/Traceback）**返工 R3**（2026-11-24：与 ch-cars 同根因同修（见 §9），预览环境加暗色地面 Ground_PreviewOnly + 东南太阳 + 西北 24×2m 亮条灯（15000）；本地验证三车顶均有亮度起伏；GLB blob 与仓库相同未推。回读 236，零 Error/Traceback）**车窗玻璃修补**（2026-11-24，commit `77dc9b9d`：与 ch-cars 同配方，alpha 0.65→0.90、粗糙度→0.15、specular 1.0、深色 #33505F tint；删 Glass-BSDF mix + 玻璃 Bump；本任务重拼 overview 场景 GLB，GLB JSON 实测 alpha 0.90、车漆清漆 1.0/0.05） |
+| ov-parking | 停车区（南门广场旁停车位划线 + 3 辆简易小车） | Godot 无对应程序化模型（新增细节） | overview | **PBR 已挂**（Paint* 三件套）+ **返工 R1**（2026-11-24，验收 run #72：本件车漆从未挂清漆，GLB 实测无 KHR_materials_clearcoat——060877f4 只给 ch-cars 挂了；make_car 挂图后补 Coat Weight 1.0 / Coat Roughness 0.05，车窗加细噪波 Bump、粗糙度 0.06→0.05；回读 233，零 Error/Traceback）**返工 R2**（2026-11-24：与 ch-cars 同因同修，.blend 留 Nishita 天空世界；回读 233，零 Error/Traceback）**返工 R3**（2026-11-24：与 ch-cars 同根因同修（见 §9），预览环境加暗色地面 Ground_PreviewOnly + 东南太阳 + 西北 24×2m 亮条灯（15000）；本地验证三车顶均有亮度起伏；GLB blob 与仓库相同未推。回读 236，零 Error/Traceback）**车窗玻璃修补**（2026-11-24，commit `77dc9b9d`：与 ch-cars 同配方，alpha 0.65→0.90、粗糙度→0.15、specular 1.0、深色 #33505F tint；删 Glass-BSDF mix + 玻璃 Bump；本任务重拼 overview 场景 GLB，GLB JSON 实测 alpha 0.90、车漆清漆 1.0/0.05） **换装 R2-T19**（2026-11-24：3 辆手捏小车换成 Quaternius 网上车——灰 SUV/蓝 Car/红 Sports 2；长 4.4 m、宽 1.80 m，灰 SUV 前轮离轮挡 0.06 m、中心南移 0.10 m；车漆清漆 1.0/0.05、车窗透射 0.10/alpha 0.90；回读 50，零 Error/Traceback；ov-parking.glb 3,367,900 B / .blend 2,446,596 B，见 §19） |
 | ov-transformer | 户外变压器组（Blender 中心 (74,30)：基座 6.5×4.5×0.4m + 箱体 5.6×3.4×3.6m + 散热片南北各 9 片共 18 片 + 绝缘子 3 根 + 围栏 12 立柱 + 南侧警示黄牌；58 个对象，commit `7228f6b`） | `_build_transformer` | overview | 纯程序化（7 种材质全含 baseColorFactor，无贴图；审计确认 0 贴图、0 带贴图节点材质，无纹理风险） |
 
 ### 3.2 光伏屋顶（全局坐标，机位 A 栋屋顶）
@@ -81,20 +81,21 @@
 | 件 ID | 内容 | Godot 对应 | 场景 | 纹理管线 |
 |---|---|---|---|---|
 | cl-floor-walls | 地面墙面（浅色地砖地面、四面墙、踢脚线、天花板） | `classroom_interior.gd._build` 地面/墙面/天花板 | classroom | Bump-only |
-| cl-desks | 桌椅（6 列 × 8 排课桌椅，48 套，留讲台前空地与过道）— **tevy 换件已完成**（见本节下注） | `classroom_interior.gd` 桌椅 | classroom | Bump-only（tevy 拆件 + 自家 CC0 染色贴图，见 cl-desks.py 头注） |
+| cl-desks | 桌椅（6 列 × 8 排课桌椅，48 套，留讲台前空地与过道）— **R2-T17 已换成 3DAssets 课桌椅**（见 §18；tevy 拆件已彻底换掉） | `classroom_interior.gd` 桌椅 | classroom | Bump-only（3DAssets 两件 + 自家 CC0 染色贴图，见 cl-desks.py 头注） |
 | cl-board | 讲台黑板（黑板墨绿 + 讲台桌 + 粉笔槽） | `classroom_interior.gd` 黑板 + 讲台 | classroom | Bump-only |
 | cl-ac | 空调（2 台美的 5 匹柜机 KFR-120LW，白，约 0.6×0.4×1.8m） | `classroom_interior.gd` 空调 | classroom | Bump-only |
 | cl-lights | 灯具（天花板 2 排日光灯管 + 吊杆） | `classroom_interior.gd` 灯具 | classroom | Bump-only |
 | cl-windows | 窗户窗帘（南侧 4 扇大窗 + 浅色窗帘）+ **门（tevy 拆件，见本节下注）** | `classroom_interior.gd` 窗户 | classroom | Bump-only |
 
 **tevy 教室换件已完成**（2026-11-23，commits `cf0d432`、`c2d99fa`、`e2bce23`、`5d0e1fc`、`c046118`）：桌椅换成 tevy 现成模型拆件（CC0，tevy.dev/models/classroom；原模型三重压缩 Blender 4.2 打不开，已用 gltf-transform 去压缩并剥掉 KTX2 贴图，见 `assets/external/buildings/tevy-decompress.mjs`）。桌：12 张双人桌 → 24 张单桌循环复用 48 套；椅：20 张单椅中 4 张被高柜面污染（柜面与椅背共面、y 只差 0.02–0.04m，切不干净）不进复用池，其余 16 张干净单椅循环复用 48 套。48 套间隙前 0.208m / 后 0.204m（commit `e2bce23`）。门装进 cl-windows.py（tevy 门 + 门框，commit `5d0e1fc`）。讲台桌 / 书架 / 高柜未采用：讲台桌进深 1.25m 是 SPEC 讲台 0.62m 的两倍，会吃掉讲台前空地并顶住第一排桌；书架（4.48m 长柜）无 SPEC 位置，放北墙会挡窗；高柜与椅背共面切不干净（见上）。classroom 场景 440 对象（原 436，+门 1 +填缝 3），见 §4。
+**tevy 拆件已被 R2-T17 彻底换掉**（2026-11-24，见 §18）：桌椅改用 3DAssets Student Desk + Student Chair（CC0），tevy 拆件的碎面/高柜污染/悬浮平板问题随之消失；门仍是 tevy 门（在 cl-windows.py 里，未动）。
 
 ### 3.5 充电区 V2G（全局坐标，Blender 中心 (44,-76)）
 
 | 件 ID | 内容 | Godot 对应 | 场景 | 纹理管线 |
 |---|---|---|---|---|
 | ch-piles | 充电桩（4 台直流桩一字排开，白 + 充电枪线） | `campus_builder._build_charge` 充电桩 + `charge_detail.gd` | charge | Bump-only |
-| ch-cars | 车辆（3 辆简易小车，蓝/红/白，2 辆 V2G 在桩前） | `_build_charge` 车辆 + `charge_detail.gd` | charge | **PBR（参数化清漆）已挂**（commit `060877f`：3 台车共用参数化清漆，Metallic 0.15 / Roughness 0.35、Coat Weight 1.0 / Coat Roughness 0.15，GLB 带 KHR_materials_clearcoat；不贴平铺纹理）**返工 R1**（2026-11-24，验收 run #72：GLB 里 clearcoat 明明在，EEVEE 预览仍全哑光——根因是预览只有单太阳+纯色平坦世界，清漆层无物可映、涂层高光被底漆粗糙度冲淡；Godot 04-charge 远景也看不出光泽。Coat Roughness 0.15→0.05、底漆 Roughness 0.35→0.25，Godot 侧同向变亮；回读 198，零 Error/Traceback）**返工 R2**（2026-11-24：run 45251171902 新图与旧图逐像素几乎相同（平均差 0.02），涂层再锐也看不见——纯色平坦世界无物可映；.blend 改留 Nishita 天空世界（仰角 50°，render_max 对亮色世界原样保留），清漆映天空渐变+太阳盘；不进 GLB，Godot 不受影响。回读 198，零 Error/Traceback）**返工 R3**（2026-11-24：R2 仍全哑光，根因见 §9——天空不在画面内（相机俯角 28°、顶缘视线低于地平线 16°）、平板车身映均匀淡天、探针无用；修法只改预览环境：留 Nishita + 暗色地面 Ground_PreviewOnly + 东南太阳 + 西北 24×2m 亮条灯（15000），本地 320×180 验证蓝车顶现 184→209 渐变光带；GLB blob 与仓库相同未推。回读 201，零 Error/Traceback）**车窗玻璃修补**（2026-11-24，commit `77dc9b9d`：`make_glass` 统一配方，透射 0.9→0.10、粗糙度→0.15、specular 1.0、深色 #33505F tint；删 Glass-BSDF mix + 玻璃 Bump；本任务重拼 charge/overview 场景 GLB，GLB JSON 实测 transmission 0.10、车漆清漆 1.0/0.05） |
+| ch-cars | 车辆（3 辆简易小车，蓝/红/白，2 辆 V2G 在桩前） | `_build_charge` 车辆 + `charge_detail.gd` | charge | **PBR（参数化清漆）已挂**（commit `060877f`：3 台车共用参数化清漆，Metallic 0.15 / Roughness 0.35、Coat Weight 1.0 / Coat Roughness 0.15，GLB 带 KHR_materials_clearcoat；不贴平铺纹理）**返工 R1**（2026-11-24，验收 run #72：GLB 里 clearcoat 明明在，EEVEE 预览仍全哑光——根因是预览只有单太阳+纯色平坦世界，清漆层无物可映、涂层高光被底漆粗糙度冲淡；Godot 04-charge 远景也看不出光泽。Coat Roughness 0.15→0.05、底漆 Roughness 0.35→0.25，Godot 侧同向变亮；回读 198，零 Error/Traceback）**返工 R2**（2026-11-24：run 45251171902 新图与旧图逐像素几乎相同（平均差 0.02），涂层再锐也看不见——纯色平坦世界无物可映；.blend 改留 Nishita 天空世界（仰角 50°，render_max 对亮色世界原样保留），清漆映天空渐变+太阳盘；不进 GLB，Godot 不受影响。回读 198，零 Error/Traceback）**返工 R3**（2026-11-24：R2 仍全哑光，根因见 §9——天空不在画面内（相机俯角 28°、顶缘视线低于地平线 16°）、平板车身映均匀淡天、探针无用；修法只改预览环境：留 Nishita + 暗色地面 Ground_PreviewOnly + 东南太阳 + 西北 24×2m 亮条灯（15000），本地 320×180 验证蓝车顶现 184→209 渐变光带；GLB blob 与仓库相同未推。回读 201，零 Error/Traceback）**车窗玻璃修补**（2026-11-24，commit `77dc9b9d`：`make_glass` 统一配方，透射 0.9→0.10、粗糙度→0.15、specular 1.0、深色 #33505F tint；删 Glass-BSDF mix + 玻璃 Bump；本任务重拼 charge/overview 场景 GLB，GLB JSON 实测 transmission 0.10、车漆清漆 1.0/0.05） **换装 R2-T19**（2026-11-24：3 辆手捏小车换成 Quaternius 网上车——蓝 Car/红 Sports 2（橙改 SPEC 红 #C4534E）/白 SUV；均匀按长缩到 4.4 m，充电车位 2.5 m 宽均不压线；车漆清漆 1.0/0.05、车窗透射 0.10/alpha 0.90；车身主 mesh 改名 _roof 兼任 Godot SOC 条锚点（原点移到高度中点）；回读 15，零 Error/Traceback；ch-cars.glb 531,560 B / .blend 2,096,408 B，见 §19） |
 | ch-marking | 车位线与标识（4 个车位白线、地面标识线框） | `_build_charge` 车位线（新增细节为主） | charge | Bump-only |
 | ch-canopy | 雨棚（4 车位通长雨棚，钢柱 + 浅灰棚顶） | Godot 无雨棚（新增细节） | charge | Bump-only |
 
@@ -117,8 +118,8 @@
 | overview 校园总览 | 20 件 ov-*（§3.1）+ 拼装补的地面/池塘水面盘/配电房外壳 | `assets/blender/scenes/overview.blend`、`assets/models/scenes/overview.glb` | **已完成，最终刷新**（2026-11-23 11:18 CST，工人 d644ce2d：.blend 51,360,304 B、.glb **102,672,808 B**（上次 25,914,236 B，暴涨主因 B 组烘焙贴图嵌进 .glb，各件 .glb 之和约 102MB），回读 **4837** 个对象（append 4833 + 拼装补 4），脚本内置 VERIFY 与独立回读一致，DONE overview，日志零 Error/Traceback（`assets/blender/scenes/overview-refresh-20261123.log`）；3 分钟跑完、单进程错峰。差额 +8 全部来自 ov-road-main（src 36→44、kept 33→41，含环路中心线等新增对象），其余 18 件 kept 数与上次逐件核对完全相同。**2026-11-23 14:54 UTC 总览重刷**（`assets/blender/scenes/overview-refresh-transformer-20261123.log`）：.blend 66,234,504 B、.glb **123,019,340 B**（完整版；瘦身版见 §10），回读 **13,036**（append 13,032 + 拼装补 4；ov-transformer 58 件、其余 12,978 件），DONE overview，日志零 Error/Traceback；增量主因 ov-lawn 真草（kept 8,270 件）等 PBR 返工件 + ov-transformer 58 件。**202 种材质**（本地完整版 GLB JSON 实测；瘦身只动贴图、不动材质），贴图引用审计 0 缺失（见 §9）。**已解决（瘦身入仓，见 §10）**：完整版 .glb 123.0MB / .blend 66.2MB 仍超 API blob 上限，瘦身版 .glb 37,538,508 B / .blend 9,736,002 B 已随 commit `e56912f` 入仓（该版为池塘返工前）；**2026-11-23 23:58 CST 池塘草坪返工后重刷**（commit `8390649`）：完整版 .glb **121,570,192 B**、.blend 64,530,392 B，瘦身版 .glb **36,459,020 B** / .blend 9,092,702 B 已入仓（仓库核对一致，见 §9），回读仍 13,036 对象。草密度核查实测总计 **102,901**（程序化 94,761 叶、约 42/m² + 真素材 8,140 株）；22,500 一数口径**待确认**（丛 vs 叶未分清，不采用）；20 件全部全局坐标直接 append、未移位置，剔除 52 个预览地面/重复件/相机/灯光/探针；拼装补：地面 340×340（#69b45e，顶面 z=-0.05 防 z-fighting）、池塘椭圆盘（中心 (82,-78)、rx11/ry8、顶面 z=0.05，水面蓝 #2F7FC4 为拼装自选、campus.json 无池塘颜色；ov-lawn 池塘草坪已返工（2026-11-23 23:58 CST）：撒点排除水面椭圆（+1m 边距）只留环形带，4,662 叶、42.1 叶/m²，拼装不再下移草丛——旧 -0.5m 下移曾把 18,863 叶全埋地下）、配电房外壳 16×10×8m（#dfe9f2）+ 屋顶板 16.6×10.6×0.3m（#424A52）。户外变压器已补 ov-transformer（58 件，见 §3.1）。**2026-11-24 停车返工后重刷**：ov-parking R1 .blend（2026-11-23 19:31 UTC，补 Coat Weight 1.0 / Coat Roughness 0.05、车窗 Bump）拼入总览，overview.py 未改动（已是最新拼装逻辑、逐件 append 最新 .blend，仓库 SHA 一致）；20 件 kept 数与上次逐件核对完全相同（ov-parking src/kept 233/233——R1 只改材质参数、对象数不变），回读 **13,036**（append 13,032 + 拼装补 4），日志零 Error/Traceback（`assets/blender/scenes/overview-refresh-parking-20261124.log`）；完整版 .glb **121,570,548 B**（+356 B，清漆扩展数据）、.blend 64,546,472 B；GLB JSON 实测 13,036 节点 / **202 种材质** / 427 贴图（全内嵌、0 缺失）、KHR_materials_clearcoat 在列（ov-parking_body_red/grey/blue 3 种车漆）；瘦身版 .glb 36,044,776 B / .blend 9,093,786 B 见 §10。遗留：①ov-windows-roofs 件内 faces 表把半长半宽用反（东西向窗带用了 hx、南北向用了 hy，A/B/C 三栋窗带长短全部对调，修复任务已派）；②池塘椭圆南缘压到 ov-road-main 南环路带（y -84~-76 一段），水面顶 0.10 略高于路面顶 0.08，水面盖住一小段路缘，属件间布局冲突——**已解决（2026-11-24，commit `bea25274`）**：仅改 `assets/blender/scenes/overview.py` §3b，池塘圆柱 location z 0.04→-0.01，顶面 0.10→**0.05**（低于路面 0.08，净空 0.03），depth 保持 0.12，加断言 `pond top < 0.08`；椭圆形状/中心/尺寸、`ov-road-main`、SPEC、草坪排除区一字未动；总览重刷回读 13,036 对象零 Error，瘦身 GLB 36,081,140 B（<40MB），`verify_slim.py` 全绿。注意：blender-previews 只渲染单件 .blend，不渲染拼装总览，本次 run 出图里无池塘水面盘，无法从图上直接目视水面高低（见 §9）；水面与路缘的同框目视须走 Godot 侧拼装截图复核） |
 | pv 光伏屋顶 | pv-roof、pv-panels、pv-mount、pv-inverter | `assets/blender/scenes/pv.blend`、`assets/models/scenes/pv.glb` | **已完成（最终干净快照）**（2026-11-23 01:33 CST：.blend 112,997,536 B、.glb 12,226,304 B，回读 **881** 个对象（roof 33、panels 548、mount 3、inverter 297），DONE pv；第一跑约 31 分钟时被服务重启 SIGTERM 杀掉、未写出任何文件，第二跑用 setsid nohup 脱离会话重跑成功，四件 SRC-UNCHANGED 全绿、干净单版本快照。pv.py 同步改动：EXPECTED["pv-inverter"] 291→297，三处总量 assert 875→881。最终版特征实测全过：板 548、北行横梁 35.124m、线槽顶端 19.350/13.300、逆变器箱体 A1 (−74.75,36.40)、A2 (−37.25,36.40)、LAB (−28,67.20)，北向段确为新 4 件。遗留小项：pv.py 头注释里的旧版源版本说明已过期（仍写上一轮混合版时间戳/md5），下次刷新时更新为本次实际拼入版本（roof d2681c69…、panels f042b491…、mount 009873e8…、inverter d12fc0f9…）或删掉）**2026-11-23 场景重出**（pv-scene-pbr-20261123.log，15:14 UTC）：.blend 13,562,916 B、.glb 19,774,596 B，回读 881 对象 / 25 种材质，DONE pv；场景 .blend 已随 commit `c0cd01d` 刷新入仓（仓库 13,562,916 B，与本地重出一致）；**场景 .glb 已刷新入仓**（commit `7227239`，仓库 19,774,596 B，与本地重出一致，旧 12,226,304 B 已替换）。**材质去重已修**（commits `8805b66`、`7bcd65c`、`1f36cb2`）：scenes/pv.py 与 scenes/charge.py 在 append 后去重，pv 材质 3,094→25（场景重出实测 25 种）、charge 117→24（见 §9 晚间记录）。**2026-11-24 00:30 CST P0/P1 材质补挂后重出**（commit `060877f`）：scenes/pv.blend 15,323,932 B、scenes/pv.glb **24,051,408 B**（仓库核对一致，旧 19,774,596 B 已替换），单件 pv-mount.glb 9,787,184 B，回读零 Error/Traceback（见 §9）。 |
 | storage 储能站 | st-cabinet、st-doors、st-cables、st-base、st-fence + 拼装补的壳体 | `assets/blender/scenes/storage.blend`、`assets/models/scenes/storage.glb` | **已完成并已刷新**（拼装 2026-11-22 23:22 CST：.blend 4,731,368 B、.glb 1,773,372 B，回读 269 个对象；跟进修复 23:31 CST：st-doors 风扇组抬高 +0.045（盘底 2.555，高出顶盖顶面 2.55 共 0.005，防 z-fighting），回读 52 个对象；壳体改半透明 Alpha 0.35 BLEND（GLB JSON 已核对 alphaMode=BLEND），屋顶板保持不透明；门把手残余 0.002m 已清零（复核 0.000000）。场景重出后回读仍为 269 个对象，DONE storage。遗留：st-doors.py 里的 Preview 顶盖仍是旧 0.06 厚（顶面 2.51），与 st-cabinet v2 实际顶盖（0.10 厚、顶面 2.55）不一致，只作 .blend 内参照、不导出，留待以后统一；风扇盘底与顶盖顶面之间现为 5mm 悬空间隙，有意为之）**2026-11-23 场景重出**（storage-scene-pbr-20261123.log，15:20 UTC）：.blend 10,382,492 B、.glb 7,237,164 B，回读 269 对象，DONE storage；**仓库已刷新入仓**（commit `1f36cb2`：storage.glb 仓库 7,237,164 B、storage.blend 仓库 10,382,492 B，均与本地重出一致）。**2026-11-24 00:30 CST P0/P1 材质补挂后重出**（commit `060877f`）：storage.blend 11,886,071 B、storage.glb 8,623,960 B（仓库核对一致），回读零 Error/Traceback（见 §9）。**返工 R2-T4（2026-11-24，见 §9）**：st-fence R1（19:31 UTC）后重跑 `scenes/storage.py`，回读 269 对象（cabinet 83 / doors 52 / cables 64 / base 32 / fence 36 + 拼装壳体/屋顶 2），零 Error/Traceback；实测 R1 只改 Preview_* 材质，36 件围栏本体与场景内逐项一致、零差异，新 GLB 与仓库版字节相同（blob `b2c1d149`，8,623,960 B），.blend 同体积、blob 已更新。**返工 R2-T20（2026-11-24，见 §9）**：st-fence 立柱修后重拼，269 对象（cabinet 83 / doors 52 / cables 64 / base 32 / fence 36 + 壳体/屋顶 2），回读 269、零 Error/Traceback；新场景 .blend 11,883,543 B / .glb 8,610,616 B。 |
-| classroom 教室内部 | cl-floor-walls、cl-desks、cl-board、cl-ac、cl-lights、cl-windows（局部坐标） | `assets/blender/scenes/classroom.blend`、`assets/models/scenes/classroom.glb` | **已完成并已刷新**（拼装 2026-11-22 23:22 CST：.blend 4,870,036 B、.glb 2,689,528 B，回读 436 个对象；cl-desks 修复后场景已刷新：.glb 2,689,484 B，回读仍为 436 个对象，桌椅包围盒 x[-3.490, 4.598]，最近桌沿离讲台 0.205m、最后一排椅背离东墙 0.167m，DONE classroom。**tevy 换件已完成**（2026-11-23，commits `cf0d432`、`c2d99fa`、`e2bce23`、`5d0e1fc`、`c046118`）：新 classroom.blend 7,349,592 B、classroom.glb 20,164,540 B，回读 **440** 个对象（原 436，+门 1 +填缝 3）；桌椅换成 tevy 现成模型拆件（24 张单桌循环复用 48 套、16 张干净单椅循环复用），48 套间隙前 0.208m / 后 0.204m，门装进 cl-windows.py（见 §3.4）。遗留：cl-windows 南北各 4 扇窗，SPEC 只写南侧 4 扇，北侧窗与北墙窗洞对齐、位置没错，但北侧 4 扇无窗帘） |
-| charge 充电区 | ch-piles、ch-cars、ch-marking、ch-canopy | `assets/blender/scenes/charge.blend`、`assets/models/scenes/charge.glb` | **已完成**（2026-11-22 23:36 CST 刷新后：.blend 7,930,116 B、.glb 934,624 B，回读 306 个对象（桩 40、车 198、标线 21、雨棚 47），DONE charge；4 台桩中心 y 均为 -73.25、与车位中心 x 偏差 0.00，桩南缘 -73.50 与车北端 -73.75 净空 0.25m（先前任务书写的 0.20m 为约数，实测 0.25m 更宽松、无穿插，脚本 12 组车–桩检查全部 no overlap）；白车 (48.5,-76) 在 4 号车位内朝南，蓝 (38,-76) 1 号、红 (45,-76) 3 号同样朝南；雨棚覆盖 4 个车位及 3 辆车全部 True）**2026-11-23 场景重出**（charge-scene-pbr-20261123.log，15:25 UTC）：.blend 7,439,548 B、.glb 7,126,168 B，回读 306 对象，DONE charge；**仓库已刷新入仓**（commit `1f36cb2`，含材质去重 117→24：仓库 charge.glb 7,105,356 B、charge.blend 3,376,684 B，均为去重后版本，见 §9）。**2026-11-24 00:30 CST P0/P1 材质补挂后重出**（commit `060877f`）：charge.blend 3,376,684 B（与去重版同体积）、charge.glb 7,105,712 B（仓库核对一致），回读零 Error/Traceback（见 §9）。**返工 R1 场景重刷**（2026-11-24：ch-cars 清漆 0.05/底漆 0.25 后重拼，charge.blend 3,376,684 B、charge.glb 7,105,672 B，回读 306 对象/24 材质，GLB 车漆 clearcoat 0.05 已核，零 Error/Traceback）。 |
+| classroom 教室内部 | cl-floor-walls、cl-desks、cl-board、cl-ac、cl-lights、cl-windows（局部坐标） | `assets/blender/scenes/classroom.blend`、`assets/models/scenes/classroom.glb` | **已完成并已刷新**（拼装 2026-11-22 23:22 CST：.blend 4,870,036 B、.glb 2,689,528 B，回读 436 个对象；cl-desks 修复后场景已刷新：.glb 2,689,484 B，回读仍为 436 个对象，桌椅包围盒 x[-3.490, 4.598]，最近桌沿离讲台 0.205m、最后一排椅背离东墙 0.167m，DONE classroom。**tevy 换件已完成**（2026-11-23，commits `cf0d432`、`c2d99fa`、`e2bce23`、`5d0e1fc`、`c046118`）：新 classroom.blend 7,349,592 B、classroom.glb 20,164,540 B，回读 **440** 个对象（原 436，+门 1 +填缝 3）；桌椅换成 tevy 现成模型拆件（24 张单桌循环复用 48 套、16 张干净单椅循环复用），48 套间隙前 0.208m / 后 0.204m，门装进 cl-windows.py（见 §3.4）。遗留：cl-windows 南北各 4 扇窗，SPEC 只写南侧 4 扇，北侧窗与北墙窗洞对齐、位置没错，但北侧 4 扇无窗帘）**R2-T17 刷新**（2026-11-24，见 §18）：cl-desks 换 3DAssets 课桌椅 + cl-floor-walls 墙面暖色补偿后重拼，classroom.blend 5,465,640 B、classroom.glb 19,090,632 B，回读仍 **440** 对象（73+96+39+58+54+120），桌椅间隙前 0.265m / 后 0.293m，零 Error/Traceback，commit 待填。遗留：①cl-windows 南北各 4 扇窗，SPEC 只写南侧 4 扇，北侧窗与北墙窗洞对齐、位置没错，但北侧 4 扇无窗帘；②黑板盒埋进西墙（见 §18，cl-board 范围外，未修） |
+| charge 充电区 | ch-piles、ch-cars、ch-marking、ch-canopy | `assets/blender/scenes/charge.blend`、`assets/models/scenes/charge.glb` | **已完成**（2026-11-22 23:36 CST 刷新后：.blend 7,930,116 B、.glb 934,624 B，回读 306 个对象（桩 40、车 198、标线 21、雨棚 47），DONE charge；4 台桩中心 y 均为 -73.25、与车位中心 x 偏差 0.00，桩南缘 -73.50 与车北端 -73.75 净空 0.25m（先前任务书写的 0.20m 为约数，实测 0.25m 更宽松、无穿插，脚本 12 组车–桩检查全部 no overlap）；白车 (48.5,-76) 在 4 号车位内朝南，蓝 (38,-76) 1 号、红 (45,-76) 3 号同样朝南；雨棚覆盖 4 个车位及 3 辆车全部 True）**2026-11-23 场景重出**（charge-scene-pbr-20261123.log，15:25 UTC）：.blend 7,439,548 B、.glb 7,126,168 B，回读 306 对象，DONE charge；**仓库已刷新入仓**（commit `1f36cb2`，含材质去重 117→24：仓库 charge.glb 7,105,356 B、charge.blend 3,376,684 B，均为去重后版本，见 §9）。**2026-11-24 00:30 CST P0/P1 材质补挂后重出**（commit `060877f`）：charge.blend 3,376,684 B（与去重版同体积）、charge.glb 7,105,712 B（仓库核对一致），回读零 Error/Traceback（见 §9）。**返工 R1 场景重刷**（2026-11-24：ch-cars 清漆 0.05/底漆 0.25 后重拼，charge.blend 3,376,684 B、charge.glb 7,105,672 B，回读 306 对象/24 材质，GLB 车漆 clearcoat 0.05 已核，零 Error/Traceback）。 **返工 R2-T19 场景重刷**（2026-11-24：ch-cars 换装后重拼，charge.py 车位检查改取 empty 下 4 mesh 并集；回读 123 对象（桩 40、车 15、标线 21、雨棚 47），三车各在 1/3/4 号位内、车头朝南、无桩穿插、雨棚全覆盖，材质去重 24；charge.blend 3,002,296 B、charge.glb 7,093,272 B，见 §19） |
 | dist 配电房 | di-walls、di-cabinets、di-transformer、di-busbar、di-signs（局部坐标） | `assets/blender/scenes/dist.blend`、`assets/models/scenes/dist.glb` | **已完成并已刷新**（拼装 2026-11-22 23:25 CST：.blend 6,872,100 B、.glb 4,060,180 B，回读 379 个对象；di-signs 修复后场景已刷新：.glb 4,060,188 B，回读仍为 379 个对象，两块牌实测 Warn_Plate y=4.79、NoClose_Plate x=7.79，牌背恰贴墙内表面，DONE dist；dist.py 里两块牌的 CHECK 打印文案已由硬编码“BURIED”改成按实测跨度动态判定。**返工 R1 场景重刷**（2026-11-24：di-walls 天花板/墙面纹理加重后重拼，dist.blend 8,109,300 B、dist.glb 16,192,560 B，回读 375 对象——与上次 pbr 刷新逐件核对完全相同，零 Error/Traceback）。di-walls 的 5 种墙面材质各带 color+rough+normal 共 3 张烘焙贴图，GLB 里齐全；开关柜沿北墙一排，变压器 4 台对面无冲突、通道 5.84m，母线在柜顶；边框底板仍有 12.5mm 埋进墙（被牌面遮住、室内不可见，接受现状）。遗留：开关柜本体后沿 0.10m 嵌入北墙、母线/桥架 0.04–0.15m 嵌入北墙，墙内部分不可见、视觉上贴墙过紧，不影响导出，暂不改） |
 
 拼装方法：新建场景 .blend 脚本（`assets/blender/scenes/<场景>.py`），用 `bpy.ops.wm.append` 把各件 .blend 里的对象 append 进来（只选本件对象，排除相机/灯光/太阳），存场景 .blend；全选导出场景 .glb 后用 `bpy.ops.import_scene.gltf` 回读验证，无 Error/Traceback 才算。
@@ -408,7 +409,7 @@
   - **修正后立柱 13 根（逐根）**：北 y=31.5：(60,31.5) (62,31.5) (64,31.5) (66,31.5) (68,31.5)；南 y=28.5：(60,28.5) (61.625,28.5) (63.25,28.5)（门洞西缘）(64.75,28.5)（门洞东缘）(66.375,28.5) (68,28.5)；西 x=60：(60,30)；东 x=68：(68,30)。角点 4 根由相邻段共享去重。4 根 stray 全清，门洞正中无立柱。
   - **重建（Blender 4.2.0，`st-fence-r2t20-20261124.log`）**：`st-fence.py` 重跑，立柱 13 根、竖条 125 根、本件对象仍 36，GLB 回读 36，日志零 Error/Traceback；`Fence_Posts` 包围盒实测 (8.08, 3.08, 1.8)m（x[59.96,68.04] y[28.46,31.54]，立柱 0.08 宽）；新件 st-fence.blend 1,211,208 B、st-fence.glb 552,460 B（旧 565,804 B，少 4 根立柱所致）。
   - **重拼（`storage-scene-r2t20-20261124.log`）**：`scenes/storage.py` 未改，重跑 append cabinet 83 / doors 52 / cables 64 / base 32 / fence 36 + 拼装壳体/屋顶 2 = **269 对象**，回读 269，日志零 Error/Traceback；新场景 storage.blend 11,883,543 B、storage.glb 8,610,616 B（旧 8,623,960 B）。
-  - **推送**：（待填 commit）
+  - **推送**：commit `587007d9`（父 `f5b6e03f`，2026-11-24T15:3xZ），6 文件一次提交：st-fence .py/.blend/.glb + storage .blend/.glb + 本文档；推后核对：commit 文件清单 6 项齐全，contents 核对 st-fence.glb 552,460 B / `1a93bbad`、st-fence.blend 1,211,208 B / `308f9de9`、storage.glb 8,610,616 B / `11499441`、storage.blend 11,883,543 B / `ca82cc60`，均与本地一致。
   - **验证（Blender）**：（待填）
   - **验证（Godot）**：（待填）
 
@@ -538,13 +539,31 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 3DAssets 4 件直链 CDN ID 与本地逐字节一致（dune 39457、purple 3849、wood 3848、tufted 3847）。
 `grass/tevy/` 内 `-decoded.glb` 为 meshopt 解压后的同模型副本，无独立来源。
 
-### 17.6 树：R2-T3 绿化方案来源（GREEN_PLAN.md §3.1；方案已定，模型文件尚未下载，R2-T15 施工中）
+### 17.6 树：R2-T15 施工落地（2026-11-24 23:38 CST；R2-T3 方案来源已定，模型文件已下载入仓，ov-trees v3 已重建）
 
-| 来源 | 用途（ov-trees，473 棵计划） | 链接 | 授权 | 核验 |
+> 施工结论：473 棵（新种 327 + 旧树换模 146），ov-trees.py v3 + ov-trees.blend +
+> ov-trees.glb（3,546,916 B）已重出，回读 473 个对象、零 Error/Traceback；
+> 地上高实测行道树 5.0–8.0m、密植带 8.0–15.0m、池塘特征树 8.7–12.0m、楼间点缀
+> 4.05–7.9m（抽查每区首棵 12 棵全在档内）；三角面 120,634（≤300k 预算）；
+> L1 南沿线 31 棵已移出南主路（y=-94）、北沿线 2 棵已移出东主路（(98,105)/(118,105)），
+> 两路面上残留 0 棵；来源与授权逐项见 SOURCES.md §11。
+> 两处来源偏差（诚实记录）：① KayKit 免费档未拿到直链（itch `/purchase` POST 审批超时，
+> 不再重试），密植带 216 棵改用 Kenney 松树（同 CC0，三角面更低）；② Quaternius
+> Ultimate Nature Pack 的 Drive 配额耗尽，D3 改用同一作者同授权的 Stylized Nature
+> MegaKit Standard（CommonTree_3/5 + Pine_4/5 各 3 棵）。
+> L1 追加修正 4 处（校验发现，ov-trees.py `RELOC` 日志 37 棵逐棵列出）：南行东端 2 棵
+> 在 y=-94 会压东主路 → (100,-94)/(124,-94)；广场段 5 棵会压南门广场铺装 →
+> 广场两侧（x -44/-36/-28/28/36）；北沿线移位点与抖动邻树仅 1.7m/0.95m →
+> (96,105)/(120,105) 去抖动钉网格点；旧树 (0,12) 压步道 2 → (4,12)，(-80,45) 压
+> 新路 R-N1 → (-80,49)。遗留：西沿线 3 棵旧树在操场 3m 缓冲内（跑道面外，v2 原位，
+> 保持不动）；密植带新旧交错 3 对间距 1.56–1.81m（方案设计 2.5m、抖动后收窄，冠层
+> 交错，保留记录）。
+
+| 来源 | 用途（ov-trees，473 棵实际） | 链接 | 授权 | 核验 |
 |---|---|---|---|---|
-| Kenney Nature Kit | 主力：全部行道树 + 楼间点缀，共 213 棵（取 `tree-default`、`tree-oak`、`tree-pine`、`tree-detailed`、`tree-fat`、`tree-tall`；原生约 1.3m，放大 ×4~×6 至 5–8m / 点缀 4–7m）；草主力 `grass-small` / `grass-large`（0.6–0.9m 高草 drift 母版） | https://kenney.nl/assets/nature-kit | CC0 1.0 | ○ 页面 200 |
-| KayKit Forest Nature Pack（免费档） | 主力：全部密植带，共 104 棵（D1/D4/D5/D5b，8–15m）；草丛备选 drift 母版 | https://kaylousberg.itch.io/kaykit-forest | CC0 1.0 | ○ 页面 200 |
-| Quaternius Ultimate Nature Pack | 仅 D3 池塘 12 棵特征树（取 `Tree`、`Pine_Tree_1`、`Birch_Tree_1`、`Tree-Stylized`，8–12m）；严禁整片铺（3,600 tris/棵） | https://quaternius.com/packs/ultimatenature.html | CC0 1.0 | ○ 页面 200 |
+| Kenney Nature Kit | 主力：全部行道树 + 楼间点缀 211 棵新种（`tree-default`、`tree-oak`、`tree-pineDefaultA/B`、`tree-detailed`、`tree-tall`、`tree-plateau`、`tree-thin`；原生 1.23–1.71m，放大至 5–8m / 点缀 4–7m）+ 密植带 216 棵（`tree-pineTall A–D` 及 detailed 版 + oak/tall，8–15m；KayKit 备用方案）+ 旧树换模 34 棵（路旁 19 + 楼间 15）；合计 461 棵 | https://kenney.nl/assets/nature-kit | CC0 1.0 | ● 直链下载，16 个 `.glb` SHA-256 见 SOURCES.md §11.4；包围盒/三角面/冠底逐项实测 |
+| KayKit Forest Nature Pack（免费档） | **未下载**：原定密植带 104 棵改用 Kenney 松树（见上行与 SOURCES.md §11.5） | https://kaylousberg.itch.io/kaykit-forest | CC0 1.0 | ○ 页面 200；无直链（itch `/purchase` POST 审批超时，不再重试） |
+| Quaternius Stylized Nature MegaKit Standard（代 Ultimate Nature Pack） | 仅 D3 池塘 12 棵特征树（`CommonTree_3/5`、`Pine_4/5` 各 3 棵，8–12m；原生 6.76–10.00m、1646–3505 tris）；严禁整片铺 | https://store.godotengine.org/asset/quaternius/stylized-nature-megakit/ | CC0 1.0 | ● Godot 商店直链下载，4 个 `.gltf` + 贴图 SHA-256 见 SOURCES.md §11.4；Ultimate Nature Pack 原定取 `Tree` / `Pine_Tree_1` / `Birch_Tree_1` / `Tree-Stylized`，其 Drive 配额耗尽无法直下，包内亦无此四名 |
 | Blendkit（原 BlenderKit）免费区 | 备用：站内搜 tree，只取明确标 CC0 的资产；RF（Royalty Free）资产禁止用于本项目 | https://www.blendkit.com | 按单个资产，仅 CC0 可用 | ○ 首页 200 |
 | Sketchfab CC0 区 | 备用：筛选 Downloadable + CC0 的树模型，逐模型确认授权页为 CC0 | https://sketchfab.com | 按单个模型，仅 CC0 可用 | ○ 首页 200 |
 | Poly Haven 树木 | **禁用**：授权是 CC0，但扫描模型面数极大（Fir Tree 01 约 700 万 tris、Pine Tree 01 约 1,700 万 tris），总览用不上 | https://polyhaven.com/models | CC0 1.0（但不用） | ○ 页面 200 |
@@ -708,3 +727,124 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
   CI godot-verify run（待新 run）+ 截图 artifact 逐张目视 18 多云 / 19 阴天 / 06 雨 / 07 暴雨（待填）。
 - **推仓**：待填（commit / HEAD，推后填）。
 - **还剩什么**：待填（CI 目视结论与遗留，CI 后填）。
+
+## §18 R2-T18 草地重铺（2026-11-24，只改草地相关件）
+
+- **起因**：GREEN_PLAN.md §4.3 的 21,555 丛新高草是按 4 tris/丛（程序化交叉面片）算的，
+  与 R2-T11 选定的 tevy 真模型（lod2 304 / lod1 2,030 / lod0 11,024 面/丛）直接冲突——
+  详见 GREEN_PLAN.md §8.1：R2-T11 推荐混合在新区 23,392 m² 上是 12.84M 面，
+  21,555 丛全 lod2 也要 6.55M 面，而 ov-lawn headroom 只有 161,724 面。
+- **最终混合配比（GREEN_PLAN.md §8.3，施工与验收以此为准）**：tevy 草甸 lod2 340 丛
+  （drift 带 326 + 旧草坪叠加 14）103,360 面 + lod1 10 丛 20,300 面 + lod0 2 丛 22,048 面
+  + 红燕麦 lod1 8 丛 6,592 面 + 红燕麦 lod2 10 丛 1,100 面 = **tevy 370 丛、153,400 面**；
+  色带底板 164 块 1,968 面（4m 相间 `#69B45E`/`#57A04B`，每 5 条 `#7FC46A`，覆盖 22,829 m²）；
+  既有程序化草 + 边缘真草 + 花坛/灌木/旧底板 238,276 面全留；**ov-lawn 总计约 393,644 面 ≤400k**。
+  §7 验收条“新高草丛 ≥21,500 丛”作废，改为 370 丛 + drift 带覆盖 + 4m 色带 100%。
+  lod2 按区：G1 64 / G2 65 / G3 96 / G4 29 / G5 21 / G6 36 / G7 15；红燕麦点缀见 §8.3。
+- **施工（`assets/blender/overview/ov-lawn.py`，只改本件；ov-field.py 未动）**：
+  色带底板按区沿长边切 4m 条、0.5m 采样断开（路/楼/池塘/操场/花坛/灌木处不铺，连续段 ≥1m 才成块）；
+  drift 带 3m 宽、带间距 12m（G7 20m），lod2 沿带中心线点状布放（丛距约 5.6m，丛距 ≥1.5m 去重）；
+  lod1/lod0 只放旧草坪机位前方（TeachSouth 机位目标 (-16,5) 旁 2 丛 lod0 + 6 丛 lod1，
+  GateNorth 4 丛 lod1）；新路 R-N1..R-N5 按 GREEN_PLAN 线位预留排除（路未进 ov-road-walk 前草先让开）。
+  tevy 几何走 `-decoded.glb` 临时剥贴图版进 Blender 4.2（原文件不动），材质挂 ktx CLI 4.4.2
+  解压的 PNG（`ov-lawn_textures/TEVY_*_color/normal.png`，色图直连 Base Color + Alpha 经 ROUND 进 Alpha、
+  法线图直连 NormalMap，双面；绝不走 ColorRamp）。KTX2 贴图实测尺寸：草甸 lod0 色 1024²/法线 256²、
+  lod1 色 512²/法线 256²、lod2 色 256²/法线 128²；红燕麦 lod1 色 512²、lod2 色 256²
+  （SOURCES.md §6.2“1024 KTX2”只对 lod0 成立，已按实测更正）。
+- **KTX2 导入结论（实测，非猜）**：Godot 4.4 **认 KTX2**（KHR_texture_basisu）——
+  去量化后的 `-dequant.glb`（见下）本地 Godot 4.4 `--headless --import` 5 个全部通过，
+  贴图转码为 `.ctex`（`.scn` + grass_color/normal `.ctex` 齐全，日志里只有无头 progress-dialog 噪音，
+  与 CI 日志同款，无 KTX2/basisu 报错）；但 R2-T11 的 `-decoded.glb` 原样**进不了** Godot 4.4——
+  解析在 `KHR_mesh_quantization`（extensionsRequired）处先失败，与 KTX2 无关
+  （CI godot-verify run 45418604838 日志里 0 条 ktx/basisu/meshopt，因为当时还没有任何 KTX2 文件进项目，
+  日志不能作证，需本地实测——已做）。ov-lawn.glb 本身走 Blender 导出（浮点几何 + PNG 贴图，
+  无量化、无 KTX2），不受影响。
+- **`-dequant.glb`（新增 5 个，`assets/external/grass/tevy/`，CC0 同源）**：
+  glTF-Transform 4.5.1 `dequantize()`（`@gltf-transform/core/functions/extensions`，NodeIO 注册
+  KHRMeshQuantization + KHRTextureBasisu + KHRMaterialsSpecular）：只去量化，KTX2 贴图、
+  材质（含 specularFactor 0.3）与几何原样保留；`extensionsUsed/Required` 去量化后仅剩
+  `KHR_materials_specular` + `KHR_texture_basisu`。5 个文件均经本地 Godot 4.4 导入验证通过，
+  供以后直接进 Godot 用；`-decoded.glb` 原文件不动。文件：
+  `tevy-meadow-grass-patch-dequant.glb`（1,626,412 B）、
+  `tevy-meadow-grass-patch-lod1-dequant.glb`（455,636 B）、
+  `tevy-meadow-grass-patch-lod2-dequant.glb`（109,948 B）、
+  `tevy-red-oat-grass-clump-lod1-dequant.glb`（172,260 B）、
+  `tevy-red-oat-grass-clump-lod2-dequant.glb`（45,128 B）。
+- **验证**：待填（本地运行日志 tris 实测 + Actions blender-previews overview 组 run 号与逐张目视结论）。
+- **推仓**：待填（commit / HEAD，推后填）。
+- **还剩什么**：待填。
+
+## §18 R2-T17 桌椅换装（3DAssets）+ 教室墙面偏青绿修复（2026-11-24，只做教室）
+
+- **桌椅换装**：`assets/blender/classroom/cl-desks.py` v3 → v4，tevy 拆件彻底换掉，改用 R2-T2 选定的 3DAssets Student Desk + Student Chair（CC0，`assets/external/desks/3dassets/student-desk.glb` 51,796 B + `student-chair.glb` 43,632 B；来源与选定理由见 SOURCES.md §7）。两件 timber + steel 各 1 网格，脚本内合并成一件模板（2 材质槽：desk_wood #C8A06A / chair_wood #7A4A2B / leg_metal #424A52，SPEC §3），沿用 v3 布局（6 列 × 8 排 = 48 套，ROW_X -3.18…3.82、COL_Y ±0.8/1.8/2.8、CHAIR_DX 0.44）。
+- **朝向实测**：椅靠背（z>0.65 木面 y 0.148–0.196）与桌钢丝书篮（z 0.225–0.255 钢丝 y 0.146–0.175）都在 Blender +Y 一侧 = 学生侧，学生面向 -Y；绕 Z 转 -90°（Blender (x,y) → SPEC (y,-x)）后面向 -x、学生侧 +Y → +X，椅背断言（靠背顶点 x>0.05）通过。**坑**：join 后的网格上 `bpy.ops.object.transform_apply(rotation=True)` 静默失效（rotation_euler 清零但顶点不动，已用最小复现确认；单 mesh 上该 operator 正常）；居中与旋转改用 `mesh.transform(矩阵)` 直接烘顶点。第一版未转（桌宽 0.60 落在 x 向、椅子侧向）已废弃重出。
+- **换装前后对比**：tevy 版：桌椅是 Voronoi 聚类拆出的碎面（单桌/单椅边界是猜的）、椅 mesh 混 1.16m 高柜（4 张带 135–236 张柜面）、桌腿不是完整几何（“悬浮金色平板”）、48 套间隙前 0.208m / 后 0.204m、cl-desks.glb 5,605,220 B / .blend 2,817,888 B；3DAssets 版：单桌 0.60×0.50×0.70m（780 面）、单椅 0.38×0.42×0.89m（580 面）、弯钢圆管桌架/椅架真腿落地（各 508 顶点 z<0.02）、桌带钢丝书篮、椅带横撑脚踏杆，48 套合计 65,280 面，间隙前 0.265m / 后 0.293m、桌椅包围盒 x[-3.430, 4.472]、cl-desks.glb 4,532,308 B / .blend 935,956 B，回读 96 对象（2 共享网格），零 Error/Traceback。口径偏差（接受，记入文档）：任务口径“桌 1.1–1.3m”指双人桌，两张 0.60m 单人桌并排 = 1.20m 正好落入口径；桌高 0.70 vs SPEC 0.75 差 5cm。
+- **墙面偏青绿修复**：只改颜色，不动尺寸结构。根因不在材质本身：墙贴图 `white_stucco__F3E9D2.jpg` 100% 像素暖色（均值 243,232,210，0% 像素偏绿），Blender 预览也是米白；Godot 里墙渲成青绿 (94,136,118) 是因为天空材质 `ground_bottom_color #4a6b38`（绿）是室内环境光 `AMBIENT_SOURCE_SKY` 的地面色（`scripts/weather_system.gd:52`），白墙被绿天光照绿（白空调壳同渲 (93,132,124) 作证；PROGRESS.md 丢色一节同根因）。修法：墙材质 color 贴图后串 MixRGB MULTIPLY，线性补偿因子 (1.0, 0.39, 0.32)（按“渲染 = 反照率 × 环境光”反推，目标渲染约 (97,88,68) 暖色），导出器写成 `baseColorFactor [1, 0.39, 0.32, 1]` 与贴图相乘，等效反照率 sRGB 约 (243,151,123)。**两个导出器坑**：① Base Color 已链接贴图时 socket 默认值不被导出，只认 Mix 节点里的 MULTIPLY 常量；② 须用新 `ShaderNodeMix`（type MIX），旧 `ShaderNodeMixRGB`（type MIX_RGB）不被认，且 RGBA 的 A/B 是 inputs[6]/[7]（4 元）、输出 RGBA 是 outputs[2]，按名取 "A" 会取到 VALUE 槽。只补墙面；天花板同理发绿但 03 取景内不可见，不动。**代价**：Blender 预览（中性光）下墙直接显出暖粉补偿色，Godot 侧验收以 03-classroom 为准。改前改后：改前墙 baseColorFactor 缺省（贴图原色 #F3E9D2，Godot 渲青绿 (94,136,118)）；改后 baseColorFactor [1, 0.39, 0.32, 1]，cl-floor-walls.glb 7,491,220 B（改前 7,491,156 B）/ .blend 1,038,708 B，回读 73 对象，零 Error/Traceback。
+- **场景重拼**：`assets/blender/scenes/classroom.py` 未改（已是最新拼装逻辑），重跑重拼：classroom.blend 5,465,640 B（改前 7,349,592 B）、classroom.glb 19,090,632 B（改前 20,164,540 B），回读 440 对象（73+96+39+58+54+120），桌椅间隙前 0.265m / 后 0.293m、门洞 clear，零 Error/Traceback；场景 GLB 实测墙因子在、48 桌 + 48 椅节点、0 个 tevy 残留。
+- **推仓**：待填（commit / HEAD，推后填）。
+- **验证**：待填（blender-previews classroom 组 run 号 + cl-desks/cl-floor-walls 目视；godot-verify 新 run 号 + 03-classroom 目视：桌椅有腿落地、黑板墨绿、墙面米白、无悬浮平板）。
+- **还剩什么**：待填（CI 目视结论与遗留，CI 后填）。
+- **本任务发现、范围外未修**：黑板盒埋进西墙——`cl-board.py` 的 Blackboard 盒中心 x=-4.80、厚 0.04（x[-4.82,-4.78]），西墙内面 x=-4.765，黑板正面埋进墙内 15mm；run #107 的 03-classroom 里黑板面与墙同色 (94,136,118)（只剩框/粉笔槽 faint 可见），属 cl-board 问题，不在本任务三件范围内，未动。
+
+## §19 R2-T19 汽车换装（Quaternius 三车，2026-11-24，只改汽车两件 + 充电场景）
+
+- **任务**：R2-T8 选定的 Quaternius Cars 包三辆（SOURCES.md §9，CC0）替换 ch-cars 与
+  ov-parking 的 3+3 辆手捏小车；重拼 charge 场景；总览场景不拼（ov-parking 进总览由
+  终轮整合任务统一做；R2-T1 也在重拼总览，不要抢）。Godot scripts/scenes/data 一字未动。
+- **朝向实测（Blender 4.2.0 导入探针）**：三车 glTF 前向 +Z，导入后长在 Y 轴、车头
+  （Headlights 面质心）在 -Y（car y=-1.99、suv y=-1.91、sports y=-1.80；尾灯在 +Y）；
+  轮底 z≈0（car +0.01、suv -0.02、sports -0.01），基本贴地；每车 4 mesh（车身 +
+  后轮轴一体 + 左右前轮各一）。换装时每车绕 Z 转 +90° 烘进 mesh（车头 -Y -> +X、
+  车长落到 X 轴），与旧手捏车局部系完全一致；empty 保持旧旋转（充电区 -90° 车头
+  朝南、停车区 +90° 车头朝北），位置与旧车一致。
+- **缩放与改色方案**：
+  - 充电区（车位 2.5 m 宽，线内缘 ±1.19 m）：三车均匀按长缩到 4.4 m（car ×1.0427、
+    suv ×1.0451、sports ×1.1083），宽 1.89/2.21/1.99 m 均不压线（suv 半宽 1.10 m，余 0.09 m）。
+  - 停车区（车位 2.0 m 宽，线内缘 ±0.94 m；均匀缩放后 suv 2.21 m、sports 1.99 m
+    都会压线）：三车长 4.4 m、宽统一夹到 1.80 m（与旧手捏车同宽，每侧余 0.04 m）——
+    灰 SUV (0.8531, 1.0451, 1.0451)、蓝 Car (0.9945, 1.0427, 1.0427)、
+    红 Sports (1.0, 1.1083, 1.1083)（sx=宽、sy=长、sz=高，按导入轴向）。
+  - 改色（只改材质数值）：Sports 2 的 Orange + DarkOrange 两材质 baseColorFactor 均改
+    SPEC 红 #C4534E（GLB 实测线性 0.552/0.087/0.076）；蓝车漆改为旧蓝 #3B82C4、
+    白车漆改为旧白 #D7DDE3（停车区 SUV 白改灰 #8A8F94），三色与旧车/campus.json 一致。
+  - 车漆复用旧清漆配方（Metallic 0.15 / Roughness 0.25 / Coat Weight 1.0 /
+    Coat Roughness 0.05）；车窗用已验证深色镀膜玻璃（透射 0.10、alpha 0.90、
+    粗糙度 0.15、深色 #33505F、Specular 1.0）；轮胎 #2A2D2F/0.95、轮毂 #C0C5C9/
+    金属 0.8/0.35、前灯暖白发光、尾灯红发光（均沿用旧配方）。
+- **SUV 宽度核对**：充电车位 2.5 m——suv 均匀缩放后 2.21 m 宽，半宽 1.10 m < 线内缘
+  1.19 m，通过（余 0.09 m）；停车车位 2.0 m——原生 2.11 m（半宽 1.055 m）已压进
+  0.12 m 宽的车位线（线带 0.94–1.06 m），故宽向压到 1.80 m；灰 SUV 前轮北缘原
+  在 -84.79 m、会顶轮挡南缘 -84.825 m（约 0.04 m），中心南移 0.10 m 至 y=-86.6
+  后前轮北缘 -84.886 m、离轮挡 0.061 m，仍在 2 号位内（南缘 -88.8 > -89）。
+- **Godot SOC 条锚点（关键）**：`scripts/campus_builder.gd _build_charge_glb_soc_bars`
+  找 `ch-cars_<blue/red/white>` 组 + `ch-cars_<key>_roof` mesh，用
+  `position.y + mesh AABB.y/2` 算车顶高、沿组局部 x 挂 3.4 m SOC 条。Quaternius
+  无独立车顶 mesh，故车身主 mesh 改名 `_roof`、原点移到 mesh 高度中点
+  （L = zmax - h/2，mesh 数据反向平移 -L，世界几何不动），使
+  `position.y + AABB.y/2` 恰为车顶高（蓝 1.23/红 1.28/白 1.60 m，含轮底 lift）。
+  GLB 导出保留节点 TRS（旧 charge.glb 实测），锚点关系可进 Godot：GLB 里
+  `_roof` 节点 T=(0, L, 0)（L=0.705/0.729/0.912）、组节点绕 Y 转 -90°，与旧车一致。
+  ov-parking 的车身主 mesh 同命名 `_roof`（仅为两件统一；总览不挂 SOC 条）。
+  charge.py 车位检查改取 empty 下 4 mesh 并集（旧 `_body` 已无独立 mesh）。
+- **坑（已踩，已修）**：`bpy.ops.object.transform_apply(rotation=True)` 在导入
+  mesh 上静默失效（rotation_euler 清零、顶点不动；最小复现确认：scale 烘进去了、
+  rotation 没烘进去；R2-T17 桌椅任务同坑）。旋转+缩放改用 `mesh.transform(矩阵)`
+  直接烘顶点（`Matrix.Rotation(90°, 4, 'Z') @ Matrix.Diagonal(scale)`）。
+  另：`transform_apply` 后 `matrix_world` 是旧值，须 `view_layer.update()` 再读。
+- **重建结果（本地 Blender 4.2.0，零 Error/Traceback）**：
+  - ch-cars：15 对象（3 组 + 12 mesh），GLB 9 材质（4 漆清漆 1.0/0.05、红=#C4534E、
+    玻璃透射 0.10），ch-cars.glb 531,560 B / .blend 2,096,408 B；三车各在 1/3/4
+    号位内、车头朝南、轮底 z=0.00。
+  - ov-parking：50 对象（35 场 + 15 车），GLB 13 材质（漆/玻璃同上），
+    ov-parking.glb 3,367,900 B / .blend 2,446,596 B；灰 2 号位、蓝 5 号位、
+    红 9 号位，车头朝北、轮底落在沥青顶面 z=0.08。Paint* 三件套贴图已不再引用
+    （文件留磁盘未删）；ov-parking 材质总数 13（旧约 13，车漆 3 种→4 种，
+    总览重刷时材质总数 202 会变，终轮整合注意）。
+  - charge 场景：重跑 charge.py（只改车位检查段），回读 123 对象（桩 40、车 15、
+    标线 21、雨棚 47），三车各在位内、车头朝南、无桩穿插、雨棚全覆盖，材质去重
+    117→24（车 9 种与旧版一致），charge.blend 3,002,296 B、charge.glb 7,093,272 B。
+- **推仓**：待填（commit / HEAD，推后填）。
+- **验证**：待填（blender-previews charge 组 run 号 + ch-cars 目视；overview 组 run 号 +
+  ov-parking 目视；godot-verify 新 run 号 + 04-charge 目视：车有轮有窗有灯、三色分明、
+  V2G 桩前位置正确、SOC 条在车顶）。
+- **还剩什么**：待填（CI 目视结论与遗留，CI 后填；总览场景重拼由终轮整合任务做，本任务未拼）。
