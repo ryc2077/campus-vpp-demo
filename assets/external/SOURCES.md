@@ -471,3 +471,162 @@ KTX2 贴图原样保留），Godot 4.4 读 KTX2（KHR_texture_basisu）以整合
 - **推仓（本轮只推选定 + 两份文档）**：`grass/tevy/` 下草甸草块 lod0/1/2 原文件 + `-decoded.glb`（6 个）与
   红燕麦草丛 lod0/1/2 原文件 + `-decoded.glb`（6 个），共 12 个 GLB + `assets/external/SOURCES.md` +
   `BLENDER_MODELS.md`；其余 10 个候选 GLB 留本地，凭本节直链可重下。commit 见 BLENDER_MODELS.md §14。
+
+## 9. 汽车模型 sourcing（R2-T8，2026-11-24 22:46–23:15 CST，只找模型、只下载、记来源）
+
+> 背景：用户 2026-11-24 22:42 硬性要求——车的建模也去网上找，用网上的，不许手捏。
+> 现状：充电区 ch-cars 3 辆手捏简易小车（蓝 #3B82C4、红 #C4534E、白 #D7DDE3，见 BLENDER_MODELS.md §3.5）与
+> 停车区 ov-parking 3 辆简易小车，全部要换。本轮只 sourcing：下载 + 只读核验 + 选型，不建模、不改
+> ch-cars.py/.blend/.glb 与 ov-parking，不碰 Godot scripts/scenes/data。换装是下一波任务。
+> 目标：低多边形但结构真实的轿车（车身+车窗+车轮+车灯齐全，不许无轮平板），单车约 4.4×1.8×1.5 m，
+> 最好一家出 3 辆不同颜色/款式。全部 `curl` 直链下载，无浏览器、无登录、无付费。
+> 授权均为 **CC0 1.0**（可自由改、商用、无需署名）；唯一进实测的非 CC0 候选是 Khronos CarConcept（CC-BY 4.0，
+> 需署名，且因面数过高被淘汰，未推仓，见 9.2）。
+
+### 9.1 来源对比（7 家，3 家拿到文件）
+
+| 来源 | 结果 | 授权 / 备注 |
+|---|---|---|
+| poly.pizza（https://poly.pizza） | **拿到 7 个**：Quaternius Cars 包 7 辆（见 9.2）。站内模型页 HTML 直接含 `static.poly.pizza/*.glb` 直链，无需登录；搜索 API 需 API key（`{"error":"You need an API key to do that dingus"}`），未用 | CC0 1.0（模型页 "Public Domain (CC0)"，作者 Quaternius，https://quaternius.com；整包页 https://poly.pizza/bundle/Cars-Bundle-FE5IWe6OMk） |
+| Kenney Car Kit（https://kenney.nl/assets/car-kit） | **拿到整包**：Car Kit 3.1（45 个模型，含 sedan/suv/taxi 等，见 9.2）。官网下载是 JS 门控（`download-link/` 端点 curl 返回 404，旧直链 `kenney_car-kit.zip` 哈希已换，302 回资产页）；实测可用的 curl 直链是 OpenGameArt 镜像 `https://opengameart.org/sites/default/files/kenney_car-kit_3.1.zip`（4,814,237 B，包内 License.txt 载明 CC0） | CC0 1.0（包内 License.txt 全文；署名非强制） |
+| Khronos glTF-Sample-Assets（https://github.com/KhronosGroup/glTF-Sample-Assets） | **拿到 1 个**：CarConcept（见 9.2）。`https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CarConcept/glTF-Binary/CarConcept.glb` 直链，11,778,688 B | **CC-BY 4.0**（需署名；若采用须在 SOURCES 与 Godot 内记署名）。本轮因面数过高淘汰，未推仓 |
+| Sketchfab（https://sketchfab.com） | **未拿到**：下载 API 无鉴权返回 **401**，需登录/OAuth token，无 curl 直下路径；CC0 可下载车模型存在，但拿不到文件 | 按模型而定（CC0/CC-BY），未拿到，未编造链接 |
+| BlendSwap（https://blendswap.com） | **未拿到（需登录）**：上轮已实测下载页返回登录页；本轮车分类页 `https://blendswap.com/blends/category/vehicles/cars` 返回 404（站内结构已改），沿用上轮“需登录”结论 | CC0/CC-BY（需登录后下载，仅作参考） |
+| CGTrader 免费区（https://www.cgtrader.com/free-3d-models/car） | **未拿到**：分类页 curl 返回 202（JS 挑战页），免费模型下载均需账号登录，无 curl 直下路径 | 按模型而定，未拿到，未编造链接 |
+| BlenderKit（https://www.blenderkit.com） | **未拿到**：搜索 API 无需鉴权可用（`https://www.blenderkit.com/api/v1/search/?query=car` 返回 200，4,118 条），但文件下载需免费账号 + 插件/API token，无直接 .blend/.glb 直链；上轮同结论 | 按资产而定（免费区多为 CC0/CC-BY），未拿到，未编造链接 |
+
+### 9.2 候选实测表（尺寸/面数均为 glTF JSON 直读 + Blender 4.2.0 `--background` 只读导入实测，两者一致；glTF 坐标 X=宽、Y=高、Z=长）
+
+| # | 候选 / 文件（`cars/<来源>/`） | 资产页 | 直链 | 授权 | 尺寸（长×宽×高 m） | 面数 | 结构（mesh / 材质） | 车身色（baseColorFactor 线性值） |
+|---|---|---|---|---|---|---|---|---|
+| 1 | **Quaternius Car（主选·蓝）** `quaternius/car-quaternius.glb`（164,752 B） | https://poly.pizza/m/Cz6yDaUcM9 | https://static.poly.pizza/59a67a6c-490e-472e-bae6-5a4d2541f1c7.glb | CC0 | **4.22×1.81×1.18** | **2,954** | 4 mesh：车身 + 后轮轴一体 + 左右前轮各一；6 材质 Blue/Windows/Black/Grey/Headlights/TailLights | Blue (0.278, 0.432, 0.640) |
+| 2 | **Quaternius SUV（主选·白）** `quaternius/suv-quaternius.glb`（181,608 B） | https://poly.pizza/m/xsMtZhBkxL | https://static.poly.pizza/e5fbf2ee-5c9e-47d5-8ab6-80cacd463baa.glb | CC0 | **4.21×2.11×1.53** | **3,294** | 4 mesh，同上结构；6 材质 White/Windows/Black/Grey/Headlights/TailLights | White (0.559, 0.559, 0.559) |
+| 3 | **Quaternius Sports Car 2（主选·橙→红）** `quaternius/sports-car-2-quaternius.glb`（171,300 B） | https://poly.pizza/m/OyqKvX9xNh | https://static.poly.pizza/e6410e19-a88f-4158-bc91-c19fccf85028.glb | CC0 | **3.97×1.80×1.16** | **3,066** | 4 mesh，同上结构；7 材质 Orange/DarkOrange/Windows/Grey/Headlights/TailLights/Black | Orange (0.639, 0.266, 0.086) |
+| 4 | Quaternius Taxi（备选） `quaternius/taxi-quaternius.glb`（本地 /tmp，未推仓） | https://poly.pizza/m/x43lOScTpN | https://static.poly.pizza/3622a7bf-f213-44c8-8949-c1bdd1e961a9.glb | CC0 | 4.22×1.81×1.31 | 3,278 | 4 mesh，同上结构；6 材质 Yellow/Windows/Black/Grey/Headlights/TailLights | Yellow (0.640, 0.465, 0.045) |
+| 5 | Quaternius Sports Car（备选） `quaternius/sports-car-quaternius.glb`（本地 /tmp，未推仓） | https://poly.pizza/m/1mkmFkAz5v | https://static.poly.pizza/34db1344-31cc-49ac-bc46-c055f68e39ca.glb | CC0 | 3.93×1.87×1.20 | 3,148 | 4 mesh，同上结构；6 材质 White/Windows/Grey/Headlights/TailLights/Black | White (0.549, 0.549, 0.549) |
+| 6 | Quaternius Police Car（备选） `quaternius/police-car-quaternius.glb`（本地 /tmp，未推仓） | https://poly.pizza/m/BwwnUrWGmV | https://static.poly.pizza/179e43ce-b9e0-40cf-8b99-641693d3207e.glb | CC0 | 3.73×1.78×1.24 | 3,232 | 4 mesh，同上结构；8 材质 White/Windows/Grey/Headlights/Black/TailLights/WhiteLights/BlueLights | White + 警灯 |
+| 7 | Quaternius Car 2（备选） `quaternius/car-2-quaternius.glb`（本地 /tmp，未推仓） | https://poly.pizza/m/unqqkULtRU | https://static.poly.pizza/d35173c8-6078-4367-8b1f2599f0bb7.glb | CC0 | 3.31×1.64×1.15 | 3,124 | 4 mesh，同上结构；7 材质 LightBlue/Windows/Black/Grey/Headlights/Material.007/TailLights | LightBlue (0.459, 0.548, 0.640) |
+| 8 | Kenney sedan（次选） `kenney_car-kit_3.1.zip` 内 `Models/GLB format/sedan.glb`（本地 /tmp，未推仓） | https://kenney.nl/assets/car-kit | 镜像直链 https://opengameart.org/sites/default/files/kenney_car-kit_3.1.zip | CC0 | 2.55×1.50×1.45（含原点下沉：Y min −0.30） | 2,032 | 5 mesh：车身 + 4 轮各一；**仅 1 材质 colormap（共享 512² 贴图集）**，车窗/车灯是贴图着色、**无独立材质/几何** | 贴图集着色，无车身单色材质 |
+| 9 | Kenney suv / taxi / sedan-sports / hatchback-sports（次选，同包） | https://kenney.nl/assets/car-kit | 同上镜像 zip | CC0 | 均为 2.55–2.85×1.30–1.50×1.25–1.65 | 2,072–2,474 | 5–6 mesh，车身 + 4 轮（+尾翼）；同为单 colormap 材质 | 同上 |
+| 10 | Khronos CarConcept（淘汰） `khronos/CarConcept.glb`（本地 /tmp，未推仓） | https://github.com/KhronosGroup/glTF-Sample-Assets （Models/CarConcept） | https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CarConcept/glTF-Binary/CarConcept.glb | **CC-BY 4.0** | 原始包围盒轴向异常：X 2.47 / Y 4.56 / Z 1.74（长在 Y 轴，需重定向） | **213,347** | 97 mesh / 29 材质：全内饰、方向盘、踏板、刹车盘、雨刮一应俱全 | 多色车漆 Paint 1/2（Carmine/Pearl/Graphite 三色版） |
+
+诚实说明（结构口径）：Quaternius 三车“车窗/车灯齐全”指车身 mesh 上以独立材质区分的面（Windows 深色窗面、
+Headlights 前灯面、TailLights 尾灯面），不是独立 mesh；车轮是真独立 mesh（轮径 0.52 m，SUV 0.65 m），
+不是平板贴图。全部三车**无贴图**，颜色全靠 `baseColorFactor` 纯色材质，Godot 导入无贴图依赖。
+Blender 实测与 glTF JSON 直读逐项一致：car 5,662 顶点 / 2,954 面、SUV 6,294 / 3,294、Sports 2 为 5,882 / 3,066
+（JSON 的 5,898 顶点含未用顶点，面数一致），Kenney sedan 3,184 / 2,032。
+
+### 9.3 选定与打分（5 分制）
+
+| 候选 | 授权/直下 | 结构完整 | 尺寸贴合（目标 4.4×1.8×1.5） | 面数可控 | 一家出 3 辆 | 换色易度 | 小结 |
+|---|---|---|---|---|---|---|---|
+| **Quaternius 三车（主选）** | 5 | 5 | 5 | 5 | 5 | 5 | **唯一满分**：同一包出蓝/白/橙三色三款式，车身单色材质可一键改色，3 辆合计 9,314 面 |
+| Kenney Car Kit | 5 | 3 | 2 | 5 | 5 | 2 | 次选：轮子独立、面数低，但车窗/车灯只是贴图着色、无独立材质；2.55 m 玩具比例，需 ×1.73 放大，原点还沉在地下 0.30 m；换色要改共享贴图集，会连带改整包车的颜色 |
+| Khronos CarConcept | 3 | 5 | 2 | 1 | 1 | 3 | 淘汰：结构最真（全内饰+刹车盘），但单辆 213,347 面、11.7 MB，3 辆 640k 面直接撑爆总览；CC-BY 需署名；只有一款概念车、无三色；轴向还需重定向 |
+| Sketchfab / BlendSwap / CGTrader / BlenderKit | 0 | — | — | — | — | — | 未拿到文件：登录/OAuth 墙，无 curl 直下路径（见 9.1） |
+
+**选定：Quaternius Cars 包三辆——Car（蓝）、SUV（白）、Sports Car 2（橙）。**
+三辆合计 9,314 面、约 0.52 MB，进充电区 + 停车区共 6 个车位复用也仅约 18.6k 面（两处各 3 辆），
+远低于总览现有 13,036 对象的量级。颜色与现行手捏三色对应：蓝车身已是蓝色系（与 #3B82C4 同色系）、
+白 SUV 即白车；**包内没有出厂红色车**，最接近红的是橙色 Sports Car 2——换装时把 Orange/DarkOrange
+两材质的 `baseColorFactor` 改为 SPEC 红 #C4534E（sRGB，线性约 0.55/0.09/0.08，换装时以 Blender 取色为准），
+这是改两个材质数值，不是手捏建模。备选：若不接受改色，Taxi 黄 / Police 白+警灯 / Sports Car 白均可凭直链重下，
+但警灯/出租车顶灯与校园充电区场景不搭，不优先。
+
+**比手捏小车好在哪（四项实测对比）：**
+
+| 对比项 | 现行手捏（ch-cars / ov-parking） | 本轮选定（Quaternius 三车） | 结论 |
+|---|---|---|---|
+| 结构真实度 | 简易几何拼合（SPEC §6 充电区、BLENDER_MODELS.md §3.5）：车身平板 + 贴式车窗 | 车身有真实轿车轮廓（引擎盖/车顶/腰线一体成型），车窗/前后灯为独立材质面，4 轮为独立 mesh（轮径 0.52–0.65 m） | 从“方块小车”变“有轮廓、有灯窗、有真轮子的轿车” |
+| 尺寸 | 手捏未按实尺（SPEC 未载实测车长） | 实测 3.97–4.22 m 长、1.80–2.11 m 宽、1.16–1.53 m 高，与目标 4.4×1.8×1.5 m 贴合（按长统一缩放到 4.4 m 仅 ×1.04–1.11） | 接近真车比例；SUV 实测宽 2.11 m，比目标宽 17%，换装时按车位核对 |
+| 面数 | 手捏面数未单列（低，但结构假） | 3 辆合计 9,314 面，单辆约 3.0–3.3k 面 | 面数仍是低多边形量级，不拖总览 |
+| 换色/复用 | 每辆手写颜色参数 | 车身是单一命名材质（Blue/White/Orange），改一个 `baseColorFactor` 即换整车漆；三款式同包，风格统一 | 充电区与停车区 6 辆可同款不同色复用，不用再手捏 |
+
+**换装提示（下一波任务，不在本轮做）：**① 三车 glTF 前向为 +Z，Blender 导入后长在 Y 轴，Godot 导入时以前向 −Z 为准，
+换装脚本需核对朝向（以充电桩前车头朝外为准）；② 统一缩放：按长缩放到 4.4 m（car ×1.043、SUV ×1.045、
+Sports 2 ×1.108）或保留原生 3.97–4.22 m（紧凑轿车实尺，差 <10%，可不缩放）；③ Sports 2 改红（见上）；
+④ SUV 宽 2.11 m 比目标宽 17%，若车位划线按 1.8 m，换装时可只缩 X 或接受 SUV 本身更宽；
+⑤ 三车原点均在地面中心附近（Y min −0.03–−0.01，基本贴地），不用像 Kenney 那样抬 0.30 m；
+⑥ 车漆可按 ch-cars 旧配方挂清漆（Coat Weight 1.0 / Coat Roughness 0.05）与车窗深色配方复用，
+材质名已是 Blue/White/Orange/Windows/Headlights/TailLights，改色只动数值。
+
+### 9.4 文件清单（本轮新增 3 个文件，约 0.52 MB；全库合计 113 个文件）
+
+- `cars/quaternius/`：3 个文件——`car-quaternius.glb`（164,752 B）、`suv-quaternius.glb`（181,608 B）、
+  `sports-car-2-quaternius.glb`（171,300 B），合计 517,660 B。md5：car `782e32948f29775b543d8f61dedf53d1`、
+  suv `e4875bde83fa3563be010895619214b5`、sports-2 `c5ae5780adb5350d172f240820e42b4b`。
+- 本轮新增合计 3 个 GLB 文件，约 0.52 MB；全库合计 110 + 3 = 113 个文件（不含本文档与 BLENDER_MODELS.md 的改动）。
+- **推仓（本轮只推选定 + 两份文档）**：`cars/quaternius/` 下 3 个 GLB + `assets/external/SOURCES.md` +
+  `BLENDER_MODELS.md`；其余 7 个候选 GLB（Quaternius Taxi/Sports/Police/Car 2、Kenney 整包、Khronos CarConcept）
+  留本地 /tmp，凭本节直链可随时重下。commit 见 BLENDER_MODELS.md §16。
+- **未动**：`ch-cars.py` / `.blend` / `.glb`、ov-parking、Godot scripts/scenes/data 一律未碰；换装是下一波任务。
+
+## 8. 云：实拍云照片贴图（R2-T12，2026-11-24 23:0x CST）
+
+> 用户 2026-11-24 22:43 硬性要求：云也要搞好，用网上的建模；去网上找现成的云模型/云材质
+> （CC0，记来源），不许手捏。现状是 Godot 程序化白球（`scripts/weather_system.gd`
+> `_build_clouds`：7 个白色半透明球 + 5 个圆柱云影），用户嫌假。
+> 方案（GL Compatibility 下体积云不可行——无体渲染管线）：**billboard 贴图云片**，
+> 每组云 = 1 张主云片 + 2 张小云片拼成云团，`BILLBOARD_ENABLED`，五档联动。
+> 原图未入仓（可按直链重下；SHA256 见下表）；入仓的只有两张衍生 PNG + 本节记录。
+
+### 8.1 候选对比（3 家）
+
+| # | 候选 | 形式 | 授权 | 结论 |
+|---|---|---|---|---|
+| A | **Wikimedia Commons 实拍云照片**（见 8.2） | 云照片 → 裁切 + 抠天成透明 PNG | CC0 / CC-BY 4.0（逐张见表） | **选定**：真照片、蓬松感最好、curl 直链、无登录、无付费 |
+| B | **Poly Haven 云 HDR（`cloud_layers` / `kloofendal_48d_partly_cloudy`）** | 360° 等距圆柱全景天空 HDRI（.hdr/.exr + tonemapped JPG） | CC0 1.0 | 未选：整幅是天空全景（含地面/地平线/太阳眩光），没有孤立云朵可裁；作 billboard 须先裁云块再抠天，与 A 同工作量且等距投影拉伸变形；HDR 格式还须转码。API 本轮实测可用，直链见下（仅作参考，未下载） |
+| C | **Sketchfab 云团 3D 模型** | glTF 模型 | 混杂 | 未选：API 搜索 `realistic cloud` 前 3 条无一是云模型（地球模型 ×2 + Standard 授权不可下载）；可下载的云模型须账号 OAuth 才能取下载链接，curl 直下 401；且低多边形卡通云居多，不合“写实蓬松”要求 |
+| — | OpenGameArt / Kenney | 像素/卡通云贴图 | CC0 | 未选：搜到的全是像素风、太空星云背景或卡通云，不写实（见 8.4） |
+
+### 8.2 选定文件（`assets/external/clouds/wikimedia-commons/`，共 2 个 PNG + 本目录 README.md）
+
+| 文件 | 尺寸 / 大小 | 原图（资产页 + 直链 + 授权 + SHA256） | 用途 |
+|---|---|---|---|
+| `cloud_puff.png` | 870×780 RGBA，601,153 B，SHA256 `9dcf668079d912f2ca8521cfa91a75719bcfb78757e63abee3a81b5b4dafdbf4` | 《A single cumulus cloud in a clear daytime sky.jpg》，WarmaFiesta，2025-09-17；资产页 https://commons.wikimedia.org/wiki/File:A_single_cumulus_cloud_in_a_clear_daytime_sky.jpg ；原图直链 https://upload.wikimedia.org/wikipedia/commons/5/5c/A_single_cumulus_cloud_in_a_clear_daytime_sky.jpg （2448×3264，2,606,277 B，SHA256 `a9465995528a7a014a50aa322388c9eb37383abeee31a02e834f375f9e029976`）；**CC-BY 4.0（须署名：WarmaFiesta，见本节与 README.md）** | 晴/多云/阴天用积云 |
+| `cloud_storm.png` | 1024×717 RGBA，1,174,189 B，SHA256 `98454c644949515bb9388726302129375c8dab7213fdc8429311f1109c717c95` | 《Cumulonimbus viewed from airplane.jpg》，Shyamal，2016；资产页 https://commons.wikimedia.org/wiki/File:Cumulonimbus_viewed_from_airplane.jpg ；原图直链 https://upload.wikimedia.org/wikipedia/commons/a/a1/Cumulonimbus_viewed_from_airplane.jpg （4354×3136，6,670,299 B，SHA256 `86bc999ead65bdeef6b3c45842e92a52dc7824f5a895285cec894144d9ac8dbb`）；**CC0 1.0（无需署名）** | 雨/暴雨用积雨云团 |
+
+### 8.3 衍生方法（裁切 + 抠天，不是手绘/手捏）
+
+- `cloud_puff.png`：原图 (850,1420)–(1720,2200) 只取孤立积云本体（树与地面已排除）；
+  白度键抠天（min 通道 smoothstep 0.30→0.80：深蓝天空 min≈0.1–0.3 透明、白云 min≈0.85–1.0 实）+
+  裁切边 9% 羽化 + 轻度去饱和（去蓝调、保留亮度明暗）。本地目视验证：致密花椰菜状云顶、
+  底部轻 wispy、背景干净（见本节方法记录；脚本 `/tmp/cloud-cand/make_sprites.py` 未入仓）。
+- `cloud_storm.png`：原图 (1500,1000)–(3900,2680) 取中央亮白积雨云塔；白度键（0.32→0.85）+
+  羽化 + 去饱和。灰色云幕背景无法用蓝天键分离，保留为半透明云幔，雨天压暗后正好作雨层。
+  本地目视验证：致密云团、蓬松感好。
+- 试过没成的抠天：`Cumulus congestus clouds (27075262952).jpg`（CC0，Flickr 8469…，
+  https://commons.wikimedia.org/wiki/File:Cumulus_congestus_clouds_(27075262952).jpg ）
+  塔身是逆光亮边 + 暗蓝灰内腔，白度键与去饱和键都只能抠出细弧、留灰雾，未采用，
+  已弃用（原图 SHA256 `bd0bf1717143b81f90ed6961ce1d8405e49ba401f9664703684594c16f5cfbdd`）。
+- 直链注意：upload.wikimedia.org 对共享出口 IP 有 429 限流（本轮首两次直下原图即 429）；
+  加 UA（`CampusVPP-Demo/1.0 … curl`）+ 间隔 5–8 秒逐张重下即通；1280px 缩略图走
+  `…/thumb/<hash>/<name>/1280px-<name>` 同样可用。
+
+### 8.4 其他试过没成的（诚实记录，不编链接）
+
+- Poly Haven `cloud_layers`：资产页 https://polyhaven.com/a/cloud_layers（CC0），
+  API `https://api.polyhaven.com/files/cloud_layers` 本轮实测可用；1K tonemapped JPG 直链
+  https://dl.polyhaven.org/file/ph-assets/HDRIs/extra/Tonemapped%20JPG/cloud_layers.jpg （8,068,365 B），
+  2K HDR 直链 https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/cloud_layers_2k.hdr （6,985,914 B）。
+  `kloofendal_48d_partly_cloudy`：资产页 https://polyhaven.com/a/kloofendal_48d_partly_cloudy ，
+  1K tonemapped JPG https://dl.polyhaven.org/file/ph-assets/HDRIs/extra/Tonemapped%20JPG/kloofendal_48d_partly_cloudy.jpg （5,275,330 B）。
+  两者均未下载（见 8.1 候选 B 未选原因）。
+- Sketchfab API 搜索（`https://api.sketchfab.com/v3/search?type=models&q=realistic%20cloud&count=3`，
+  无 token）：返回 Realistic Earth 8K（CC-BY，可下载）、Realistic Earth w Terrain Clouds Ocean and Sky
+  （CC-BY，可下载）、REALSTICK CLOUD（Standard，不可下载）——无可用云模型；`license=CC0` 参数被拒
+  （`Select a valid choice. CC0 is not one of the available choices.`）。
+- OpenGameArt 搜 “CC0 cloud texture transparent PNG”：命中全是像素纹理、太空星云背景
+  （如 https://lpc.opengameart.org/node/8223），无写实云片。
+
+### 8.5 接入（Godot 侧，R2-T12）
+
+- `scripts/weather_system.gd`：`_build_clouds` 改为 7 组云片（主 + 2 小，同材质）；
+  `set_weather` 按档换贴图（雨/暴雨 → storm，其余 → puff）、按 `cloud_cover` 显隐
+  （晴 1 / 多云 3 / 阴 5 / 雨 6 / 暴雨 7 组）、按档缩放（0.9/1.0/1.12/1.18/1.25）；
+  云影 blob 对齐到前 5 组云的地面投影（x/z ×0.5 收入校园范围）；漂移时小云片跟主云片走。
+  `data/weather.json` 业务数、天气切换逻辑、其他系统一律未动。
+- `tools/verify_fixes.gd`：+11 项云检查（贴图非空、7 组 + 14 小云片、QuadMesh + BILLBOARD、
+  五档云量 1/3/5/6/7、雨/暴雨换 storm 贴图、暴雨 1.25×、回晴天恢复）。
+- `tools/shots_all.sh`：+2 张（18-overview-cloudy、19-overview-overcast），旧 shots 只有雨/暴雨档，
+  多云/阴两档无图可验。

@@ -495,14 +495,14 @@
 - **还剩什么**：① 下一波施工按 GREEN_PLAN 把选定模型铺进 ov-lawn（换装/重铺）并重出总览；② 整合时 CI run 核对
   Godot 4.4 对 `-decoded.glb`（KTX2 贴图）的导入；③ R2-T3 绿化方案出后复核本轮密度估算档位。
 
-## §15 R2-T8 汽车网上模型 sourcing（2026-11-24 22:46–23:15 CST，只 sourcing，不建模）
+## §16 R2-T8 汽车网上模型 sourcing（2026-11-24 22:46–23:15 CST，只 sourcing，不建模）
 
 - **起因**：用户 2026-11-24 22:42 硬性要求——车的建模也去网上找，用网上的，不许手捏。现状是充电区
   ch-cars 3 辆手捏简易小车（蓝 #3B82C4、红 #C4534E、白 #D7DDE3）与停车区 ov-parking 3 辆简易小车，全部要换。
 - **来源（7 家，3 家拿到）**：poly.pizza（Quaternius Cars 包，CC0，直链）、Kenney Car Kit 3.1（CC0，
   官网 JS 门控、经 OpenGameArt 镜像直链拿到整包）、Khronos glTF-Sample-Assets CarConcept（CC-BY 4.0，直链）拿到文件；
   Sketchfab 下载 API 401 需登录、BlendSwap 需登录（车分类页已 404）、CGTrader 免费区 202 JS 挑战页需登录、
-  BlenderKit 搜索 API 可用但下载需账号，均未拿到。详见 `assets/external/SOURCES.md` §8（含每家链接与授权）。
+  BlenderKit 搜索 API 可用但下载需账号，均未拿到。详见 `assets/external/SOURCES.md` §9（含每家链接与授权）。
 - **选定（CC0，可自由改）**：Quaternius Cars 包三辆——**Car（蓝）** `cars/quaternius/car-quaternius.glb`、
   **SUV（白）** `cars/quaternius/suv-quaternius.glb`、**Sports Car 2（橙）** `cars/quaternius/sports-car-2-quaternius.glb`，
   共 3 个 GLB 已推仓。同一包出三色三款式，风格统一。
@@ -515,14 +515,42 @@
 - **为什么选这家、另外几家差在哪**：Kenney 次选——轮子独立、面数更低（2,032–2,474），但车窗/车灯只是共享
   512² colormap 贴图着色、无独立材质，2.55 m 玩具比例需 ×1.73 放大且原点沉在地下 0.30 m，换色要改共享贴图集；
   Khronos CarConcept 淘汰——结构最真（97 mesh 全内饰+刹车盘），但单辆 213,347 面、11.7 MB，3 辆 640k 面撑爆总览，
-  且 CC-BY 需署名、只有一款概念车、包围盒轴向异常需重定向。完整打分见 SOURCES.md §8.3。
+  且 CC-BY 需署名、只有一款概念车、包围盒轴向异常需重定向。完整打分见 SOURCES.md §9.3。
 - **颜色对应**：蓝车身已是蓝色系、SUV 白即白车；包内无出厂红车，最接近红的是橙色 Sports 2，
   换装时把 Orange/DarkOrange 两材质的 `baseColorFactor` 改为 SPEC 红 #C4534E（改材质数值，不是手捏建模）。
-  备选 Taxi 黄 / Police 白+警灯 / Sports Car 白均可凭 SOURCES.md §8.2 直链重下，但警灯/出租车顶灯与校园充电区不搭，不优先。
+  备选 Taxi 黄 / Police 白+警灯 / Sports Car 白均可凭 SOURCES.md §9.2 直链重下，但警灯/出租车顶灯与校园充电区不搭，不优先。
 - **推仓**：3 个选定 GLB + `assets/external/SOURCES.md` + 本文档，一次 push-files，commit `TODO`（推后填写）。
   其余 7 个候选 GLB（Quaternius Taxi/Sports/Police/Car 2、Kenney 整包、Khronos CarConcept）留本地 /tmp，
-  凭 SOURCES.md §8 直链可重下。
+  凭 SOURCES.md §9 直链可重下。
 - **还剩什么**：① 下一波换装：把选定三车装进 ch-cars（充电区 3 辆）与 ov-parking（停车区 3 辆），
   核对朝向（glTF 前向 +Z，Blender 导入后长在 Y 轴）、统一缩放（按长到 4.4 m 或保留原生）、Sports 2 改红、
   SUV 宽度按车位核对，车漆可复用 ch-cars 旧清漆配方；② 换装后重出 charge/overview 场景 GLB 并走 CI 验收；
   ③ 本轮未动 `ch-cars.py` / `.blend` / `.glb`、ov-parking 与任何 Godot 文件。
+
+## §15 R2-T12 云返工：网上实拍云照片 + Godot 侧接入（2026-11-24 23:0x CST）
+
+- **起因**：用户 2026-11-24 22:43 硬性要求——云也要搞好，用网上的建模；去网上找现成的云模型/云材质
+  （CC0，记来源），不许手捏。现状是 Godot 程序化白球（7 个白色半透明球 + 5 个圆柱云影），用户嫌假。
+- **候选对比（3 家，详见 `assets/external/SOURCES.md` §8）**：
+  ① Wikimedia Commons 实拍云照片（CC0/CC-BY）——**选定**，真照片、蓬松感最好、curl 直链；
+  ② Poly Haven 云 HDR（`cloud_layers` / `kloofendal_48d_partly_cloudy`，CC0）——未选：360° 全景含地面/太阳，
+  无孤立云朵可裁，等距投影还会拉伸；③ Sketchfab 云团模型——未选：搜到的前 3 条无一是云模型，
+  可下载的须账号 OAuth（401），且多为低多边形卡通云。OpenGameArt/Kenney 只有像素/卡通云，未选。
+- **选定（`assets/external/clouds/wikimedia-commons/`）**：
+  `cloud_puff.png`（870×780，积云，晴/多云/阴用）——原图 WarmaFiesta《A single cumulus cloud in a clear
+  daytime sky.jpg》，**CC-BY 4.0（须署名 WarmaFiesta）**；`cloud_storm.png`（1024×717，积雨云团，雨/暴雨用）——
+  原图 Shyamal《Cumulonimbus viewed from airplane.jpg》，**CC0 1.0**。两张均由原图裁切 + 白度键抠天
+  （min 通道 smoothstep + 裁切边羽化 + 去饱和），无手绘/手捏；本地目视验证：puff 为致密花椰菜状云顶、
+  storm 为致密云团。试过没成的：CC0《Cumulus congestus clouds》塔身逆光亮边 + 暗蓝灰内腔，
+  白度键与去饱和键都只能抠出细弧、留灰雾，已弃用。原图未入仓（直链 + SHA256 见 SOURCES.md §8，可重下）。
+- **接入（只动云的部分）**：`scripts/weather_system.gd`——`_build_clouds` 改为 7 组云片（每组 1 主 + 2 小，
+  同材质拼云团，`BILLBOARD_ENABLED`；体积云在 GL Compatibility 下不可行，故用贴图云片）；
+  `set_weather` 按档换贴图（雨/暴雨 → storm）、按 `cloud_cover` 显隐（晴 1 / 多云 3 / 阴 5 / 雨 6 / 暴雨 7 组，
+  中心向外）、按档缩放（0.9/1.0/1.12/1.18/1.25）；云影 blob 对齐到前 5 组云的地面投影；
+  漂移时小云片跟主云片走。`data/weather.json`、天气切换逻辑、其他系统未动；
+  贴图缺失时回退旧球体（`_build_clouds_legacy`）。
+  `tools/verify_fixes.gd` +11 项云检查；`tools/shots_all.sh` +2 张（18 多云 / 19 阴天总览，旧 shots 无此两档）。
+- **验证**：本地无头 verify（待填：基线 → 全过）；CI godot-verify run（待填）+ 截图 artifact 逐张目视
+  18 多云 / 19 阴天 / 06 雨 / 07 暴雨（待填）。
+- **推仓**：待填（commit / HEAD）。
+- **还剩什么**：待填（目视结论与遗留）。
