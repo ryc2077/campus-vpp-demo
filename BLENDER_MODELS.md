@@ -1397,8 +1397,8 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 - **修法（只改本件）**：删 A/B 窗带 80 件（C 栋专用：只留 C 窗带 32 件）；删 A/B 屋顶膜 2 件；A/B 设备盒 + 风扇保留，落座由膜顶 18.40 降 **0.05** 至板顶 **18.35**（贴板顶、不悬空、不下沉）；A/B 压顶盖板保留（19.00–19.12 不动）；C 栋一字未动。`_pbr_apply` 按材质名工作、删件不影响（膜材质仍由 C 膜在用）。
 - **重建**：重跑 ov-windows-roofs.py（`assets/blender/overview/ov-windows-roofs-r2t29.log`），`DONE ov-windows-roofs`，零 Error/Traceback；窗 32、件 **45**、GLB 回读 **45**（改前 127）；`ov-windows-roofs.glb` 4,156,720 → **3,679,744 B**，`.blend` 5,046,268 → **4,306,308 B**。复测新 .glb：全部 12 组（A/B/C × frame/glass/roofdeck/coping/equip/fan）BVH 面片相交 **0 对**；A/B 设备/风扇底座 z=**18.35**，正好贴新屋顶板顶面；仅存膜为 C 膜（13.25–13.30，C 板顶 13.25，旧设计不变）。
 - **推仓**：已推 `f9cfc1e0`，已核对建出；触发 blender-previews run **#110**（45470423796，19:27Z 触发），截至 03:53 仍 in_progress（4/6 组 success：classroom/pv/storage/charge；overview + dist 仍在渲染）。
-- **验证**：待填（blender-previews overview 组 run 号 + ov-windows-roofs.png 目视结论；godot-verify 总览验收由终轮整合做）。
-- **还剩什么**：① 总览重拼 + Godot 侧验收由终轮整合做；② 本件预览相机仍框 A 栋南立面（仅预览衬底，不导出），Actions 的 ov-windows-roofs.png 将显示无窗的 A 栋示意量块 + 屋顶细部，C 栋窗带不在该取景内，属修法本意、不另改取景；③ 旧 A/B 窗带几何已从脚本删去，如终轮整合想恢复 A/B 窗带需按新幕墙面重做、不可直接 revert。
+- **验证**：blender-previews run **#110**（45470423796，head f9cfc1e0）completed **success**（6/6 组；overview 最晚完成）；artifact `blender-previews-overview` 17,945,247 B、20 张，下载逐张目视——**ov-windows-roofs.png ✓**：A 示意量块无窗（裸墙）、屋顶单层深灰板 + 压顶 + 设备/风扇，无双层窗带、无共面闪烁；C 栋 4 层蓝窗带 + 膜 + 压顶 + 设备/风扇齐全（render_max 聚类取景含 C 栋，与 .py 相机取景不同）；B 压顶框 + 设备/风扇在位，框内见地面（本件无 B 楼体衬底、膜已删；拼装后 B 屋顶板在下承托，落座已实测 18.35）；框外地面两处浅色影为 B 压顶/设备的日光投影、非几何。另目视 bldA/bldB/lib/tower/dorm/bldC 6 张：5 栋换装楼与 #106 一致，无回归。本地复核：同 .blend 本地 Eevee 渲 A 取景（裸量块 + 屋顶细部）与 C 取景（4 层窗带齐全）均与 Actions 图一致。godot-verify 总览验收由终轮整合做。
+- **还剩什么**：① 总览重拼 + Godot 侧验收由终轮整合做；② 本件预览相机仍框 A 栋南立面（仅预览衬底，不导出），Actions 的 ov-windows-roofs.png 将显示无窗的 A 栋示意量块 + 屋顶细部，C 栋窗带不在该取景内，属修法本意、不另改取景（实测 render_max 聚类取景与 .py 相机不同，C 栋窗带实际入镜、见验证行）；③ 旧 A/B 窗带几何已从脚本删去，如终轮整合想恢复 A/B 窗带需按新幕墙面重做、不可直接 revert。
 
 ## §30 R2-T30 教室南/北墙遮光面与天花板偏暗补光（2026-11-25，只加室内补光，不动室外灯光、不改材质模型）
 
