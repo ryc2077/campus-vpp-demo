@@ -1228,7 +1228,16 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 
 ### 推仓
 
-- 待填（推后补 commit 号与核对结果）。
+- commit `f39cd380`（`f39cd380ed410edc8eee538006646f16a2f2aea8`，父 `0ed69b0a`，
+  2026-11-24T16:51:18Z = 2026-11-25 00:51 CST）：12 文件一次 push-files——
+  `_pbr_apply.py`、`ov-track.py`、ov-windows-roofs / ov-track 的 `.blend` +
+  `.glb`、新染色 `pbr-tinted/track_B8543F_color.jpg`、3 张本地预览 PNG
+  （ov-windows-roofs / ov-track / ov-bldC）、本文档 + SOURCES.md。
+  推后核对：commit 真建出，父链连续；contents 逐项核对大小/SHA 与本地一致
+  （ov-track.glb 4,540,664 B `fd5c6e6e`、ov-windows-roofs.glb 4,156,720 B
+  `c4afaf5a`、两 .blend、`track_B8543F_color.jpg` 315,282 B `bb3cce97`、
+  BLENDER_MODELS.md 247,651 B、SOURCES.md 119,744 B）。单 blob 均 <40MB
+  （最大 4.5MB）。本段推仓记录随后续 docs 提交补填。
 
 ### 验证
 
