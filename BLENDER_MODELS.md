@@ -843,7 +843,13 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
   - charge 场景：重跑 charge.py（只改车位检查段），回读 123 对象（桩 40、车 15、
     标线 21、雨棚 47），三车各在位内、车头朝南、无桩穿插、雨棚全覆盖，材质去重
     117→24（车 9 种与旧版一致），charge.blend 3,002,296 B、charge.glb 7,093,272 B。
-- **推仓**：待填（commit / HEAD，推后填）。
+- **推仓**：commit `f868be10`（`f868be109c56d37da82491ed62385def671d1800`，父 `9bde93fa`）：
+  10 文件一次提交——ch-cars / ov-parking 各 .py/.blend/.glb、charge .py/.blend/.glb、
+  本文档；推后核对：HEAD 即该 commit，6 个大文件仓库大小与本地一致
+  （ch-cars.glb 531,580 B / blob `5be9ed4a…`、ov-parking.glb 3,367,900 B /
+  charge.glb 7,093,272 B、ch-cars.blend 2,096,408 B、ov-parking.blend 2,446,596 B、
+  charge.blend 3,002,296 B）；ch-cars.glb 本地重出后 531,580 B（首版记录 531,560 B
+  为旧值，已修正）。
 - **验证**：待填（blender-previews charge 组 run 号 + ch-cars 目视；overview 组 run 号 +
   ov-parking 目视；godot-verify 新 run 号 + 04-charge 目视：车有轮有窗有灯、三色分明、
   V2G 桩前位置正确、SOC 条在车顶）。
