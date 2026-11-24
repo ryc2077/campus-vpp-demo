@@ -34,15 +34,16 @@ func _chk(name: String, ok: bool, detail: String = "") -> void:
 		print("FAIL: ", name, " ", detail)
 
 
-func _count_wx_class(path: String) -> int:
-	# 递归数全仓行首声明全局天气类的 .gd 文件数（#97 回归即第二处）。
+func _scan_class_names(path: String, counts: Dictionary) -> void:
+	# 递归扫全仓行首 class_name 声明，记每个全局类名出现次数（审计 40872866
+	# 建议 3：旧 _count_wx_class 只数 WeatherSystem 一类，换个类名重蹈 run #97
+	#（Class "X" hides a global script class，系统加载失败）时 verify 拦不住）。
 	# 跳过隐藏目录（.godot 等）与 export/（导出产物不参与类注册）。
-	# 只认行首声明（文件首行或换行后紧跟），不认字符串/注释里的提及——
-	# 本文件自身就在字串与注释里提及该类名，不能算进去。
-	var n := 0
+	# 只认行首声明（行首紧跟 class_name），不认字符串/注释里的提及——
+	# 本文件自身就在字串与注释里提及多个类名，不能算进去。
 	var d := DirAccess.open(path)
 	if d == null:
-		return 0
+		return
 	d.list_dir_begin()
 	var f := d.get_next()
 	while f != "":
@@ -50,16 +51,19 @@ func _count_wx_class(path: String) -> int:
 			var p: String = path + ("" if path.ends_with("/") else "/") + f
 			if d.current_is_dir():
 				if not f.begins_with(".") and f != "export":
-					n += _count_wx_class(p)
+					_scan_class_names(p, counts)
 			elif f.ends_with(".gd"):
 				var fa := FileAccess.open(p, FileAccess.READ)
 				if fa != null:
-					var t := fa.get_as_text()
-					if t.begins_with("class_name WeatherSystem") or t.contains("\nclass_name WeatherSystem"):
-						n += 1
+					for line in fa.get_as_text().split("\n"):
+						if line.begins_with("class_name ") or line.begins_with("class_name\t"):
+							var rest := line.substr("class_name".length()).strip_edges()
+							if rest == "":
+								continue
+							var nm := rest.split(" ")[0].split("\t")[0]
+							counts[nm] = int(counts.get(nm, 0)) + 1
 		f = d.get_next()
 	d.list_dir_end()
-	return n
 
 
 func _init() -> void:
@@ -1252,8 +1256,19 @@ func _process(_delta: float) -> bool:
 	# B：重名类扫描——#97 的真根因：demo-godot/ 副本与根副本同名类冲突，
 	# 导出包天气系统根本没加载；daaad2b7 已去掉副本类名，本项锁死“全仓仅一处”，
 	# 后人再推带类名的副本时 verify 直接 FAIL。
-	var _wx_n := _count_wx_class("res://")
+	# 泛化（审计 40872866 建议 3）：WeatherSystem 单项保留，另加通用扫描——
+	# 一次扫描共用：任一 class_name 出现 ≥2 即 FAIL，不只天气类。
+	# 当前全仓 19 个全局类名全部唯一（total=19，dup 为空）。
+	var _cn_counts := {}
+	_scan_class_names("res://", _cn_counts)
+	var _wx_n := int(_cn_counts.get("WeatherSystem", 0))
 	_chk("天气冒烟：class_name WeatherSystem 全仓仅一处（无重名类冲突）", _wx_n == 1, "count=" + str(_wx_n))
+	var _cn_dup: Array[String] = []
+	for _k in _cn_counts.keys():
+		if int(_cn_counts[_k]) >= 2:
+			_cn_dup.append(String(_k) + "×" + str(_cn_counts[_k]))
+	_cn_dup.sort()
+	_chk("全局类名无重复：全仓 class_name 各仅一处（任一重名即 #97 式冲突）", _cn_dup.is_empty(), "total=" + str(_cn_counts.size()) + " dup=[" + ", ".join(_cn_dup) + "]")
 	# C：天空压暗——任务项 1 的状态版（无头不渲染，量决定渲染的天空顶色）：
 	# 09:00 晴天顶色 #63a9b4（亮度约 0.61），暴雨同公式压到约 0.49（Δ≈0.11）。
 	# 截图定标：#96 天空区（y80–180）晴 162.5 / 暴雨 128.4（Δ34.1），
