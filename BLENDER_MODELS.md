@@ -698,7 +698,7 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
   SUV 宽度按车位核对，车漆可复用 ch-cars 旧清漆配方；② 换装后重出 charge/overview 场景 GLB 并走 CI 验收；
   ③ 本轮未动 `ch-cars.py` / `.blend` / `.glb`、ov-parking 与任何 Godot 文件。
 
-## §15 R2-T12 云返工：网上实拍云照片 + Godot 侧接入（2026-11-24 22:46–23:30 CST）
+## §15 R2-T12 云返工：网上实拍云照片 + Godot 侧接入（2026-11-24 22:46–24:00 CST）
 
 - **起因**：用户 2026-11-24 22:43 硬性要求——云也要搞好，用网上的建模；去网上找现成的云模型/云材质
   （CC0，记来源），不许手捏。现状是 Godot 程序化白球（7 个白色半透明球 + 5 个圆柱云影），用户嫌假。
@@ -724,9 +724,28 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 - **验证**：本地无头 verify **PASS=243 FAIL=0**（基线 232 项 + 云 11 项全过；首跑 240/243，
   3 项失败是本地全量导入未完成导致两张云贴图未加载，`No loader found`，同批 6 个场景 GLB 也未加载、
   非代码问题；后用同版本导入器对两张 PNG 定向导入生成 .import/.ctex，复跑 243/243）。
-  CI godot-verify run（待新 run）+ 截图 artifact 逐张目视 18 多云 / 19 阴天 / 06 雨 / 07 暴雨（待填）。
-- **推仓**：待填（commit / HEAD，推后填）。
-- **还剩什么**：待填（CI 目视结论与遗留，CI 后填）。
+  CI godot-verify run **#111 / 45427988771**（HEAD `9bde93fa`，2026-11-24 23:39–23:57 CST，约 18 分钟）
+  **completed/success**，VERIFY-SUMMARY **PASS=263 FAIL=0**（基线 252 + 云 11 项全过，云 11 项逐项见 job log）。
+  截图 artifact `godot-screenshots` 20 张齐（含新拍 18/19），逐张目视天气档：
+  18 多云通过（左上大朵蓬松白积云、实拍花椰菜纹理、边缘柔和，无生硬白球）、19 阴通过（同朵云压灰
+  `#9fb2c0`、右侧第二朵云团入框、天空整体压暗，与阴档匹配）、07 暴雨通过（顶部多团深灰积雨云 +
+  雨丝、画面压暗有暴雨感）、00 晴通过（仅 1 朵小积云，晴天少云）、06 雨 / 11 雨：雨丝与 V2G 弧线正常、
+  无回归，但细节机位俯视屋顶、云不在帧内，雨档云片未直接目视（雨与暴雨共用 storm 贴图，仅 tint 与
+  组数不同，07 已验证该贴图）。其余帧（01/02/03/04/05/08/09/10/12/13–17）布局、标签、面板与旧 run
+  一致，无回归。
+- **推仓**：commit `9bde93fa`（父 `1c39c0dd`），10 文件一次提交：`scripts/weather_system.gd`
+  （blob `5e3dd6b5`）、`tools/verify_fixes.gd`（`af0bc6d5`）、`tools/shots_all.sh`（`c0cfbf7b`）、
+  两张云 PNG（`082e96d6` / `180c4ec7`，601,153 B / 1,174,189 B）+ 两张 `.import`（`d3e23d84` / `de2bf8f8`）+
+  `clouds/wikimedia-commons/README.md`（`56cc9b73`）+ `BLENDER_MODELS.md`（`2a4bfd2b`）+
+  `assets/external/SOURCES.md`（`b0b36a69`）；推后 contents 核对 5 项 blob 与大小全部一致。
+  （基底说明：推前 HEAD 已是 `1c39c0dd`；R2-T8 的 `445bad47` 曾连带发布本节草稿、R2-T20 的 `587007d9`
+  又连带发布了本地同步版，本轮推仓改用仓库基底 staging、只动本节，其余任务的未推内容未带入。）
+- **还剩什么**：① 总览取景天空带窄，静态截图一次只能看到 1–2 组云（其余组在帧外漂移，直播时会轮流飘入），
+  云量档位以 verify 计数为准，不以单帧云朵数为准；② 雨档云片无总览帧直接目视（只有 06/11 细节帧），
+  如需补一张雨天总览可在 shots 里加 `wx=rain` 总览帧；③ R2-T7 灯光（`25badadb`，本推之后落地）改了
+  天空 tint 与暴雨天光/雾色，未动云代码，但会轻微改变云的观感，以它自己的 CI run 为准；④ 抠天脚本
+  `/tmp/cloud-cand/make_sprites.py` 随一次服务重启 /tmp 清空而丢失，方法已全文记在 SOURCES.md §8.3，
+  可凭原图直链重下复现。
 
 ## §18 R2-T18 草地重铺（2026-11-24，只改草地相关件）
 
