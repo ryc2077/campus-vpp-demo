@@ -1,3 +1,26 @@
+# ov-trees v6 (R2-T50, 2026-11-25): 树太小整改——只放大，不换来源、不改棵数/
+#   位置/模型分配。用户看 #112 ov-trees.png 与 Godot #134 总览仍觉树小；本次
+#   Blender 实测 v5（见 BLENDER_MODELS.md §51）：行道树 211 棵中位仅 6.5m
+#   （5.0–8.0m）、点缀树 34 棵中位 5.1–5.6m（4.05–7.0m），确比真实成熟树矮；
+#   密植带 216 棵中位 10.6–11.75m（8.02–14.99m）与 D3 特征树 12 棵
+#   （8.7–12.0m）已在真实档，核实后保留不动。
+#   放大口径（只在 plant() 内把目标高重映射后再算缩放；模型选择仍用原目标高
+#   过滤，rng 消费与每棵模型/位置/朝向与 v5 一字相同）：
+#     street/road [5,8] -> [10,15] 线性；ornamental/scattered [4,7] -> [6,8] 线性；
+#     dense_belt/perimeter/feature 不变。
+#   槽位帽（树干半径随缩放同比例长，R43 槽宽放不下 10m+ 树；§51 有逐棵复核）：
+#     T286 (-43.44,-32) 与 T288 (-46.16,-8) 各帽 9.0m（树干半剖面实测：
+#     tree_default 干半径 local 0.0973、tree_pineDefaultB 0.1061，9.0m 时
+#     干半径 0.51/0.62m，各侧净空均 ≥0.14m，与 §44 接受的 0.16m 紧净空同档）；
+#     Tree_284 (-38,-48，同列未移树）帽 9.5m——放大后干半径 0.68m、距跑道
+#     外缘路缘石仅 0.01m（v5 为 0.19m），帽顶后净空约 0.15m。
+#   其余 3 棵 R43 按档放大：T285 5.7->11.17、T287 6.0->11.67、T289 5.8->11.33m，
+#   树干位置不动，复核见 §51（树干边净空均 >0.3m；冠底升至 3.7–5.5m，
+#   冠层悬挑在跑道环面/路廊上方、无三维接触）。
+#   R-N2-T 东列 x=-28：树干边到路廊东缘最近约 2.26m，冠层西悬约 0.55m 入路廊
+#   上空、冠底 >2.3m，无接触；T32 西沿线 3 棵（12.45/8.06/11.83m）本就
+#   在 8–15m 档，位置/高度不动，距新跑道西缘约 29m；全量两两间距与 v5
+#   一字相同（<2.0m 0 对、<2.6m 21 对，无新增）。
 # ov-trees v5 (R2-T43, 2026-11-25): v4 + R-N2-T 西列 5 棵移出新跑道环面（只动
 #   这 5 棵新树位置，数量/模型/高度一字不改；其余 468 棵一字不动）。
 #   R2-T33 §33 ②称 5 棵（x=-38，y=-40/-32/-16/-8/0）压在环面上；本次 GLB 回读 +
@@ -39,8 +62,9 @@
 #      Tree-Stylized 这四个名字，取用等价物 CommonTree_3/5（阔叶）与 Pine_4/5（松塔）。
 #   Poly Haven 树木禁用（单棵数百万 tris），未用。
 # 尺寸：每个源模型先量包围盒实测高度（MEASURED 日志），再统一缩放到布局高度档
-#   行道树 5–8m、密植带乔木 8–15m（D4/D5b 8–12m）、池塘特征树 8–12m、楼间点缀 4–7m。
-#   布局高度逐棵见 assets/blender/overview/green_layout.json（zones[].positions [x, y, 高]）。
+#   v6（R2-T50）：行道树 10–15m、密植带乔木 8–15m（D4/D5b 8–12m）、池塘特征树
+#   8–12m、楼间点缀 6–8m。重映射只在 plant() 内做（见 R50_REMAP），
+#   green_layout.json 与 HEIGHT_OLD 原档一字不动。
 # 树形：树干 + 多层分层树冠（Kenney 每模型实测冠层 ≥2 档，见探针记录），树干露出地面
 #   ≥1.2m（逐棵校验：crown_z0 × scale ≥ 1.2，否则换 fallback 模型）；禁止单圆锥插地
 #   （tree_cone / tree_fat / tree_simple / tree_small / tree_blocks / 棕榈 / 地被松均未用）。
@@ -206,8 +230,31 @@ def linked_copy(obj, name):
     return c
 
 
+# R2-T50 放大重映射（只改缩放，不改模型选择/位置/棵数）：
+#   street/road [5,8] -> [10,15] 线性；ornamental/scattered [4,7] -> [6,8] 线性；
+#   dense_belt/perimeter/feature 原样返回。
+#   R50_CAP：键为种下后坐标（R43 已移位坐标），值为该棵高度上限——槽宽放不下
+#   10m+ 树（树干半径随缩放同比例长），帽顶后净空仍 >0.10m，见文件头与 §51。
+R50_CAP = {(-43.44, -32.0): 9.0, (-46.16, -8.0): 9.0, (-38.0, -48.0): 9.5}
+
+
+def _remap_h(pool_kind, h, x, y):
+    if pool_kind in ("street", "road"):
+        nh = 10.0 + (h - 5.0) / 3.0 * 5.0
+    elif pool_kind in ("ornamental", "scattered"):
+        nh = 6.0 + (h - 4.0) / 3.0 * 2.0
+    else:
+        return h
+    cap = R50_CAP.get((round(x, 2), round(y, 2)))
+    if cap is not None:
+        nh = min(nh, cap)
+    return nh
+
+
 def plant(idx, x, y, target_h, pool_kind):
-    """种一棵树：按高度档过滤（树干露出 ≥1.2m），取 master 或链接复制，缩放至目标高。"""
+    """种一棵树：按高度档过滤（树干露出 ≥1.2m），取 master 或链接复制，缩放至目标高。
+    R2-T50：模型选择仍用原 target_h 过滤（rng 消费与模型分配与 v5 一字相同），
+    选中模型后再把高度重映射为放大后高度（_remap_h）算缩放。"""
     pool = POOL_BY_KIND[pool_kind]
     fallback = FALLBACK[pool_kind]
     ok = []
@@ -217,7 +264,8 @@ def plant(idx, x, y, target_h, pool_kind):
             ok.append(m)
     choices = ok if ok else [fallback]
     model = rng.choice(choices)
-    s = target_h / measured[model]["height"]
+    eff_h = _remap_h(pool_kind, target_h, x, y)
+    s = eff_h / measured[model]["height"]
     rot_z = rng.uniform(0, math.pi * 2)
     if model not in used_masters:
         obj = masters[model]
@@ -229,7 +277,7 @@ def plant(idx, x, y, target_h, pool_kind):
     obj.rotation_euler = (0, 0, rot_z)
     obj.name = f"Tree_{idx:03d}_{model}"
     actual_h = measured[model]["height"] * s
-    return obj, model, actual_h
+    return obj, model, actual_h, eff_h
 
 
 # ---- 布局：新种 327 棵（green_layout.json） ----
@@ -267,11 +315,11 @@ for zone in layout["trees"]["zones"]:
             print(f"  RELOC {x},{y} -> {nx},{ny} ({R43_TAG[(x, y)]})")
             x, y = nx, ny
             n_r43 += 1
-        obj, model, actual = plant(idx, x, y, h, kind)
+        obj, model, actual, eff_h = plant(idx, x, y, h, kind)
         zone_counts[zid]["models"][model] = zone_counts[zid]["models"].get(model, 0) + 1
-        planted.append((obj, zid, model, h, actual))
+        planted.append((obj, zid, model, eff_h, actual))
         if j == 0:
-            spot_checks.append((zid, model, h, actual))
+            spot_checks.append((zid, model, eff_h, actual))
         idx += 1
 print(f"NEW TREES: {idx} (zones {len(layout['trees']['zones'])})")
 print(f"R2-T43 RELOCATED: {n_r43} (expected 5)")
@@ -369,16 +417,16 @@ for r in relocated:
 
 rng_h = random.Random(20261124)
 HEIGHT_OLD = {"perimeter": (8.0, 15.0), "road": (5.0, 8.0),
-              "scattered": (4.0, 7.0)}
+              "scattered": (4.0, 7.0)}  # 原档；v6 在 plant() 内经 _remap_h 放大后缩放
 POOL_OLD = {"perimeter": "dense_belt", "road": "street",
             "scattered": "ornamental"}
 old_counts = {"perimeter": 0, "road": 0, "scattered": 0}
 for (x, y, k) in fixed:
     lo, hi = HEIGHT_OLD[k]
     h = rng_h.uniform(lo, hi)
-    obj, model, actual = plant(idx, x, y, h, POOL_OLD[k])
+    obj, model, actual, eff_h = plant(idx, x, y, h, POOL_OLD[k])
     old_counts[k] += 1
-    planted.append((obj, "OLD-" + k, model, h, actual))
+    planted.append((obj, "OLD-" + k, model, eff_h, actual))
     idx += 1
 print(f"OLD RESKIN: {sum(old_counts.values())} {old_counts}")
 print(f"TREES TOTAL: {len(planted)} (new 327 + old 146)")
@@ -461,4 +509,4 @@ blend1 = BLEND_PATH + "1"
 if os.path.exists(blend1):
     os.remove(blend1)
 
-print("DONE ov-trees v5")
+print("DONE ov-trees v6")
