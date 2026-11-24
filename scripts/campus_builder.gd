@@ -467,13 +467,16 @@ func set_night_windows(night_f: float) -> void:
 ## 失败则保留程序化作回退（GlbLoader 已打印警告）。
 ## 户外变压器组 [74,-30] 无 Blender 件（§6 缺口），始终保留程序化。
 func _load_scene_glbs() -> void:
-	# 总览：地面/道路/操场/池塘/树/旗门 + 全部宿主楼体（含配电房外壳）
-	if GlbLoader.attach(self, "overview", "OverviewGLB") != null:
-		overview_glb_active = true
-		for n in _proc_overview_nodes:
-			n.visible = false
-		for id in hosts.keys():
-			set_host_visible(id, false)
+	# R2-T38 探针第 1 步：不加载 overview.glb（attach 跳过），但程序化总览件
+	# 与宿主仍按 GLB 已接管处理（隐藏 + 碰撞禁用，overview_glb_active=true），
+	# 使除 GLB 本体外的一切状态与基线一致：标签遮挡射线（mask 1，命中宿主
+	# 碰撞体）与 verify 口径不变；单因素去除，只缺 GLB 本体。
+	# 探针分支专用，绝不合入 main。
+	overview_glb_active = true
+	for n in _proc_overview_nodes:
+		n.visible = false
+	for id in hosts.keys():
+		set_host_visible(id, false)
 	# 储能站（全局坐标，Blender 中心 (64,30)；含拼装补的半透明壳体）
 	var st_glb := GlbLoader.attach(self, "storage", "StorageGLB")
 	if st_glb != null and storage_group != null:
