@@ -1082,6 +1082,29 @@ func _process(_delta: float) -> bool:
 	_chk("减弱模式树不摆", canopy0.rotation.z == rot_a, str(canopy0.rotation.z - rot_a))
 	_main.call("_set_reduced_motion", false)
 	wsys.call("set_weather", "sunny")
+	# ---- R2-T12 云返工：实拍云片贴图 + 五档云量/贴图联动 ----
+	_chk("云贴图已加载（puff/storm 非空）", wsys.puff_tex != null and wsys.storm_tex != null, "")
+	_chk("云组 7 组 + 小云片 14 张", wsys.clouds.size() == 7 and wsys.cloud_sats.size() == 14, str(wsys.clouds.size()) + "/" + str(wsys.cloud_sats.size()))
+	_chk("云用 billboard 贴图（主云片为 QuadMesh + BILLBOARD）", (wsys.clouds[0] as MeshInstance3D).mesh is QuadMesh and (wsys.cloud_mats[0] as StandardMaterial3D).billboard_mode == BaseMaterial3D.BILLBOARD_ENABLED, "")
+	_chk("云材质挂 puff 贴图（晴天）", (wsys.cloud_mats[0] as StandardMaterial3D).albedo_texture == wsys.puff_tex, "")
+	var _vis_groups := func() -> int:
+		var _n := 0
+		for _c in wsys.clouds:
+			if (_c as MeshInstance3D).visible:
+				_n += 1
+		return _n
+	_chk("晴天云量 1 组（cloud_cover 0.08）", _vis_groups.call() == 1, str(_vis_groups.call()))
+	wsys.call("set_weather", "cloudy")
+	_chk("多云云量 3 组（cloud_cover 0.45）", _vis_groups.call() == 3, str(_vis_groups.call()))
+	wsys.call("set_weather", "overcast")
+	_chk("阴天云量 5 组（cloud_cover 0.75）", _vis_groups.call() == 5, str(_vis_groups.call()))
+	wsys.call("set_weather", "rain")
+	_chk("雨天云量 6 组 + 换 storm 贴图（cloud_cover 0.92）", _vis_groups.call() == 6 and (wsys.cloud_mats[0] as StandardMaterial3D).albedo_texture == wsys.storm_tex, str(_vis_groups.call()))
+	wsys.call("set_weather", "storm")
+	_chk("暴雨云量 7 组 + storm 贴图（cloud_cover 1.0）", _vis_groups.call() == 7 and (wsys.cloud_mats[0] as StandardMaterial3D).albedo_texture == wsys.storm_tex, str(_vis_groups.call()))
+	_chk("暴雨云团放大 1.25×（主云片 scale）", absf((wsys.clouds[0] as MeshInstance3D).scale.x - 1.25) < 0.01, str((wsys.clouds[0] as MeshInstance3D).scale))
+	wsys.call("set_weather", "sunny")
+	_chk("回晴天：云量恢复 1 组 + puff 贴图", _vis_groups.call() == 1 and (wsys.cloud_mats[0] as StandardMaterial3D).albedo_texture == wsys.puff_tex, str(_vis_groups.call()))
 	# ---- P3-2 colors.csv 落到工程内 ----
 	_chk("data/colors.csv 存在", FileAccess.file_exists("res://data/colors.csv"), "")
 	var csv_txt := FileAccess.get_file_as_string("res://data/colors.csv")

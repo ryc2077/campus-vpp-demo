@@ -702,9 +702,9 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
   漂移时小云片跟主云片走。`data/weather.json`、天气切换逻辑、其他系统未动；
   贴图缺失时回退旧球体（`_build_clouds_legacy`）。
   `tools/verify_fixes.gd` +11 项云检查；`tools/shots_all.sh` +2 张（18 多云 / 19 阴天总览，旧 shots 无此两档）。
-- **验证**：本地无头 verify：基线 232 项全过；+11 项云检查中 8 项通过（五档云量 1/3/5/6/7、
-  雨/暴雨换 storm 贴图、暴雨 1.25×、回晴天恢复），3 项失败是本地导入未完成导致两张云贴图未加载
-  （`No loader found for resource`，同批 6 个场景 GLB 也未加载，非代码问题；导入完成后复跑，待填复跑结果）。
+- **验证**：本地无头 verify **PASS=243 FAIL=0**（基线 232 项 + 云 11 项全过；首跑 240/243，
+  3 项失败是本地全量导入未完成导致两张云贴图未加载，`No loader found`，同批 6 个场景 GLB 也未加载、
+  非代码问题；后用同版本导入器对两张 PNG 定向导入生成 .import/.ctex，复跑 243/243）。
   CI godot-verify run（待新 run）+ 截图 artifact 逐张目视 18 多云 / 19 阴天 / 06 雨 / 07 暴雨（待填）。
 - **推仓**：待填（commit / HEAD，推后填）。
 - **还剩什么**：待填（CI 目视结论与遗留，CI 后填）。

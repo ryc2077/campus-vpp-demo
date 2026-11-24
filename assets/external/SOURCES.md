@@ -582,7 +582,7 @@ Sports 2 ×1.108）或保留原生 3.97–4.22 m（紧凑轿车实尺，差 <10%
   留本地 /tmp，凭本节直链可随时重下。commit 见 BLENDER_MODELS.md §16。
 - **未动**：`ch-cars.py` / `.blend` / `.glb`、ov-parking、Godot scripts/scenes/data 一律未碰；换装是下一波任务。
 
-## 8. 云：实拍云照片贴图（R2-T12，2026-11-24 23:0x CST）
+## 8. 云：实拍云照片贴图（R2-T12，2026-11-24 22:46–23:10 CST）
 
 > 用户 2026-11-24 22:43 硬性要求：云也要搞好，用网上的建模；去网上找现成的云模型/云材质
 > （CC0，记来源），不许手捏。现状是 Godot 程序化白球（`scripts/weather_system.gd`

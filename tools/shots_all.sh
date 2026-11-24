@@ -45,5 +45,9 @@ shot "scene=charge&shot=1&hour=18&abc=1" 16-abc-open-charge.png
 #   散热片、绝缘子全入框；须传 scene=overview，否则 _deferred_enter 不跑、
 #   机位停在总览）
 shot "scene=overview&shot=1&hour=9&close=1" 17-transformer-closeup.png
+# 18–19：多云/阴天总览（R2-T12 云返工验收：旧 shots 只有雨/暴雨档，
+#   多云/阴两档的云量与贴图无图可验；与 00-overview 同机位同时刻，只换 wx）
+shot "shot=1&hour=9&wx=cloudy" 18-overview-cloudy.png
+shot "shot=1&hour=9&wx=overcast" 19-overview-overcast.png
 if [ "$FAILED" -ne 0 ]; then echo "SHOTS FAILED"; exit 1; fi
 echo "ALL DONE"
