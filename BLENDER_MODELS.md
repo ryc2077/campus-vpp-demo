@@ -488,7 +488,41 @@
 - **密度估算（草坪 1,911 m²，现行 ov-lawn.py 口径；R2-T3 GREEN_PLAN 未出，以它为准再定）**：
   lod1 拼满 1/m² = 3.88M 面；lod2 拼满 = 0.58M 面；推荐混合（程序化底保留 + lod1 0.25/m² + 红燕麦 lod1 0.05/m²）
   新增约 1.05M 面。换装/重铺是下一波施工任务，本轮未动 ov-lawn.py/.blend/.glb、ov-field 与任何 Godot 文件。
-- **推仓**：12 个选定 GLB + `assets/external/SOURCES.md` + 本文档，一次 push-files，commit `TODO`（推后填写）。
+- **推仓**：12 个选定 GLB + `assets/external/SOURCES.md` + 本文档，一次 push-files，commit `8e84da3e`
+  （`8e84da3e521a7c3edab1cd3f546c08fc1d573250`，父 `b346200a`；首推因 HEAD 被 R2-T2 抢先而 422 非快进，重推成功；
+  仓库核对：草甸 lod1 大小 309,904 B / blob `11641d0d…`、lod1-decoded 369,960 B / blob `7c314874…` 均一致）。
   其余 10 个候选 GLB（poly-pizza 2、3dassets 4、tevy 茅草/剪草坪簇 4）留本地，凭 SOURCES.md §6 直链可重下。
 - **还剩什么**：① 下一波施工按 GREEN_PLAN 把选定模型铺进 ov-lawn（换装/重铺）并重出总览；② 整合时 CI run 核对
   Godot 4.4 对 `-decoded.glb`（KTX2 贴图）的导入；③ R2-T3 绿化方案出后复核本轮密度估算档位。
+
+## §15 R2-T8 汽车网上模型 sourcing（2026-11-24 22:46–23:15 CST，只 sourcing，不建模）
+
+- **起因**：用户 2026-11-24 22:42 硬性要求——车的建模也去网上找，用网上的，不许手捏。现状是充电区
+  ch-cars 3 辆手捏简易小车（蓝 #3B82C4、红 #C4534E、白 #D7DDE3）与停车区 ov-parking 3 辆简易小车，全部要换。
+- **来源（7 家，3 家拿到）**：poly.pizza（Quaternius Cars 包，CC0，直链）、Kenney Car Kit 3.1（CC0，
+  官网 JS 门控、经 OpenGameArt 镜像直链拿到整包）、Khronos glTF-Sample-Assets CarConcept（CC-BY 4.0，直链）拿到文件；
+  Sketchfab 下载 API 401 需登录、BlendSwap 需登录（车分类页已 404）、CGTrader 免费区 202 JS 挑战页需登录、
+  BlenderKit 搜索 API 可用但下载需账号，均未拿到。详见 `assets/external/SOURCES.md` §8（含每家链接与授权）。
+- **选定（CC0，可自由改）**：Quaternius Cars 包三辆——**Car（蓝）** `cars/quaternius/car-quaternius.glb`、
+  **SUV（白）** `cars/quaternius/suv-quaternius.glb`、**Sports Car 2（橙）** `cars/quaternius/sports-car-2-quaternius.glb`，
+  共 3 个 GLB 已推仓。同一包出三色三款式，风格统一。
+- **实测（Blender 4.2.0 只读导入，与 glTF JSON 直读一致）**：Car 4.22×1.81×1.18 m、2,954 面；
+  SUV 4.21×2.11×1.53 m、3,294 面；Sports 2 为 3.97×1.80×1.16 m、3,066 面；三辆合计 9,314 面。
+  结构：每辆 4 mesh（车身 + 后轮轴一体 + 左右前轮各一），车轮真几何（轮径 0.52 m，SUV 0.65 m）；
+  车窗/前后灯是车身 mesh 上的独立材质面（Windows/Headlights/TailLights），非独立 mesh；
+  车身单色材质（Blue/White/Orange）改一个 `baseColorFactor` 即换整车漆；全车无贴图，Godot 导入无贴图依赖。
+  尺寸与目标 4.4×1.8×1.5 m 贴合（按长缩放到 4.4 m 仅 ×1.04–1.11）；SUV 宽 2.11 m，比目标宽 17%，换装时按车位核对。
+- **为什么选这家、另外几家差在哪**：Kenney 次选——轮子独立、面数更低（2,032–2,474），但车窗/车灯只是共享
+  512² colormap 贴图着色、无独立材质，2.55 m 玩具比例需 ×1.73 放大且原点沉在地下 0.30 m，换色要改共享贴图集；
+  Khronos CarConcept 淘汰——结构最真（97 mesh 全内饰+刹车盘），但单辆 213,347 面、11.7 MB，3 辆 640k 面撑爆总览，
+  且 CC-BY 需署名、只有一款概念车、包围盒轴向异常需重定向。完整打分见 SOURCES.md §8.3。
+- **颜色对应**：蓝车身已是蓝色系、SUV 白即白车；包内无出厂红车，最接近红的是橙色 Sports 2，
+  换装时把 Orange/DarkOrange 两材质的 `baseColorFactor` 改为 SPEC 红 #C4534E（改材质数值，不是手捏建模）。
+  备选 Taxi 黄 / Police 白+警灯 / Sports Car 白均可凭 SOURCES.md §8.2 直链重下，但警灯/出租车顶灯与校园充电区不搭，不优先。
+- **推仓**：3 个选定 GLB + `assets/external/SOURCES.md` + 本文档，一次 push-files，commit `TODO`（推后填写）。
+  其余 7 个候选 GLB（Quaternius Taxi/Sports/Police/Car 2、Kenney 整包、Khronos CarConcept）留本地 /tmp，
+  凭 SOURCES.md §8 直链可重下。
+- **还剩什么**：① 下一波换装：把选定三车装进 ch-cars（充电区 3 辆）与 ov-parking（停车区 3 辆），
+  核对朝向（glTF 前向 +Z，Blender 导入后长在 Y 轴）、统一缩放（按长到 4.4 m 或保留原生）、Sports 2 改红、
+  SUV 宽度按车位核对，车漆可复用 ch-cars 旧清漆配方；② 换装后重出 charge/overview 场景 GLB 并走 CI 验收；
+  ③ 本轮未动 `ch-cars.py` / `.blend` / `.glb`、ov-parking 与任何 Godot 文件。
