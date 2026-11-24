@@ -61,6 +61,21 @@ const FILL_ANGLE := 120.0
 const FILL_HEIGHT := 1.8
 const FILL_ZOFF := 0.4
 
+# R2-T46 第三盏（§47）：只罩南墙西端窄条的窄锥补光。§45 原定锥角 50°，
+# 探针实测在 Godot 4.4 里无效——50° 的有效半角约 50°（30–38° 离轴点仍吃
+# +14–+32 R，46.5° 仍 +3–4，60° 才归零），会把 S1/S2 窗间墙（离轴
+# 30–37°）吹到 138–143，超 §45 上限 135；按 §45“调锥角重扫”条款改
+# 25°（即 §45 想要的半角 25°），探针全口径通过（见 §47）。
+# 位置 (-2.2, 1.8, +1.0)、目标 (-3.8, 0.7, +3.6)、色 #ffe0b3、
+# 能量 0.8、锥角 25°、range 4m、衰减 1.0、无阴影。朝向用 rotation 定
+# （Basis.looking_at 的 -z 对准目标方向再取 euler；探针核对 fwd·want=1.0，
+# rot_deg (-19.81, 148.39, 0)），不用 look_at（§30 教训）。
+const FILL3_POS := Vector3(-2.2, 1.8, 1.0)
+const FILL3_TARGET := Vector3(-3.8, 0.7, 3.6)
+const FILL3_ENERGY := 0.8
+const FILL3_ANGLE := 25.0
+const FILL3_RANGE := 4.0
+
 func _add_fill_light() -> void:
 	for dir in [-1.0, 1.0]:
 		var sp := SpotLight3D.new()
@@ -73,6 +88,17 @@ func _add_fill_light() -> void:
 		sp.spot_attenuation = 1.0
 		sp.shadow_enabled = false
 		add_child(sp)
+	var sp3 := SpotLight3D.new()
+	sp3.name = "FillSpotSouthWest"
+	sp3.position = FILL3_POS
+	sp3.rotation = Basis.looking_at(FILL3_TARGET - FILL3_POS, Vector3.UP).get_euler()
+	sp3.light_color = FILL_COLOR
+	sp3.light_energy = FILL3_ENERGY
+	sp3.spot_angle = FILL3_ANGLE
+	sp3.spot_range = FILL3_RANGE
+	sp3.spot_attenuation = 1.0
+	sp3.shadow_enabled = false
+	add_child(sp3)
 
 func _build_procedural() -> void:
 	# 地面 / 天花
