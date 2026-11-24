@@ -651,3 +651,150 @@ Sports 2 ×1.108）或保留原生 3.97–4.22 m（紧凑轿车实尺，差 <10%
   五档云量 1/3/5/6/7、雨/暴雨换 storm 贴图、暴雨 1.25×、回晴天恢复）。
 - `tools/shots_all.sh`：+2 张（18-overview-cloudy、19-overview-overcast），旧 shots 只有雨/暴雨档，
   多云/阴两档无图可验。
+
+## 9. R2-T9 PBR 硬性整改衍生贴图（`pbr-tinted/`，2026-11-24）
+
+> 背景：用户 2026-11-24 22:42 硬性要求建筑外立面与沥青路必须挂真实材质。
+> 逐件核查结论（见 `BLENDER_MODELS.md` §13）：节点连线全部完整（baseColor+rough+normal
+> 均已链接），光板根因是烘焙贴图内容近乎平坦（墙法线图标准差约 0.5–3、沥青 color 图
+> 瓦片内标准差约 4）且一张 1024 图拉伸覆盖整面 40 m 墙 / 260 m 路（约 4.6 m/纹素）。
+> 本节文件全部由上文 §1 已下载的 CC0 包经脚本衍生（染色到 SPEC §3 配色、对比度提升、
+> 法线放大、粗糙度校准），未引入新手绘贴图，授权仍为 CC0 1.0。生成脚本逻辑见
+> `assets/blender/overview/_pbr_apply.py` 头注与本节加工说明；原始包见 §1。
+
+### 9.1 加工方法（诚实记录，非手捏材质）
+
+- 染色：按通道增益把原图均值移到 SPEC 十六进制（sRGB 空间），如沥青原图均值
+  (89,80,70) → `#424A52` (66,74,82)。
+- 对比度提升：以目标均值为中心放大偏差——沥青 ×3.0、灰泥/混凝土/铺装 ×2.0、
+  屋顶/砖 ×1.5（原图 1K 下颗粒本身极淡：沥青 diff 标准差约 3.5、白灰泥约 0.9）。
+- 大尺度斑驳：可平铺低频正弦叠加（整周期，±5% 墙/沥青/铺装、±3% 屋顶/砖/混凝土），
+  让大面在中距离仍有明暗变化；接缝处连续，无可见平铺接缝。
+- 法线放大：R/G 偏离 128 的部分放大后重归一化（灰泥 ×2.0、混凝土 ×1.5、沥青 ×2.0、
+  铺装 ×2.0），存无损 PNG；屋顶（灰瓦，源法线标准差约 25）与砖（约 11–16）不放大。
+- 粗糙度：原包 rough 图直用；唯沥青按任务要求缩放到均值 0.90（源图均值 0.77 →
+  `asphalt_rough_090.jpg` 均值 229.5/255）。
+- UV：逐面盒式投影按真实米制平铺（墙/混凝土 2 m、沥青 4 m、铺装/屋顶 3 m、砖 1.5 m），
+  不再用烘焙分瓦片 UV；贴图 Repeat 平铺，glTF 采样器默认 repeat。
+
+### 9.2 文件清单（`pbr-tinted/`，共 19 个文件）
+
+| 文件 | 来源包 | 用途（SPEC 配色） |
+|---|---|---|
+| `plaster_F3E9D2_color.jpg` / `plaster_DFE9F2_color.jpg` / `plaster_F6D9C0_color.jpg` | ambientCG Plaster001（https://ambientcg.com/a/Plaster001）Color 图染色 | 外墙灰泥：米白 `#F3E9D2` / 蓝灰 `#DFE9F2` / 浅橙 `#F6D9C0` |
+| `plaster_normal_amp2.png` | 同上 NormalGL 图 ×2.0 | 外墙法线 |
+| `concrete_B9B3A8_color.jpg` / `concrete_D8D2C4_color.jpg` / `concrete_424A52_color.jpg` | Poly Haven concrete_wall_007（https://polyhaven.com/a/concrete_wall_007）diff 图染色 | 混凝土 `#B9B3A8` / 檐口 `#D8D2C4` / 屋顶防水层深灰 `#424A52` |
+| `concrete_normal_amp15.png` | 同上 nor_gl 图 ×1.5 | 混凝土法线 |
+| `roof_424A52_color.jpg` | Poly Haven grey_roof_01（https://polyhaven.com/a/grey_roof_01）diff 图染色 | 屋顶深灰 `#424A52` |
+| `brick_8E2F28_color.jpg` / `brick_A63A2C_color.jpg` | Poly Haven red_bricks_04（https://polyhaven.com/a/red_bricks_04）diff 图染色 | 艺体馆红墙 `#8E2F28` / 砖砌压边 `#A63A2C` |
+| `asphalt_424A52_color.jpg` | Poly Haven asphalt_01（https://polyhaven.com/a/asphalt_01）diff 图染色 | 沥青路 `#424A52` |
+| `asphalt_normal_amp2.png` | 同上 nor_gl 图 ×2.0 | 沥青法线 |
+| `asphalt_rough_090.jpg` | 同上 rough 图缩放至均值 0.90 | 沥青粗糙度 |
+| `paving_D8D2C4_color.jpg` / `paving_DCD6C8_color.jpg` / `paving_C9C2B0_color.jpg` / `paving_E8B400_color.jpg` | Poly Haven concrete_pavement_03（https://polyhaven.com/a/concrete_pavement_03）diff 图染色 | 铺装 `#D8D2C4` / 步道 `#DCD6C8` / 压边石 `#C9C2B0` / 盲道黄 `#E8B400` |
+| `paving_normal_amp2.png` | 同上 nor_gl 图 ×2.0 | 铺装法线 |
+
+粗糙度与未放大法线直接引用原包文件，不另复制：
+Plaster001 Roughness、concrete_wall_007 rough/nor（已放大版除外）、grey_roof_01 rough/nor、
+red_bricks_04 rough/nor、concrete_pavement_03 rough。玻璃不贴图（透明材质），与 §1 相同。
+
+## 11. 树模型 sourcing（R2-T15，2026-11-24 22:55–23:38 CST，只下模型、记来源）
+
+> 施工：`assets/blender/overview/ov-trees.py` v3（473 棵：新种 327 + 旧树换模 146）。
+> 全部 `curl` 直链下载，无浏览器、无登录、无付费。授权均为 **CC0 1.0**。
+> 每个源模型先经 Blender 量包围盒实测高度再缩放（实测表见 §11.3，ov-trees.py
+> `MEASURED` 日志逐项打印）；颜色走源模型自带材质直连 Base Color，无 ColorRamp。
+> 校验：16 个 Kenney `.glb` 用 Python 直读 JSON（包围盒/三角面/材质 baseColorFactor）+
+> Blender 4.2.0 导入探针（每材质 z 范围、冠底）；4 个 Quaternius `.gltf` 同法直读 +
+> 导入验证；SHA-256 前 16 位见 §11.4。
+
+### 11.1 Kenney Nature Kit（主力：行道树 + 点缀 211 棵新种 + 密植带 216 棵，见 §11.5）
+
+- 资产页：https://kenney.nl/assets/nature-kit
+- 授权：CC0 1.0（随包 `LICENSE-kenney.txt` 原文：License: Creative Commons Zero, CC0，
+  http://creativecommons.org/publicdomain/zero/1.0/）
+- 直链：站内 `https://kenney.nl/download-link/6173736574732f6e61747572652d6b6974`
+  （curl 带 Referer + Cookie 取签名 URL 后下载；签名有时效，过期按同法重取；
+  本次下载 `kenney_nature-kit.zip` 10,537,521 B，Nature Kit 2.1，330 个模型）
+- 本地：`trees/kenney-nature-kit/`（原包 ZIP + `LICENSE-kenney.txt` + 选用的 16 个 `.glb`）
+- 材质：纯色 `baseColorFactor`（无贴图），树干 `woodBark`（线性 0.886/0.514/0.341）、
+  阔叶 `leafsGreen`（线性 0.161/0.788/0.671）、松针 `leafsDark`、深树干 `woodBarkDark`；导入 Blender 后同名材质去重。
+- 未用模型（有意排除）：`tree_cone`（单圆锥，正是本次要淘汰的形状）、`tree_fat` /
+  `tree_simple` / `tree_small`（单团树冠）、`tree_blocks`（方块堆）、全部棕榈
+  （`tree_palm*`）、地被松（`tree_pineGroundA/B`，无树干）。
+
+### 11.2 Quaternius Stylized Nature MegaKit Standard（仅 D3 池塘 12 棵特征树）
+
+- 资产页：https://store.godotengine.org/asset/quaternius/stylized-nature-megakit/
+  （作者 Quaternius，包主页 https://quaternius.com/packs/stylizednaturemegakit.html）
+- 授权：CC0 1.0（随包 `LICENSE-Quaternius-Standard.txt` 原文：License: CC0 1.0 Universal，
+  https://creativecommons.org/publicdomain/zero/1.0/；Standard 免费版含 68/116 个模型）
+- 直链：Godot 商店下载路由 `https://store.godotengine.org/asset/quaternius/stylized-nature-megakit/download/31/`
+  （302 跳转到签名对象存储 URL 后下载 `Stylized_Nature_MegaKitStandard.zip` 104,088,529 B；
+  签名有时效，过期按同路由重取）
+- 本地：`trees/quaternius-stylized-nature/`（选用的 4 个 `.gltf` + `.bin` + 4 张贴图 +
+  `LICENSE-Quaternius-Standard.txt`；全包 ZIP 104 MB 未入库）
+- 材质：树皮/叶贴图直连 Base Color，`alphaMode=MASK`、`alphaCutoff=0.2`（叶卡镂空），
+  树皮带法线贴图；树皮/松叶贴图由 2048×2048 降采样至 1024×1024（PIL LANCZOS，
+  总览尺度够用，GLB 瘦身约 6 MB），叶贴图 `Leaves_NormalTree_C.png` 原生即 1024 不动。
+- 取用：`CommonTree_3` / `CommonTree_5`（阔叶）与 `Pine_4` / `Pine_5`（松塔）各 3 棵，
+  共 12 棵（D3 池塘，8–12m）。
+
+### 11.3 实测高度与三角面（Blender 4.2.0 导入实测，地上高 = 顶点 zmax；Kenney 树干根部 zmin=0，Quaternius 根系 zmin=-0.24m 埋地下）
+
+| 模型 | 原生高 | 三角面 | 冠底（叶最低处） | 用途 |
+|---|---|---|---|---|
+| `tree_default` | 1.71m | 114 | 0.80m | 行道/点缀 |
+| `tree_oak` | 1.23m | 196 | 0.50m | 行道/点缀/密植 |
+| `tree_detailed` | 1.33m | 402 | 0.45m | 行道/点缀 |
+| `tree_tall` | 1.69m | 72 | 0.29m | 行道/密植 |
+| `tree_pineDefaultA` / `tree_pineDefaultB` | 1.55m | 230 / 246 | 0.54m | 行道/点缀 |
+| `tree_plateau` | 1.25m | 215 | 0.42m | 行道/点缀 |
+| `tree_thin` | 1.49m | 228 | 0.50m | 行道/点缀 |
+| `tree_pineTallA` / `B` / `C` / `D` | 1.53 / 1.93 / 1.67 / 2.08m | 78 / 78 / 98 / 98 | 0.63 / 1.03 / 0.63 / 1.03m | 密植带 |
+| `tree_pineTallA/B/C/D_detailed` | 同上 | 134 / 166 / 154 / 170 | 同上 | 密植带 |
+| `CommonTree_3` / `CommonTree_5` | 9.18 / 6.76m | 3505 / 3182 | 4.59 / 3.38m | D3 特征树 |
+| `Pine_4` / `Pine_5` | 10.00 / 8.49m | 3370 / 1646 | 5.00 / 4.24m | D3 特征树 |
+
+缩放后实测（ov-trees.blend 回读，地上高）：行道树 5.0–8.0m、密植带 8.0–15.0m、
+池塘特征树 8.7–12.0m、楼间点缀 4.05–7.9m；逐棵树干露出 ≥1.2m（`crown_z0 × scale`
+逐棵过滤，不足者换 fallback 模型）。`ov-trees.glb` 120,634 tris（预算 ≤300k），
+473 个对象，20 个共享 mesh，8 种材质。
+
+### 11.4 文件清单与 SHA-256（前 16 位）
+
+- `trees/kenney-nature-kit/`：`kenney_nature-kit.zip`（10,537,521 B）、`LICENSE-kenney.txt`、
+  16 个 `.glb`：tree_default `562d29638c902de3`、tree_detailed `c041daf2f0fb1d49`、
+  tree_oak `d7fd8773674928c5`、tree_pineDefaultA `60d8f352fa3659ed`、
+  tree_pineDefaultB `a752ea5775c6fb17`、tree_pineTallA `e0a56eb196d8a64b`、
+  tree_pineTallA_detailed `9ba6337460e718b8`、tree_pineTallB `49b54146351e1e00`、
+  tree_pineTallB_detailed `a26b4434e1592ec1`、tree_pineTallC `e8b97fa086e1ac9b`、
+  tree_pineTallC_detailed `b538e229a9fb8cbb`、tree_pineTallD `df5ffca50fc2e39a`、
+  tree_pineTallD_detailed `a2fac08d7cb337e7`、tree_plateau `7f19e347ff28703d`、
+  tree_tall `3515a8826044d91e`、tree_thin `f0f1f6861fe04469`。
+- `trees/quaternius-stylized-nature/`：`LICENSE-Quaternius-Standard.txt`、
+  CommonTree_3.gltf `17c6537aa8042bb7` / .bin `24541f46fd9553e2`、
+  CommonTree_5.gltf `fb7061f2bf9fe850` / .bin `0e617612d50e6bb2`、
+  Pine_4.gltf `d8978cfd5a29a224` / .bin `0a04c88f619924d9`、
+  Pine_5.gltf `bb060ce1420af32d` / .bin `18982d7f6c430d1a`、
+  Bark_NormalTree.png `4e48de28db62dc40`、Bark_NormalTree_Normal.png `e42d10124797a7cf`、
+  Leaf_Pine_C.png `8dbee67418b22e73`、Leaves_NormalTree_C.png `983746bcdcb05d94`。
+
+### 11.5 来源偏差（诚实记录：R2-T3 方案原定来源未全部按原计划拿到）
+
+| 方案原定 | 实际 | 原因 |
+|---|---|---|
+| KayKit Forest Nature Pack 免费档（密植带 104 棵） | **未下载，改用 Kenney 松树**（`tree_pineTall A–D` 及 detailed 版 + oak/tall，共 216 棵含旧树沿线 112 棵） | itch.io 免费档须走 `/purchase` POST 拿下载链接；该 POST 触发过一次访问审批超时未应答，按指令不再重试。页面 HTML 内无 upload_id、AssetSifter / Godot 商店 / GitHub 镜像均无免费档直链。Kenney 松树同为 CC0 低多边形、树干 + 多层松塔冠，三角面更低（78–196 vs KayKit 约 500），风格与行道树统一。KayKit 资产页 https://kaylousberg.itch.io/kaykit-forest（CC0 1.0，页面 200 已核）仍列作备选，若后续拿到直链可再换。 |
+| Quaternius Ultimate Nature Pack（2019，D3 12 棵，取 `Tree` / `Pine_Tree_1` / `Birch_Tree_1` / `Tree-Stylized`） | **改用同一作者同一授权的 Stylized Nature MegaKit Standard**（见 §11.2，取 `CommonTree_3/5` + `Pine_4/5`） | 官网下载走 Google Drive 共享文件夹（`1-Kl0L_Jg8awbh0S5T-z3zxh4mVlnxTpa`），实测全部文件报 `Quota exceeded`（公开配额耗尽），curl 无法直下；包内也无上述四个名字。Stylized 包 D3 仍只用 12 棵，未整片铺。另：GitHub 镜像 badestrand/threejs 仅含 `BirchTree_1` 一个文件，不敷使用。 |
+| Poly Haven 树木 | **禁用，未用** | 授权 CC0 但单棵数百万 tris（Fir Tree 01 约 700 万、Pine Tree 01 约 1700 万），与方案一致。 |
+
+### 11.6 L1 移位与追加修正（ov-trees.py v3 `RELOC` 日志逐棵列出，共 37 棵）
+
+- L1 南沿线 31 棵 y=-105 → y=-94（x 不变，方案原定），其中东端 2 棵在 y=-94 会压东主路
+  （x 102..114）→ (100,-94)/(124,-94)；广场段 5 棵会压南门广场铺装（(0,-94) 正压南门中轴）
+  → 移至广场两侧 y=-94（x -44/-36/-28/28/36）。
+- L1 北沿线 2 棵照方案移至 (98,105)/(118,105)；相邻 (96,105)/(120,105) 去抖动钉网格点，
+  否则与移位树仅 1.7m/0.95m。
+- 楼间旧树 (0,12) 压步道 2 → (4,12)；(-80,45) 压新路 R-N1 → (-80,49)。
+- 西沿线 3 棵旧树 (-120,-33/-25/-17) 落在操场 3m 缓冲内（跑道面外），系 v2 原位、方案未列，保持不动。
+- 密植带新旧交错 3 对间距 1.56–1.81m（D1/D5 与旧沿线柱交错，方案设计间距 2.5m、抖动后收窄），
+  在密植带内属冠层交错，保留并记录；新树两两之间最小间距 ≥2m。
