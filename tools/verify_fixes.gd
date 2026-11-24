@@ -610,7 +610,11 @@ func _process(_delta: float) -> bool:
 			# 不再撑大面板；单开排版一行未动（内容未超高时不出现滚动条）。
 			var _sp7: Control = _main.get_node("UI/ScenePanel")
 			var _r7: Rect2 = _sp7.get_global_rect()
-			_chk("16 双开：场景面板 rect 顶 452 / 底 636（不被内容最小高撑大）", absf(_r7.position.y - 452.0) < 1.5 and absf(_r7.end.y - 636.0) < 1.5, str(_r7))
+			# 进场缩放要折算：phase 7 在 ABC 打开后 4 帧量，此时场景面板 180ms
+			# scale 0.95→1.0 动效可能还在跑（CI 量到 scale 0.981：宽 353.2、高
+			# 180.5，右缘不动、顶边不动）；终态 360×184，量值按当前 scale 折算。
+			var _s7: Vector2 = _sp7.scale
+			_chk("16 双开：场景面板 rect 顶 452 / 底 636（不被内容最小高撑大，进场缩放已折算）", absf(_r7.position.y - 452.0) < 1.5 and absf(_r7.size.y - 184.0 * _s7.y) < 1.5 and absf(_r7.size.x - 360.0 * _s7.x) < 1.5, str(_r7) + " scale=" + str(_s7))
 			_chk("16 双开：场景面板底边在场景栏顶 652 之上（不盖底部导航）", _r7.end.y < 652.0, str(_r7))
 			var _sc7 = _sp7.get_node_or_null("SPScroll") as ScrollContainer
 			var _vb7 = _sp7.get_node_or_null("SPScroll/VBox") as VBoxContainer
