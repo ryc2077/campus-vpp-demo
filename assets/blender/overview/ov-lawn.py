@@ -10,6 +10,9 @@
 #   水面 rx11/ry8 + 1m 安全边距），只留环形草坪带；拼装不再下移
 #   Lawn_Pond_Grass_*（见 scenes/overview.py，旧 -0.5m 下移曾把
 #   18,863 叶全埋进地下）。另两片草坪与真草素材（8,140 株）不动。
+# R2-T1b 2026-11-24 操场收界：禁入椭圆跟新跑道走——中心 (-62,-25)、
+#   长轴南北向、外椭圆 rx28/ry40 +1m（旧 (-80,-25) rx40/ry28 已废）。
+# R2-T18 2026-11-24 草地重铺：见文件末尾 R2-T18 段（色带底板 + tevy 高草）。
 # Blender 坐标 x 向东、y 向北、z 向上，单位米
 # 内容：3 块草地（实体草丛铺满）、南门广场两侧 4 个花坛、20 个灌木球
 # v3 改动：草地底板/土面/灌木/花/草丛加程序化噪波纹理（颜色+粗糙度+轻微凹凸），
@@ -762,8 +765,10 @@ def _blocked(x, y):
     for (x0, x1, y0, y1) in BLOCK_RECTS:
         if x0 <= x <= x1 and y0 <= y <= y1:
             return True
-    if ((x + 80) / 41.0) ** 2 + ((y + 25) / 29.0) ** 2 <= 1.0:
-        return True  # 跑道内圈（含 1m 余量）
+    if ((x + 62) / 29.0) ** 2 + ((y + 25) / 41.0) ** 2 <= 1.0:
+        return True  # 跑道+球场外椭圆+1m（R2-T1b 2026-11-24：中心 (-62,-25)，
+        # 长轴转南北向 rx28/ry40，东移 18m；旧椭圆 (-80,-25) rx40/ry28 已废，
+        # 旧口径草会压到新跑道东沿/南北端，故跟新椭圆）
     if ((x - POND_CX) / POND_RX) ** 2 + ((y - POND_CY) / POND_RY) ** 2 <= 1.0:
         return True  # 池塘（含 1m 余量，与主撒点排除同口径）
     return False
@@ -848,6 +853,467 @@ print("EDGE GRASS: alpha tufts ring=%d verge=%d gate=%d (target 3440/4000/400), 
       % (_n_alpha_ring, _n_alpha_verge, _n_alpha_gate, _n_rah,
          _n_tall_verge, _n_tall_gate, len(objs)))
 
+# ---- R2-T18 草地重铺：色带底板 + tevy 高草 drift 带（GREEN_PLAN.md §8）----
+# 面数账（先算再铺，见 GREEN_PLAN.md §8.1–8.3）：现有 238,276 tris，
+# headroom 161,724；tevy 370 丛 153,400 面 + 色带底板约 164 块 1,968 面，
+# 总计约 393,644 ≤ 400k。R2-T11 的 lod1 0.25/m² 在 23,392 m² 新区上是
+# 11.87M 面，GREEN_PLAN 原 21,555 丛即使全 lod2 也要 6.55M 面——两者都
+# 不可能；可见性改由 4m 色带（零面数主手段）+ drift 带点状 0.76m 草层承担。
+# tevy 来源：assets/external/grass/tevy/（CC0，R2-T11 选定）。
+# Blender 4.2 导不进 -decoded.glb（KHR_texture_basisu / KTX2 报错），
+# 故本节在内存里剥掉贴图引用再导几何（strip 只动临时副本，原文件不动），
+# 材质改挂 ktx CLI 4.4.2 解压出的 PNG（ov-lawn_textures/TEVY_*，见 §8.3）：
+# 色图直连 Base Color + Alpha 经 ROUND 进 Alpha（照抄 Grass_AlphaStrip 的
+# MASK 做法）+ 法线图直连 NormalMap；双面材质。颜色绝不走 ColorRamp。
+import json as _json
+import struct as _struct
+import tempfile as _tempfile
+
+TEVY_DIR = os.path.join(os.path.dirname(BLEND_PATH), "..", "..", "external",
+                        "grass", "tevy")
+TEVY_TEXDIR = os.path.join(os.path.dirname(BLEND_PATH), "ov-lawn_textures")
+
+
+def _strip_tevy_glb(src, dst):
+    """Blender 4.2 读不了 KTX2：剥掉 images/textures/贴图引用（只动临时
+    副本，原 -decoded.glb 不动）。几何、量化、UV、材质名原样保留；
+    Blender 4.2 实测可导（lod1 2,030 面、1.89×1.96×0.76m）。"""
+    data = open(src, 'rb').read()
+    assert data[:4] == b'glTF'
+    jlen = _struct.unpack('<I', data[12:16])[0]
+    js = _json.loads(data[20:20 + jlen])
+    for k in ('extensionsUsed', 'extensionsRequired'):
+        if 'KHR_texture_basisu' in js.get(k, []):
+            js[k].remove('KHR_texture_basisu')
+    js.pop('images', None)
+    js.pop('textures', None)
+    js.pop('samplers', None)
+    for m in js.get('materials', []):
+        pbr = m.get('pbrMetallicRoughness', {})
+        pbr.pop('baseColorTexture', None)
+        pbr.pop('metallicRoughnessTexture', None)
+        for k in ('normalTexture', 'occlusionTexture', 'emissiveTexture'):
+            m.pop(k, None)
+    jbytes = _json.dumps(js, separators=(',', ':')).encode()
+    jbytes += b' ' * (-len(jbytes) % 4)
+    off = 20 + jlen
+    blen = _struct.unpack('<I', data[off:off + 4])[0]
+    binchunk = data[off:off + 8 + blen]
+    out = (b'glTF' + _struct.pack('<II', 2, 12 + 8 + len(jbytes) + len(binchunk))
+           + _struct.pack('<I', len(jbytes)) + b'JSON' + jbytes + binchunk)
+    open(dst, 'wb').write(out)
+
+
+def _import_tevy_mesh(decoded_name, mesh_name):
+    """导入一个 tevy -decoded.glb，只留 mesh 数据块（源对象随后删除）。"""
+    before = set(bpy.context.scene.objects)
+    tmp = _tempfile.NamedTemporaryFile(suffix='.glb', delete=False)
+    tmp.close()
+    _strip_tevy_glb(os.path.join(TEVY_DIR, decoded_name), tmp.name)
+    bpy.ops.import_scene.gltf(filepath=tmp.name)
+    os.remove(tmp.name)
+    new = [o for o in bpy.context.scene.objects
+           if o not in before and o.type == 'MESH']
+    assert len(new) == 1, "tevy import: expected 1 mesh, got %d (%s)" % (
+        len(new), decoded_name)
+    o = new[0]
+    bpy.ops.object.select_all(action='DESELECT')
+    o.select_set(True)
+    bpy.context.view_layer.objects.active = o
+    # 导入器把 glTF 节点位移留在对象上（lod1 对象 loc z≈0.34，mesh 本体
+    # Z 向关于原点居中）：先把旋转/缩放烘进 mesh，再 XY 居中、Z 底归零，
+    # 否则实例化后半丛埋进地下（照抄 _import_clump_meshes + _recenter_mesh）。
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+    _recenter_mesh(o.data)
+    mesh = o.data
+    mesh.name = mesh_name
+    bpy.data.objects.remove(o, do_unlink=True)
+    print("tevy mesh:", mesh_name, "verts=%d tris=%d" % (
+        len(mesh.vertices), len(mesh.polygons)))
+    return mesh
+
+
+def _tevy_mat(name, color_png, normal_png, roughness):
+    """tevy 材质：PNG 色图直连 Base Color，Alpha 经 ROUND 进 Alpha
+    （MASK、cutoff 0.5，照抄 Grass_AlphaStrip），法线图直连 NormalMap，
+    双面。贴图 pack 进 .blend，随件走。"""
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    bsdf.inputs["Base Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+    bsdf.inputs["Roughness"].default_value = roughness
+    bsdf.inputs["Metallic"].default_value = 0.0
+    img_c = bpy.data.images.load(os.path.join(TEVY_TEXDIR, color_png))
+    img_c.colorspace_settings.name = "sRGB"
+    img_c.pack()
+    t = nt.nodes.new("ShaderNodeTexImage")
+    t.image = img_c
+    nt.links.new(t.outputs["Color"], bsdf.inputs["Base Color"])
+    rnd = nt.nodes.new("ShaderNodeMath")
+    rnd.operation = "ROUND"
+    nt.links.new(t.outputs["Alpha"], rnd.inputs[0])
+    nt.links.new(rnd.outputs["Value"], bsdf.inputs["Alpha"])
+    img_n = bpy.data.images.load(os.path.join(TEVY_TEXDIR, normal_png))
+    img_n.colorspace_settings.name = "Non-Color"
+    img_n.pack()
+    tn = nt.nodes.new("ShaderNodeTexImage")
+    tn.image = img_n
+    nmap = nt.nodes.new("ShaderNodeNormalMap")
+    nmap.space = 'TANGENT'
+    nt.links.new(tn.outputs["Color"], nmap.inputs["Color"])
+    nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+    m.use_backface_culling = False
+    return m
+
+
+def _strip_mat(name, color_png):
+    """色带底板材质：纯色 PNG 直连 Base Color（不走 ColorRamp，glTF
+    导出 baseColor 贴图；贴图 pack 进 .blend）。"""
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    bsdf.inputs["Base Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+    bsdf.inputs["Roughness"].default_value = 0.95
+    img = bpy.data.images.load(os.path.join(TEVY_TEXDIR, color_png))
+    img.colorspace_settings.name = "sRGB"
+    img.pack()
+    t = nt.nodes.new("ShaderNodeTexImage")
+    t.image = img
+    nt.links.new(t.outputs["Color"], bsdf.inputs["Base Color"])
+    return m
+
+
+# 新路排除（R-N1..R-N5，GREEN_PLAN.md §2；路还没进 ov-road-walk，
+# 草先按规划线位让开，免得压路）：_blocked() 已含楼/路/跑道/池塘/
+# 旧草坪；此处只补新路走廊。R-N4 用弧外包矩形 + spur 线段距离近似。
+def _seg_dist(px, py, x0, y0, x1, y1):
+    dx, dy = x1 - x0, y1 - y0
+    dd = dx * dx + dy * dy
+    t = 0.0 if dd == 0 else max(0.0, min(1.0, ((px - x0) * dx + (py - y0) * dy) / dd))
+    return math.hypot(px - (x0 + t * dx), py - (y0 + t * dy))
+
+
+def _blocked_new(x, y):
+    if _blocked(x, y):
+        return True
+    if -91 <= x <= 91 and abs(y - 44) <= 1.5:
+        return True  # R-N1
+    if abs(x + 33) <= 1.5 and -76 <= y <= 18.5:
+        return True  # R-N2
+    if abs(x - 58) <= 1.5 and -76 <= y <= 20:
+        return True  # R-N3
+    if abs(y - 20) <= 1.5 and 50 <= x <= 58:
+        return True  # R-N3x
+    if abs(x - 9.5) <= 1.5 and 18.5 <= y <= 44:
+        return True  # R-N5
+    if 68 <= x <= 91 and -71 <= y <= -67:
+        return True  # R-N4 北岸弧（外包矩形近似）
+    if _seg_dist(x, y, 71.3, -70.9, 68, -76) <= 1.0:
+        return True  # R-N4 spur
+    for (bx0, bx1, by0, by1) in BED_RECTS_R218:
+        if bx0 <= x <= bx1 and by0 <= y <= by1:
+            return True  # 花坛（6×2m 框）
+    for (sx, sy) in SHRUB_SPOTS_R218:
+        if (x - sx) ** 2 + (y - sy) ** 2 <= 0.8 ** 2:
+            return True  # 灌木球
+    return False
+
+
+BED_RECTS_R218 = [(-17, -11, -87, -85), (-17, -11, -96, -94),
+                  (11, 17, -87, -85), (11, 17, -96, -94)]
+SHRUB_SPOTS_R218 = [(-45, -7), (-35, -7), (-25, -7), (-15, -7), (-5, -7),
+                     (5, -7), (-22, -70), (-22, -80), (-22, -90),
+                     (-22, -100), (22, -70), (22, -80), (22, -90),
+                     (22, -100), (68, -70), (68, -86), (96, -70),
+                     (96, -86), (-50, 16), (30, 16)]
+
+# G1–G7 分区矩形（green_layout.json grass.zones[].rects，[x0,x1,y0,y1]）
+GRASS_ZONES_R218 = {
+    'G1': ([(-91, 91, 38, 76)], 64, 2, 2),
+    'G2': ([(-91, -3, -76, 18.5), (-91, -40, 18.5, 38)], 65, 1, 2),
+    'G3': ([(3, 91, -76, 18.5)], 96, 2, 2),
+    'G4': ([(-118, -99, -76, 76)], 29, 1, 0),
+    'G5': ([(99, 102, -102, 105), (114, 118, -102, 105)], 21, 0, 1),
+    'G6': ([(-91, 91, -102, -84)], 36, 1, 2),
+    'G7': ([(-125, -99, 84, 110), (99, 125, 84, 110),
+            (99, 125, -110, -84), (-125, -99, -110, -84)], 15, 1, 1),
+}
+# 每区元组：(矩形, lod2 丛数, 红燕麦 lod1 丛数, 红燕麦 lod2 丛数)
+# lod2 合计 326 + 旧草坪叠加 14 = 340；红燕麦 lod1 8、lod2 10。
+
+mat_strip_a = _strip_mat("Lawn_Strip_A", "Lawn_Strip_A_color.png")
+mat_strip_b = _strip_mat("Lawn_Strip_B", "Lawn_Strip_B_color.png")
+mat_strip_c = _strip_mat("Lawn_Strip_C", "Lawn_Strip_C_color.png")
+strip_mats = [mat_strip_a, mat_strip_b]
+
+
+def _slab_unit_mesh(mat):
+    """色带底板共用单位立方 mesh（1×1×1，中心原点）：每色一个 mesh，
+    实例只改 location/scale 共享 mesh。注意：不要用 box() 逐块建——
+    box() 每块调两次 bpy.ops，8k 对象场景下每 call 都要过依赖图，
+    172 块曾让整轮多烧约 3 分钟 CPU；共用 mesh + 缩放零算子。"""
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0))
+    o = bpy.context.active_object
+    mesh = o.data
+    mesh.name = "SlabUnit_" + mat.name
+    mesh.materials.clear()
+    mesh.materials.append(mat)
+    bpy.data.objects.remove(o, do_unlink=True)
+    return mesh
+
+
+_slab_meshes = {"A": _slab_unit_mesh(mat_strip_a),
+                "B": _slab_unit_mesh(mat_strip_b),
+                "C": _slab_unit_mesh(mat_strip_c)}
+
+# ---- 色带底板：每区沿长边切 4m 条带，对缝拼接不重叠；沿带每 0.5m
+# 采样，_blocked_new() 命中的点断开（路/楼/池塘/操场/花坛/灌木处
+# 不铺），连续未命中段 ≥1m 才成块；每区第 5 条带用亮色 C。----
+_rng18 = _random.Random(20261124)
+slab_count = 0
+slab_area = 0.0
+for _zid, (_rects, _n2, _nr1, _nr2) in GRASS_ZONES_R218.items():
+    for (_x0, _x1, _y0, _y1) in _rects:
+        _w, _h = _x1 - _x0, _y1 - _y0
+        _along_x = _w >= _h
+        _short = _h if _along_x else _w
+        _nstrips = max(1, math.ceil(_short / 4.0))
+        for _s in range(_nstrips):
+            _c = (_y0 + _s * 4 + 2.0) if _along_x else (_x0 + _s * 4 + 2.0)
+            _wid = min(4.0, _short - _s * 4)
+            _lo, _hi = (_x0, _x1) if _along_x else (_y0, _y1)
+            _n = int((_hi - _lo) / 0.5)
+            _runs = []
+            _cur = None
+            for _i in range(_n + 1):
+                _t = _lo + _i * 0.5
+                _x, _y = (_t, _c) if _along_x else (_c, _t)
+                if not _blocked_new(_x, _y) and _cur is None:
+                    _cur = _t
+                if _blocked_new(_x, _y) and _cur is not None:
+                    _runs.append((_cur, _t))
+                    _cur = None
+            if _cur is not None:
+                _runs.append((_cur, _hi))
+            _key = 'C' if (_s + 1) % 5 == 0 else ('A' if _s % 2 == 0 else 'B')
+            for (_a, _b) in _runs:
+                if _b - _a < 1.0:
+                    continue
+                _mid = (_a + _b) / 2.0
+                _ln = _b - _a
+                _o = bpy.data.objects.new(
+                    "Slab_%s_%03d" % (_zid, slab_count), _slab_meshes[_key])
+                bpy.context.collection.objects.link(_o)
+                if _along_x:
+                    _o.location = (_mid, _c, 0.025)
+                    _o.scale = (_ln, _wid, 0.05)
+                else:
+                    _o.location = (_c, _mid, 0.025)
+                    _o.scale = (_wid, _ln, 0.05)
+                objs.append(_o)
+                slab_count += 1
+                slab_area += _ln * _wid
+print("SLABS R2-T18: %d boxes, %.0f m2, %d tris (4m stripes A/B, every 5th C)"
+      % (slab_count, slab_area, slab_count * 12))
+
+# ---- tevy 网格与材质（只导 5 个用到的 LOD；其余候选不进件）----
+_tevy_meshes = {
+    'lod0': _import_tevy_mesh("tevy-meadow-grass-patch-decoded.glb",
+                              "TEVY_Meadow_LOD0"),
+    'lod1': _import_tevy_mesh("tevy-meadow-grass-patch-lod1-decoded.glb",
+                              "TEVY_Meadow_LOD1"),
+    'lod2': _import_tevy_mesh("tevy-meadow-grass-patch-lod2-decoded.glb",
+                              "TEVY_Meadow_LOD2"),
+    'oat1': _import_tevy_mesh("tevy-red-oat-grass-clump-lod1-decoded.glb",
+                              "TEVY_RedOat_LOD1"),
+    'oat2': _import_tevy_mesh("tevy-red-oat-grass-clump-lod2-decoded.glb",
+                              "TEVY_RedOat_LOD2"),
+}
+_tevy_mats = {
+    'lod0': _tevy_mat("TEVY_Meadow_LOD0", "TEVY_Meadow_LOD0_color.png",
+                      "TEVY_Meadow_LOD0_normal.png", 0.7),
+    'lod1': _tevy_mat("TEVY_Meadow_LOD1", "TEVY_Meadow_LOD1_color.png",
+                      "TEVY_Meadow_LOD1_normal.png", 0.7),
+    'lod2': _tevy_mat("TEVY_Meadow_LOD2", "TEVY_Meadow_LOD2_color.png",
+                      "TEVY_Meadow_LOD2_normal.png", 0.7),
+    'oat1': _tevy_mat("TEVY_RedOat_LOD1", "TEVY_RedOat_LOD1_color.png",
+                      "TEVY_RedOat_LOD1_normal.png", 0.75),
+    'oat2': _tevy_mat("TEVY_RedOat_LOD2", "TEVY_RedOat_LOD2_color.png",
+                      "TEVY_RedOat_LOD2_normal.png", 0.75),
+}
+for _k, _mesh in _tevy_meshes.items():
+    _mesh.materials.clear()
+    _mesh.materials.append(_tevy_mats[_k])
+
+
+def _place_tevy(mesh, prefix, points, z0=0.05, smin=0.85, smax=1.15):
+    """按给定 (x, y) 点表放实例：共享 mesh，随机 Z 向旋转 + 缩放；
+    丛高随缩放 0.65–0.87m（lod1 原高 0.76m）。"""
+    n = 0
+    for (_i, (_x, _y)) in enumerate(points):
+        o = bpy.data.objects.new("%s_%04d" % (prefix, _i), mesh)
+        bpy.context.collection.objects.link(o)
+        o.location = (_x, _y, z0)
+        o.rotation_euler = (0, 0, _rng18.uniform(0, math.tau))
+        _s = _rng18.uniform(smin, smax)
+        o.scale = (_s, _s, _rng18.uniform(smin, smax))
+        objs.append(o)
+        n += 1
+    return n
+
+
+def _drift_candidates(rects, pitch):
+    """drift 带候选点：每区沿长边、按 pitch 间距排 3m 宽带，沿带中心线
+    每 0.5m 采样，_blocked_new() 命中的点剔除。窄区（短边 < pitch，
+    如 G5 仅 3m 宽）排不出带时退回短边中线，保证总有候选点。"""
+    pts = []
+    for (_x0, _x1, _y0, _y1) in rects:
+        _w, _h = _x1 - _x0, _y1 - _y0
+        _along_x = _w >= _h
+        _short = _h if _along_x else _w
+        _slo, _shi = (_y0, _y1) if _along_x else (_x0, _x1)
+        _centers = [_slo + pitch * (_b + 0.5)
+                    for _b in range(max(1, int(_short / pitch)))]
+        _centers = [_c for _c in _centers if _slo + 1.5 <= _c <= _shi - 1.5]
+        if not _centers:
+            _centers = [(_slo + _shi) / 2.0]
+        for _c in _centers:
+            _lo, _hi = (_x0, _x1) if _along_x else (_y0, _y1)
+            _n = int((_hi - _lo) / 0.5)
+            for _i in range(_n + 1):
+                _t = _lo + _i * 0.5
+                _x, _y = (_t, _c) if _along_x else (_c, _t)
+                if not _blocked_new(_x, _y):
+                    pts.append((_x, _y, _along_x))
+    return pts
+
+
+def _pick_spaced(cands, n, phase, min_dist, placed_xy):
+    """从候选点表里取 n 个点：目标下标均匀分布；若目标点离已放点
+    < min_dist，沿表向两侧找最近的空点（不再直接丢弃——上一版直接
+    丢弃曾让红燕麦 G1 oat1=0、G3 oat1=1，缺数）。找不到才缺数。"""
+    out = []
+    if n <= 0 or not cands:
+        return out
+    for i in range(n):
+        _tgt = min(len(cands) - 1, int((i + phase) * len(cands) / n))
+        _found = None
+        for _d in range(len(cands)):
+            for _j in (_tgt + _d, _tgt - _d):
+                if 0 <= _j < len(cands):
+                    _p = (cands[_j][0], cands[_j][1])
+                    if all((_p[0] - _qx) ** 2 + (_p[1] - _qy) ** 2
+                           >= min_dist ** 2 for (_qx, _qy) in placed_xy):
+                        _found = _j
+                        break
+            if _found is not None:
+                break
+        if _found is None:
+            continue
+        _jp = _jittered(cands[_found], 1.2, 0.5)
+        out.append(_jp)
+        placed_xy.append(_jp)
+    return out
+
+
+def _jittered(pt, perp, along):
+    _x, _y, _along_x = pt
+    _jx = _rng18.uniform(-along, along)
+    _jy = _rng18.uniform(-perp, perp)
+    if not _along_x:
+        _jx, _jy = _jy, _jx
+    _nx, _ny = _x + _jx, _y + _jy
+    if _blocked_new(_nx, _ny):
+        return (_x, _y)
+    return (_nx, _ny)
+
+
+# ---- drift 带布放：lod2 主力 + 红燕麦点缀（同带不同相位，丛距 ≥1.5m）----
+_placed_xy = []
+_tevy_counts = {}
+_tevy_by_mesh = {'lod0': 0, 'lod1': 0, 'lod2': 0, 'oat1': 0, 'oat2': 0}
+_MESH_TRIS = {'lod0': 11024, 'lod1': 2030, 'lod2': 304, 'oat1': 824,
+              'oat2': 110}
+for _zid, (_rects, _n2, _nr1, _nr2) in GRASS_ZONES_R218.items():
+    _pitch = 20.0 if _zid == 'G7' else 12.0
+    _cands = _drift_candidates(_rects, _pitch)
+    assert len(_cands) >= max(_n2, _nr1, _nr2, 1), (
+        "drift candidates too few in %s: %d" % (_zid, len(_cands)))
+    _picks = {'lod2': [], 'oat1': [], 'oat2': []}
+    for _key, _n, _phase in (('lod2', _n2, 0.5), ('oat1', _nr1, 0.15),
+                             ('oat2', _nr2, 0.85)):
+        _picks[_key] = _pick_spaced(_cands, _n, _phase, 1.5, _placed_xy)
+    for _key, _mesh_key, _prefix in (
+            ('lod2', 'lod2', "TevyMeadowLOD2_%s" % _zid),
+            ('oat1', 'oat1', "TevyRedOatLOD1_%s" % _zid),
+            ('oat2', 'oat2', "TevyRedOatLOD2_%s" % _zid)):
+        _tevy_counts[_prefix] = _place_tevy(_tevy_meshes[_mesh_key],
+                                             _prefix, _picks[_key])
+        _tevy_by_mesh[_mesh_key] += _tevy_counts[_prefix]
+    print("TEVY %s: drift cands=%d lod2=%d oat1=%d oat2=%d" % (
+        _zid, len(_cands), _tevy_counts["TevyMeadowLOD2_%s" % _zid],
+        _tevy_counts["TevyRedOatLOD1_%s" % _zid],
+        _tevy_counts["TevyRedOatLOD2_%s" % _zid]))
+
+# ---- 旧草坪叠加高草（预览机位前方，近景特写位）----
+# TeachSouth (-50..10, -5..15)：lod0 2 丛在机位目标 (-16,5) 旁；
+# lod1 6、lod2 8。GateNorth (-20..20, -87.5..-72.5)：lod1 4、lod2 6。
+# 点位已避开 R-N2 路（x -34.5..-31.5）与楼体；抖动 ±0.7m 后仍须落在
+# 本草坪内缩 0.5m 范围内，否则回落原点。
+_HEROES = [
+    ('lod0', "TevyHeroLOD0_TeachSouth", [(-17.5, 5.0), (-14.5, 5.0)],
+     (-50, 10, -5, 15)),
+    ('lod1', "TevyHeroLOD1_TeachSouth",
+     [(-24, 2), (-20, 8), (-12, 2), (-8, 8), (-28, 8), (-4, 3)],
+     (-50, 10, -5, 15)),
+    ('lod2', "TevyHeroLOD2_TeachSouth",
+     [(-30, 0), (-26, 10), (-18, 0), (-10, 10), (-6, 0), (0, 8),
+      (-30, 5), (2, 2)], (-50, 10, -5, 15)),
+    ('lod1', "TevyHeroLOD1_GateNorth",
+     [(-12, -80), (-4, -76), (8, -80), (14, -76)], (-20, 20, -87.5, -72.5)),
+    ('lod2', "TevyHeroLOD2_GateNorth",
+     [(-16, -76), (-8, -84), (0, -78), (4, -84), (12, -84), (16, -78)],
+     (-20, 20, -87.5, -72.5)),
+]
+for _mesh_key, _prefix, _pts, (_lx0, _lx1, _ly0, _ly1) in _HEROES:
+    _final = []
+    for (_x, _y) in _pts:
+        # 抖动 ±0.7m，最多试 8 次取不撞点的；都撞则回落未抖动原点
+        # （原点之间 ≥2.83m、与 drift 点 ≥6m，必不撞）；原点也撞才丢弃。
+        _placed_pt = None
+        for _attempt in range(8):
+            _nx = _x + _rng18.uniform(-0.7, 0.7)
+            _ny = _y + _rng18.uniform(-0.7, 0.7)
+            if not (_lx0 + 0.5 <= _nx <= _lx1 - 0.5
+                    and _ly0 + 0.5 <= _ny <= _ly1 - 0.5):
+                continue
+            if all((_nx - _qx) ** 2 + (_ny - _qy) ** 2 >= 2.0 ** 2
+                   for (_qx, _qy) in _placed_xy):
+                _placed_pt = (_nx, _ny)
+                break
+        if _placed_pt is None:
+            if all((_x - _qx) ** 2 + (_y - _qy) ** 2 >= 2.0 ** 2
+                   for (_qx, _qy) in _placed_xy):
+                _placed_pt = (_x, _y)
+        if _placed_pt is None:
+            continue
+        _final.append(_placed_pt)
+        _placed_xy.append(_placed_pt)
+    _tevy_counts[_prefix] = _place_tevy(_tevy_meshes[_mesh_key], _prefix,
+                                         _final)
+    _tevy_by_mesh[_mesh_key] += _tevy_counts[_prefix]
+    print("TEVY hero %s: %d placed" % (_prefix, _tevy_counts[_prefix]))
+
+_n_tevy = sum(_tevy_counts.values())
+assert _tevy_by_mesh == {'lod0': 2, 'lod1': 10, 'lod2': 340, 'oat1': 8,
+                         'oat2': 10}, "tevy counts off plan: %s" % _tevy_by_mesh
+_n_tevy_tris = sum(_tevy_by_mesh[_k] * _MESH_TRIS[_k] for _k in _MESH_TRIS)
+print("TEVY TOTAL R2-T18: %d tufts, %d tris (lod2 304 / lod1 2030 / "
+      "lod0 11024 / oat1 824 / oat2 110); slabs %d boxes %d tris"
+      % (_n_tevy, _n_tevy_tris, slab_count, slab_count * 12))
+
 # ---- 存盘 ----
 os.makedirs(os.path.dirname(BLEND_PATH), exist_ok=True)
 os.makedirs(os.path.dirname(GLB_PATH), exist_ok=True)
@@ -871,6 +1337,8 @@ n_verts = sum(len(o.data.vertices) for o in imported
               if o.type == 'MESH' and o.data is not None)
 print(f"GLB reimport OK: {len(imported)} objects, "
       f"{n_tris} tris, {n_verts} verts")
+# R2-T18 预算：ov-lawn ≤400k tris（GREEN_PLAN.md §8.3 约 393,644）。
+assert n_tris <= 400000, "ov-lawn over tri budget: %d tris" % n_tris
 # 回读验证 (di-walls 做法): 地面基底材质的贴图数 >= 3 (烘焙贴图齐全);
 # 草叶材质已挂绿斑贴图，alpha 草丛材质带 MASK 镂空贴图，均要求有贴图。
 _BAKED_MAT_NAMES = {"Lawn_Green", "Bed_Border", "Bed_Soil",
