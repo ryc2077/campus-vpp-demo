@@ -1,4 +1,7 @@
 # ov-bldA v3: 一号教学楼楼体换装 (R2-T21a, 2026-11-24)
+# R2-T48 (2026-11-25): 勒脚/压顶由实心盒改周圈窄环 (§42 修复; 详见
+#   BLENDER_MODELS.md §49)。外框尺寸与旧实心盒一字相同, 内空 40x15
+#   (即楼体足迹), 顶面只剩周圈 0.30/0.35m 窄条, 教室体积内再无盖面。
 # 40(x) x 15(y) x 19(z) m, 5 floors, Blender centre (-56, 30, 0)
 # 网上模型: Grab3D 办公楼 (CC0 1.0),
 #   assets/external/buildings/grab3d/office-building-grab3d.glb
@@ -209,9 +212,62 @@ def build():
         building.append(o)
         return o
 
-    # ---- 勒脚 (0-0.5) ----
-    box("bldA_plinth", CX, CY, 0.0, 0.5, W + 0.6, D + 0.6, MAT_CONC, bevel=0.04)
-    box("bldA_plinth_cap", CX, CY, 0.5, 0.68, W + 0.7, D + 0.7, MAT_BAND, bevel=0.03)
+    def ring(name, cx, cy, z0_, z1_, ox_, oy_, ix_, iy_, mat, bevel=0.0):
+        """矩形环棱柱 (R2-T48): 外框 ox_ x oy_, 内空 ix_ x iy_, z0_..z1_。
+        顶/底各 4 个梯形 + 外墙 4 + 内墙 4, 共 16 面, 单 mesh 无内含面
+        (不用 4 盒拼合, 拼合会在角部留下重合内含面)。
+        bevel 与 box() 同款 EdgeSoft (ANGLE), 只倒真实外/内棱。"""
+        x0, x1 = cx - ox_ / 2.0, cx + ox_ / 2.0
+        y0, y1 = cy - oy_ / 2.0, cy + oy_ / 2.0
+        xi0, xi1 = cx - ix_ / 2.0, cx + ix_ / 2.0
+        yi0, yi1 = cy - iy_ / 2.0, cy + iy_ / 2.0
+        bm = bmesh.new()
+        # 顶层 8 点 (外 4 + 内 4) + 底层 8 点; 外 SW/SE/NE/NW, 内 SW/SE/NE/NW
+        vt = [bm.verts.new((x, y, z1_)) for x, y in
+              ((x0, y0), (x1, y0), (x1, y1), (x0, y1),
+               (xi0, yi0), (xi1, yi0), (xi1, yi1), (xi0, yi1))]
+        vb = [bm.verts.new((x, y, z0_)) for x, y in
+              ((x0, y0), (x1, y0), (x1, y1), (x0, y1),
+               (xi0, yi0), (xi1, yi0), (xi1, yi1), (xi0, yi1))]
+        bm.verts.ensure_lookup_table()
+        O0, O1, O2, O3, I0, I1, I2, I3 = vt
+        o0, o1, o2, o3, i0, i1, i2, i3 = vb
+        for vs in ((O0, O1, I1, I0), (O1, O2, I2, I1),
+                   (O2, O3, I3, I2), (O3, O0, I0, I3),   # 顶面 (+Z)
+                   (o0, i0, i1, o1), (o1, i1, i2, o2),
+                   (o2, i2, i3, o3), (o3, i3, i0, o0),   # 底面 (-Z)
+                   (o0, o1, O1, O0), (o1, o2, O2, O1),   # 外墙 S/E
+                   (o2, o3, O3, O2), (o3, o0, O0, O3),   # 外墙 N/W
+                   (i1, i0, I0, I1), (i2, i1, I1, I2),   # 内墙 S/E
+                   (i3, i2, I2, I3), (i0, i3, I3, I0)):  # 内墙 N/W
+            bm.faces.new(vs)
+        me = bpy.data.meshes.new(name)
+        bm.to_mesh(me)
+        bm.free()
+        o = bpy.data.objects.new(name, me)
+        bpy.context.collection.objects.link(o)
+        if bevel and min((ox_ - ix_) / 2.0, (oy_ - iy_) / 2.0,
+                         z1_ - z0_) > 2 * bevel + 0.02:
+            mod = o.modifiers.new("EdgeSoft", "BEVEL")
+            mod.width = bevel
+            mod.segments = 2
+            mod.limit_method = "ANGLE"
+        o.data.materials.append(mat)
+        building.append(o)
+        return o
+
+    # ---- 勒脚 (0-0.5) + 压顶 (0.5-0.68): R2-T48 改周圈窄环 ----
+    # 旧实心盒顶盖 (40.6x15.6 @z=0.5 / 40.7x15.7 @z=0.68) 整幅盖住一层
+    # 教室、埋住全部桌椅腿 (§42); 环的外框/高度/材质一字未动, 内空
+    # 40x15 (=楼体足迹), 顶面只剩周圈窄条: 勒脚带宽 0.30、压顶带宽 0.35。
+    # bldA_body_F1_F4 (第三道盖, 底盖 z=0.5) 在现版 ov-bldA 里不存在:
+    # 它是旧 v2 实心楼体的残留, 只在 2026-11-24 15:35 拼出的总览 .glb 里
+    # (由当时 225 件的旧 .blend 拼入), v3 换装 (R2-T21a) 已无此件,
+    # 本次重拼总览即随之消失, 无须另删。楼体尺寸/量体一字不动。
+    ring("bldA_plinth", CX, CY, 0.0, 0.5, W + 0.6, D + 0.6, W, D,
+         MAT_CONC, bevel=0.04)
+    ring("bldA_plinth_cap", CX, CY, 0.5, 0.68, W + 0.7, D + 0.7, W, D,
+         MAT_BAND, bevel=0.03)
     # ---- 屋顶板 18.1-18.35 (封横切口) + 女儿墙 18.35-19.0 ----
     box("bldA_roof_slab", CX, CY, 18.1, 18.35, W, D, MAT_ROOF, bevel=0.03)
     PW, PD, T = W - 0.6, D - 0.6, 0.30
