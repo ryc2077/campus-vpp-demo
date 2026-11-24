@@ -1113,36 +1113,45 @@ func _process(_delta: float) -> bool:
 	_chk("流光点 9 个、X 列 −2.4/−0.8/0.8（3 台电池柜中心）", dot_ok and dot_xs.has(-2.4) and dot_xs.has(-0.8) and dot_xs.has(0.8), str(dot_xs.keys()))
 	_chk("流光点 Z=0.58（球后缘 0.50 恰贴柜前脸，格栅相交 ≤0.014）", dot_ok, "")
 	_chk("流光点半径 r=0.08（近拍直径约 23px，不再是 40px 大圆点）", sto != null and sto.flow_dots.size() > 0 and absf(((sto.flow_dots[0] as MeshInstance3D).mesh as SphereMesh).radius - 0.08) < 0.001, "")
-	var dot_ys := [0.3, 1.385, 2.47]
+	var dot_ys := [0.3, 1.335, 2.37]
 	var dot_rows_ok: bool = sto != null and sto.flow_dots.size() == 9
 	if dot_rows_ok:
 		for k in range(9):
 			if absf((sto.flow_dots[k] as MeshInstance3D).position.y - dot_ys[k / 3]) >= 0.001:
 				dot_rows_ok = false
-	_chk("流光点静态行 Y 0.3/1.385/2.47", dot_rows_ok, "")
+	_chk("流光点静态行 Y 0.3/1.335/2.37", dot_rows_ok, "")
 	if sto != null:
 		sto.call("update_frame", 100.0, 5.0, 0.016)
 		var dot_range_ok := true
 		for d in sto.flow_dots:
 			var yy := (d as MeshInstance3D).position.y
-			if yy < 0.3 - 0.001 or yy > 2.47 + 0.001:
+			if yy < 0.3 - 0.001 or yy > 2.37 + 0.001:
 				dot_range_ok = false
-		_chk("流光点动画行程 Y 0.3–2.47（球顶缘 2.55 不越柜顶）", dot_range_ok, "")
+		_chk("流光点动画行程 Y 0.3–2.37（球顶缘 2.45，柜顶下留 0.10m）", dot_range_ok, "")
 		# 顶端越界扫查（run 45297927902 的 10 号特写：行程顶端球顶 2.64 越过柜顶
-		# 2.55，右上点浮在屋顶线上）：多 t 扫一遍行程，球顶缘 ≤2.55、球底缘 ≥0.14。
+		# 2.55，右上点浮在屋顶线上；01cce8dc 修到 2.47 后球顶缘 2.55 恰贴柜顶线，
+		# #101/#102 近拍仍见个别点顶端贴线）：多 t 扫一遍行程，球顶缘 ≤2.50
+		#（柜顶 −0.05m）、球底缘 ≥0.14。
 		var _dot_r := 0.08
 		if sto.flow_dots.size() > 0:
 			_dot_r = ((sto.flow_dots[0] as MeshInstance3D).mesh as SphereMesh).radius
 		var _dot_edge_ok := true
+		var _dot_max_top := 0.0
 		var _t := 0.0
 		while _t <= 6.0:
 			sto.call("update_frame", 100.0, _t, 0.016)
 			for d in sto.flow_dots:
 				var yy2 := (d as MeshInstance3D).position.y
-				if yy2 + _dot_r > 2.551 or yy2 - _dot_r < 0.14:
+				_dot_max_top = maxf(_dot_max_top, yy2 + _dot_r)
+				if yy2 + _dot_r > 2.501 or yy2 - _dot_r < 0.14:
 					_dot_edge_ok = false
 			_t += 0.25
-		_chk("流光点球顶缘 ≤2.55 / 球底缘 ≥0.14（行程全程不越柜顶、不沉踢脚）", _dot_edge_ok, "")
+		_chk("流光点球顶缘 ≤2.50 / 球底缘 ≥0.14（行程全程柜顶下留 ≥0.05m、不沉踢脚）", _dot_edge_ok, "")
+		_chk("流光点行程顶端球顶缘 2.45 ≤ 柜顶 2.55−0.05（留 0.10m 余量）", _dot_max_top <= 2.501, str(_dot_max_top))
+		# 采样扫查到不了 u≈1 的真顶端（上轮反向验证：旧 2.17 下采样仍全过），
+		# 行程顶端以源码跨度为准：0.3+u*2.07 → 顶 2.37，球顶缘 2.45。
+		var _sto_src := FileAccess.get_file_as_string("res://scripts/storage_interior.gd")
+		_chk("流光点动画跨度源码 u*2.07（行程顶 2.37，球顶缘 2.45）", _sto_src.find("u * 2.07") >= 0 and _sto_src.find("u * 2.17") < 0, "")
 	_chk("检修灯带中心 y=5.415（底面 5.375 恰贴 GLB 屋顶顶）", sto_strip != null and absf(sto_strip.position.y - 5.415) < 0.001, str(sto_strip.position.y) if sto_strip != null else "null")
 	_chk("检修灯带底面 5.375 不埋入屋顶", sto_strip != null and absf((sto_strip.position.y - 0.04) - 5.375) < 0.001, str(sto_strip.position.y - 0.04) if sto_strip != null else "null")
 	var pv = _main.pv_detail

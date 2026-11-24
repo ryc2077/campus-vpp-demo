@@ -64,8 +64,9 @@ func _build() -> void:
 	# 球 r0.08，z=0.58 时球后缘恰贴前脸 0.5（格栅条最凸 0.514，球面仅在 y 1.71–2.10
 	# 段与格栅平面相交 ≤0.014m，可忽略，与 r0.14/z=0.64 旧口径同值）；球前缘只探出
 	# 柜面 0.16m（旧 0.28m）、近拍直径约 23px（旧约 40px），不再是浮空大圆点。
-	# y 行程 0.3–2.47：球顶缘 2.47+0.08=2.55 恰为柜顶，不再越过柜顶 0.09m 浮在
-	# 屋顶线上（run 45297927902 的 10 号特写右上点即此顶端越界）；下缘 0.22
+	# y 行程 0.3–2.37：球顶缘 2.37+0.08=2.45，柜顶 2.55 下留 0.10m 余量
+	#（上一轮 2.47 时球顶缘 2.55 恰贴柜顶线，#101/#102 近拍仍见个别点顶端
+	# 贴线；本轮行程顶端再下压 0.10m，球顶缘 ≤ 柜顶 −0.05m）；下缘 0.22
 	# 仍高于踢脚顶 0.15。X 列/灯带/风扇一行未动。
 	var i := 0
 	while i < 9:
@@ -80,7 +81,7 @@ func _build() -> void:
 		sm.height = 0.16
 		dot.mesh = sm
 		dot.material_override = m
-		dot.position = Vector3(-2.4 + (i % 3) * 1.6, 0.3 + (i / 3) * 1.085, 0.58)
+		dot.position = Vector3(-2.4 + (i % 3) * 1.6, 0.3 + (i / 3) * 1.035, 0.58)
 		add_child(dot)
 		flow_dots.append(dot)
 		flow_mats.append(m)
@@ -111,4 +112,4 @@ func update_frame(batt_kw: float, t: float, delta: float) -> void:
 			var u := fmod(t * (0.12 + absf(batt_kw) / 300.0) + float(i) / 9.0, 1.0)
 			if batt_kw < -1.0:
 				u = 1.0 - u
-			d.position.y = 0.3 + u * 2.17
+			d.position.y = 0.3 + u * 2.07
