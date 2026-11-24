@@ -26,6 +26,14 @@ extends Node3D
 ##    无一落在箱体上）。故变压器标签允许在锚点原位（dy 0）与 SOC 标签叠放
 ##    一行（字距约 3px，两色区分）：仅 dy 0、仅撞 SOC 时放行，顶栏/场景栏/
 ##    面板守卫一律不绕过，全局净空规则与档位表一行不动。
+##    适用范围（回退总览修补，2026-11-24 探针实测）：pin 只在 GLB 总览放行
+##    （main.gd 按 campus.overview_glb_active 置 pin_enabled）；回退总览 pin 关，
+##    变压器走正常档位排开。探针数：回退总览两锚点投影纵向只差 12.77px
+##    （SOC 378.33 / 变压器 391.10），字高约 16px，dy 0 叠放时字盒交叠
+##    17.23px、字形也贴住（15 帧 SOC 字形 y373–385、变压器 y385–398，
+##    与 00 帧逐像素一致）；F2 的“约 32px”是两锚点投影的直线距
+##    （横向 24.8px 占大头），纵向从来不够一张字高。GLB 总览保留 F2 有意叠放，
+##    回退总览不再沿用 pin。
 
 var camera: Camera3D
 var font: Font # Label3D 不走 Control 主题，main.gd 启动时把中文字体直接赋过来
@@ -41,6 +49,9 @@ var panel_control: Control = null # 场景面板（右侧固定 UI）：main.gd 
 var abc_panel_control: Control = null # ABC 面板（右侧浮层 UI）：main.gd 把 $UI/ABCPanel 赋过来；
 # 与场景面板同一模式：_update 里取其实时 get_global_rect() 作碰撞区，打开时才碰撞，
 # 关闭时不碰撞；双开时场景面板下移、ABC 面板 rect 本身不动，实时取都跟得上。
+var pin_enabled := true # pin 总开关（规则 6）：main.gd 在 _setup_labels 里按
+# campus.overview_glb_active 置位——GLB 总览 true（F2 有意叠放保留），回退总览
+# false（变压器走正常档位排开，不再原位叠 SOC 之下）。默认 true，旧行为不变。
 var _min_gap := 20.0 # 去重叠最小净空（屏上 px，720p 口径）：候选字盒与已放字盒之间
 # 至少留 20px 空隙才算排开，否则继续试下一档。只扩判定用的盒，不改 est_h。
 # （02-storage 实测：储能柜标签 y≈48 落在顶栏带内，隔着 93% 白面板只剩约 7% 可见度，白字压白底）
@@ -252,8 +263,9 @@ func _update() -> void:
 						hit_soc_only = false
 			# pin（规则 6，配电变压器专用）：dy 0 是箱体上唯一位置，撞的又只有
 			# SOC 时原位叠放；顶栏/场景栏/面板守卫在上面已 continue，不绕过；
-			# 其余档位、其余标签一律走原规则。
-			if hit2 and not (bool(d.get("pin", false)) and dy == 0.0 and hit_soc_only):
+			# 其余档位、其余标签一律走原规则。pin_enabled 关时（回退总览）
+			# 不放行，走正常档位排开。
+			if hit2 and not (pin_enabled and bool(d.get("pin", false)) and dy == 0.0 and hit_soc_only):
 				continue
 			placed.append(r)
 			placed_defs.append(d)

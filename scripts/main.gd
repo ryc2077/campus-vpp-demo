@@ -160,6 +160,10 @@ func _rebuild_classroom() -> void:
 	}
 
 func _setup_labels() -> void:
+	# pin 只在 GLB 总览放行（labels.gd 规则 6）：overview.glb 接管时 true，
+	# 回退总览（程序化）时 false，变压器走正常档位排开。_setup_labels 在
+	# campus.build() 之后调，overview_glb_active 已定型。
+	labels.pin_enabled = campus.overview_glb_active
 	labels.camera = rig
 	labels.panel_control = panel # 场景面板实时 rect 作标签碰撞区（labels.gd 内取，不硬编码像素）
 	labels.abc_panel_control = $UI/ABCPanel # ABC 面板实时 rect 作标签碰撞区，同一模式；关闭时不碰撞

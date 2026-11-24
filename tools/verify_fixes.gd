@@ -8,6 +8,8 @@ extends SceneTree
 ##      总览池塘水面底缘 y<640（F1 取景修补：总览 dist 235→275）、
 ##      F2/F3 标签锚点修补：总览变压器标签渲染中心距箱体顶面中心 ≤30px、
 ##      三号教学楼总览屏内可见、屏内可见标签两两无新重叠（SOC/变压器有意叠放除外）、
+##      回退总览 pin 关：变压器 +44 档与 SOC 字盒分开（净空 ≥20px），
+##      宿舍楼 A/B +66 未被误藏（GLB 总览 F2 叠放不变，分支按 overview_glb_active 判定）、
 ##      一号教学楼总览锚点修补（F1 取景代价）：总览一号屏内可见（+44 档 y≈316）、
 ##      二号教学楼 +88 档未被误藏、一号与屋顶光伏纵向净空 ≥20px、ABC 打开/关闭基线 18 条、
 ##      ABC 面板遮挡（充电区 + 总览 ABC 打开态：屏内可见标签无一与 ABC 面板相交）、
@@ -394,6 +396,14 @@ func _process(_delta: float) -> bool:
 			# 错位是去重叠 +44 档顶到宿舍楼 A 屋顶；修后 pin 原位叠放（dy 0，
 			# 仅撞 SOC 时放行，见 labels.gd 规则 6），渲染中心应贴在箱体上
 			#（距顶面中心 (74,3.6,-30) 投影 ≤30px）。
+			# 回退总览修补（2026-11-24）：pin 只在 GLB 总览放行
+			#（labels.pin_enabled = campus.overview_glb_active）；回退总览
+			# pin 关，变压器走正常档位：探针实测 +44 档（渲染中心 y≈435.1，
+			# 字盒 y420.1–450.1，与 SOC 字盒底 393.3 纵向净空 26.8px），
+			# 宿舍楼 A/B 各被顶到 +66（494.8/551.9），无标签被藏。
+			# 分支用 _main.campus.overview_glb_active 判定（GLB 接管才 true；
+			# 本地无头未 --import 时 false，走回退口径，CI 跑 GLB 口径）。
+			var _glb_ov4: bool = _main.campus.overview_glb_active
 			var _tf_sp := Vector2.ZERO
 			var _tf_vis := false
 			for _d8 in _labels_ov.defs:
@@ -403,7 +413,26 @@ func _process(_delta: float) -> bool:
 					if _tf_vis:
 						_tf_sp = (_labels_ov.camera as Camera3D).unproject_position(_tl.position)
 			var _box_sp: Vector2 = (_labels_ov.camera as Camera3D).unproject_position(Vector3(74, 3.6, -30))
-			_chk("总览：配电变压器标签渲染中心贴在箱体上（距箱体顶面中心 ≤30px）", _tf_vis and _tf_sp.distance_to(_box_sp) <= 30.0, "render=" + str(_tf_sp) + " box=" + str(_box_sp) + " dist=" + str(_tf_sp.distance_to(_box_sp)))
+			if _glb_ov4:
+				_chk("总览：配电变压器标签渲染中心贴在箱体上（距箱体顶面中心 ≤30px）", _tf_vis and _tf_sp.distance_to(_box_sp) <= 30.0, "render=" + str(_tf_sp) + " box=" + str(_box_sp) + " dist=" + str(_tf_sp.distance_to(_box_sp)))
+			else:
+				var _soc_r4 := Rect2()
+				var _tf_r4 := Rect2()
+				for _dR in _labels_ov.defs:
+					if String(_dR["dynamic"]) == "soc":
+						_soc_r4 = _labels_rect(_labels_ov, _dR)
+					if String(_dR["text"]) == "配电变压器":
+						_tf_r4 = _labels_rect(_labels_ov, _dR)
+				_chk("回退总览：配电变压器与 SOC 字盒不重叠（pin 关，纵向净空 ≥20px）", _tf_vis and _label_onscreen_visible(_labels_ov, "配电变压器") and not _soc_r4.intersects(_tf_r4) and _tf_r4.position.y - _soc_r4.end.y >= 20.0, "soc=" + str(_soc_r4) + " tf=" + str(_tf_r4))
+				_chk("回退总览：配电变压器走 +44 档（渲染中心 y≈435，430≤y≤440）", _tf_vis and _tf_sp.y >= 430.0 and _tf_sp.y <= 440.0, "render=" + str(_tf_sp))
+				var _dormA_sp := Vector2.ZERO
+				var _dormB_sp := Vector2.ZERO
+				for _dD in _labels_ov.defs:
+					if String(_dD["text"]) == "宿舍楼 A":
+						_dormA_sp = (_labels_ov.camera as Camera3D).unproject_position((_dD["label"] as Label3D).position)
+					if String(_dD["text"]) == "宿舍楼 B":
+						_dormB_sp = (_labels_ov.camera as Camera3D).unproject_position((_dD["label"] as Label3D).position)
+				_chk("回退总览：宿舍楼 A/B 未被误藏（被变压器顶到 +66，仍屏内可见）", _label_onscreen_visible(_labels_ov, "宿舍楼 A") and _label_onscreen_visible(_labels_ov, "宿舍楼 B") and _dormA_sp.y >= 490.0 and _dormA_sp.y <= 500.0 and _dormB_sp.y >= 547.0 and _dormB_sp.y <= 557.0, "A=" + str(_dormA_sp) + " B=" + str(_dormB_sp))
 			# F3：三号教学楼锚点总览用楼南侧低位 (17,8,-20)（其余场景楼顶原锚点，
 			# 见 main.gd _apply_c3_anchor），+88 档落到楼南立面正下方空地；
 			# 修后总览应屏内可见。
@@ -429,8 +458,9 @@ func _process(_delta: float) -> bool:
 				if String(_dB["text"]) == "屋顶光伏":
 					_pv_r = _labels_rect(_labels_ov, _dB)
 			_chk("总览：一号教学楼与屋顶光伏字盒不重叠（纵向净空 ≥20px）", not _bldA_r.intersects(_pv_r) and _bldA_r.position.y - _pv_r.end.y >= 20.0, "bldA=" + str(_bldA_r) + " pv=" + str(_pv_r))
-			# 无新重叠：屏内可见标签两两字盒不相交——SOC/变压器是 pin 有意叠放
-			# 的一对（F2），排除在外；其余任何一对相交即新重叠。
+			# 无新重叠：屏内可见标签两两字盒不相交——GLB 总览里 SOC/变压器是 pin
+			# 有意叠放的一对（F2），排除在外；回退总览 pin 关，两盒须分开，
+			# 不排除。其余任何一对相交即新重叠。
 			var _ov_bad: Array[String] = []
 			var _ov_defs: Array = []
 			for _d9 in _labels_ov.defs:
@@ -447,11 +477,11 @@ func _process(_delta: float) -> bool:
 					var _a2: Dictionary = _ov_defs[_m]
 					var _t1 := String(_a1["text"])
 					var _t2 := String(_a2["text"])
-					if (_t1 == "配电变压器" and String(_a2["dynamic"]) == "soc") or (_t2 == "配电变压器" and String(_a1["dynamic"]) == "soc"):
+					if _glb_ov4 and ((_t1 == "配电变压器" and String(_a2["dynamic"]) == "soc") or (_t2 == "配电变压器" and String(_a1["dynamic"]) == "soc")):
 						continue
 					if _labels_rect(_labels_ov, _a1).intersects(_labels_rect(_labels_ov, _a2)):
 						_ov_bad.append(_t1 + "/" + _t2)
-			_chk("总览：除 SOC/变压器有意叠放外，屏内可见标签两两无重叠", _ov_bad.is_empty(), "bad=[" + ", ".join(_ov_bad) + "]")
+			_chk("总览：屏内可见标签两两无重叠（GLB 分支 SOC/变压器有意叠放除外，回退分支不除外）", _ov_bad.is_empty(), "bad=[" + ", ".join(_ov_bad) + "]")
 			# 附加 dist 守卫：limits 没解除时总览机位会被钳成 dist 36 的储能近拍，
 			# 两标签盒不交就成了空通过；真总览 dist 275，target (−6,2,4)。
 			_chk("总览：屋顶光伏与艺体馆字盒不重叠（净空 ≥20px）", _labels_pair_clear(_labels_ov, 20.0) and absf(_main.rig.dist - 275.0) < 0.5, _labels_pair_detail(_labels_ov) + " dist=" + str(_main.rig.dist) + " target=" + str(_main.rig.target))
