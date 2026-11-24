@@ -1,6 +1,9 @@
 # cl-floor-walls: 教室内部·地面墙面
 # 返工 R2-T17 (2026-11-24): 墙面偏青绿只调颜色 -- 见文件末尾
 #   BASE_COLOR_FACTOR (暖色补偿, 抵消 Godot 绿天光); 尺寸结构一字未动。
+# 返工 R2-T27 (2026-11-25): 后墙偏暗分墙调色 -- 西墙另立材质
+#   cl-floor-walls_wall_back, 因子 (1.85, 0.62, 0.45); 南北/东墙
+#   因子不动; 天花板顺带去绿 (1.0, 0.85, 0.78); 几何一字未动。
 # 纹理已固化进脚本（见文件末尾 _apply_pbr_textures，2026-11-23）：
 # 染色贴图 assets/blender/tex/ + 原图 assets/external/，材质节点直连
 # Base Color/Roughness/Normal；重跑不再丢贴图。
@@ -167,6 +170,11 @@ MAT_FLOOR = stone_tile("cl-floor-walls_floor", "#D8D2C4")
 MAT_GROUT = principled("cl-floor-walls_grout", "#B9B3A8", roughness=0.9)
 MAT_WALL = plaster("cl-floor-walls_wall", "#F3E9D2",
                    noise_scale=2.5, mottle_lo=0.80, bump_strength=0.2)
+# 西墙（后墙，黑板墙）单独材质 (R2-T27, 2026-11-25)：只靠绿天光照明，
+# 与受直射的南北墙光照差 9 倍，单因子无法两边兼顾（见文件末尾注释），
+# 故西墙另立材质、另给补偿因子；几何/贴图/尺寸与 MAT_WALL 完全相同。
+MAT_WALL_BACK = plaster("cl-floor-walls_wall_back", "#F3E9D2",
+                        noise_scale=2.5, mottle_lo=0.80, bump_strength=0.2)
 # 踢脚线: 深灰漆面 + Noise 轻微污渍深浅 + Bump + 粗糙度变化;
 # 分缝靠几何: 踢脚线已按墙垛分段 (窗洞/门洞处断开), 段间即缝
 MAT_SKIRT = plaster("cl-floor-walls_skirt", "#424A52",
@@ -245,8 +253,9 @@ for side, y_wall, tag in ((-3.63, -3.63, "s"), (3.63, 3.63, "n")):
                 (WIN_W, WT, H - WIN_Z0 - WIN_H), MAT_WALL, bevel=0.01)
 
 # ---- 西墙 (黑板墙, 无洞口): 夹在南北墙之间, y -3.555~+3.555 ----
+# R2-T27: 用 MAT_WALL_BACK（另给补偿因子），几何一字未动。
 add_box("cl-floor-walls_wall_west", (-4.84, 0, H / 2.0),
-        (WT, LY - WT, H), MAT_WALL, bevel=0.01)
+        (WT, LY - WT, H), MAT_WALL_BACK, bevel=0.01)
 
 # ---- 东墙 (门洞 y -0.5~+0.5, z 0-2.2): 两侧通高墙垛 + 门上过梁 ----
 add_box("cl-floor-walls_wall_east_south", (4.84, -2.0275, H / 2.0),
@@ -300,9 +309,76 @@ EXT_DIR = os.path.join(BASE, "assets/external")
 # 不能只改默认值); 等效反照率 sRGB 约 (243,151,123)。代价: Blender 预览
 # (中性光) 下墙会直接显出这层暖粉补偿色, Godot 侧验收以
 # 03-classroom 为准。只补墙面; 天花板同理发绿但 03 取景内不可见, 不动。
+# 分墙调色 (R2-T27, 2026-11-25): T17 单因子在 Godot 里实测两边表现
+# 不同 -- 后墙 (西墙) 几乎只靠天光, 实测 (72,70,57), 比目标暖褐
+# (97,88,68) 暗约 25%; 右墙 (北墙) 受直射, 实测 (200,132,100) 三文鱼
+# 色 (R2-T24 诊断, Web 实拍复核一致)。线性反推: 后墙辐照度约
+# (0.072, 0.195, 0.198) (绿天光主导), 右墙约 (0.644, 0.733, 0.618)
+# (日光主导, 近中性)。后墙要到 (97,88,68) 需反照率 (1.65, 0.50, 0.29),
+# 即因子 (1.85, 0.62, 0.45) -- R 分量 >1 (贴图 R 已 243, 单靠贴图
+# 提不上去); 同因子放右墙会算出 (263,163,117), R 溢出吹成粉红,
+# 故必须分墙: 西墙单独材质另给因子, 南北/东墙沿用 T17 因子不动
+# (右墙维持 (200,132,100), 不冲粉)。天花板顺带去绿: 同法, 辐照度
+# (0.078, 0.074, 0.051), 因子 (1.0, 0.85, 0.78) 预测 (71,64,50),
+# 只去绿不提亮 (提亮需因子 ~4, 不可行); 三因子全 ≤1, 与墙同 code path。
 BASE_COLOR_FACTOR = {
-    "cl-floor-walls_wall": (1.0, 0.39, 0.32),  # 线性值
+    "cl-floor-walls_wall": (1.0, 0.39, 0.32),  # 线性值，南北/东墙，T17 原值不动
+    "cl-floor-walls_wall_back": (1.85, 0.62, 0.45),  # 线性值，西墙（后墙）
+    "cl-floor-walls_ceiling": (1.0, 0.85, 0.78),  # 线性值，天花板去绿
 }
+
+# ---- GLB baseColorFactor >1 补丁 (R2-T27) ----
+# Blender 4.2 glTF 导出器在
+# io_scene_gltf2/.../gltf2_blender_gather_materials_pbr_metallic_roughness.py
+# __gather_base_color_factor() 里硬 clamp（rgb = [max(min(c, 1.0), 0.0)...]），
+# >1 的补偿因子导不出，GLB 里会变成 1.0。后墙要达到目标暖褐必须 R=1.85
+# （见上；贴图 R 已 243，单靠贴图提不上去；不改灯光），故导出后直接改
+# GLB 的 JSON chunk，把指定材质的 baseColorFactor 写回 .blend 里的真实
+# 值。.blend 本就存 1.85（Blender 自身渲染也用它），补丁后 .blend 与
+# .glb 一致；重跑本脚本会重新打补丁。只改 JSON chunk，不动 BIN chunk。
+# 课堂场景拼装脚本 classroom.py 里有同一份补丁（它从 .blend 重导出，
+# 也会触发同一 clamp），两处须保持同步。
+GLB_FACTOR_PATCH = {
+    "cl-floor-walls_wall_back": [1.85, 0.62, 0.45, 1.0],
+}
+
+
+def _patch_glb_factors(glb_path):
+    import json as _json
+    import struct as _struct
+    with open(glb_path, "rb") as f:
+        data = bytearray(f.read())
+    assert data[:4] == b"glTF", "not a GLB file: %s" % glb_path
+    total_len = _struct.unpack_from("<I", data, 8)[0]
+    assert total_len == len(data), "GLB length mismatch: %s" % glb_path
+    json_len = _struct.unpack_from("<I", data, 12)[0]
+    json_start = 20
+    js = _json.loads(bytes(data[json_start:json_start + json_len]))
+    patched = []
+    for m in js.get("materials", []):
+        want = GLB_FACTOR_PATCH.get(m.get("name"))
+        if want is not None:
+            m.setdefault("pbrMetallicRoughness", {})["baseColorFactor"] = want
+            patched.append(m["name"])
+    if not patched:
+        print("GLB factor patch: no matching material in", glb_path)
+        return
+    new_json = _json.dumps(js, separators=(",", ":")).encode("utf-8")
+    pad = (-len(new_json)) % 4  # JSON chunk 须 4 字节对齐，空格补齐
+    new_json += b" " * pad
+    rest = bytes(data[json_start + json_len:])
+    new_total = 20 + len(new_json) + len(rest)
+    out = bytearray()
+    out += data[:8]  # magic + version
+    out += _struct.pack("<I", new_total)
+    out += _struct.pack("<I", len(new_json))
+    out += b"JSON"
+    out += new_json
+    out += rest
+    assert len(out) == new_total
+    with open(glb_path, "wb") as f:
+        f.write(out)
+    print("GLB factor patch: %s -> %s" % (patched, glb_path))
 
 PBR_TEXTURES = {
     "cl-floor-walls_floor": ("concrete_wall_007__D8D2C4.jpg",
@@ -312,6 +388,9 @@ PBR_TEXTURES = {
         "polyhaven/concrete_wall_007_rough_1k.jpg",
         "polyhaven/concrete_wall_007_nor_gl_1k.jpg", (1.0, 1.0)),
     "cl-floor-walls_wall": ("white_stucco__F3E9D2.jpg",
+        "polyhaven/white_stucco_rough_1k.jpg",
+        "polyhaven/white_stucco_nor_gl_1k.jpg", (3.0, 2.0)),
+    "cl-floor-walls_wall_back": ("white_stucco__F3E9D2.jpg",
         "polyhaven/white_stucco_rough_1k.jpg",
         "polyhaven/white_stucco_nor_gl_1k.jpg", (3.0, 2.0)),
     "cl-floor-walls_skirt": ("concrete_wall_007__424A52.jpg",
@@ -365,6 +444,8 @@ def _apply_pbr_textures():
         # 导出器不读 socket 默认值, 只认新 Mix 节点 (type MIX, 非旧
         # MixRGB) 的 MULTIPLY 常量 (detect_multiply_by_constant), 把它
         # 写成 baseColorFactor 与贴图相乘; 其余材质仍直连。
+        # 注意：导出器会把 >1 的常量 clamp 到 1.0，导出后由文件末尾的
+        # _patch_glb_factors() 写回（见 BASE_COLOR_FACTOR 上方说明）。
         # 注意: Mix 节点有 10 个输入槽, RGBA 的 A/B 是 inputs[6]/[7]
         # (4 元), 输出 RGBA 是 outputs[2]; 按名字取 "A" 会取到 VALUE 槽。
         factor = BASE_COLOR_FACTOR.get(mat_name)
@@ -435,6 +516,9 @@ bpy.context.view_layer.objects.active = piece_objs[0]
 os.makedirs(os.path.dirname(GLB_PATH), exist_ok=True)
 bpy.ops.export_scene.gltf(filepath=GLB_PATH, export_format='GLB',
                            use_selection=True, export_apply=True)
+
+# 导出器 clamp 补丁 (R2-T27)：把 >1 的补偿因子写回 GLB，见上。
+_patch_glb_factors(GLB_PATH)
 
 # ---- 回读校验 ----
 n_before = len(bpy.data.objects)

@@ -1,0 +1,992 @@
+Blender 4.2.0 (hash a51f293548ad built 2024-07-16 06:27:02)
+Info: Total files 483 | Changed 483 | Failed 0
+17:53:40 | INFO: Starting glTF 2.0 export
+17:53:40 | INFO: Extracting primitive: Cube.055
+17:53:40 | INFO: Primitives created: 1
+17:53:40 | INFO: Extracting primitive: Cube.040
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.038
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.036
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.034
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.033
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.032
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.031
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.030
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.029
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.041
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.039
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.037
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.035
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.053
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.051
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.049
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.047
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.046
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.045
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.044
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.043
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.042
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.054
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.052
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.050
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.048
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.056
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.057
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.058
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.069
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.063
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.062
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.061
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.060
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.059
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.068
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.067
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.066
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.065
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.064
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.070
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.071
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.028
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.027
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.026
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.025
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.024
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.023
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.022
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.021
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.020
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.019
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.018
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.017
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.016
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.015
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.014
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.013
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.012
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.011
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.010
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.009
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.008
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.007
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.006
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.005
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.004
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.003
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.002
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.001
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube
+17:53:41 | INFO: Primitives created: 1
+17:53:41 | INFO: Extracting primitive: Cube.072
+17:53:42 | INFO: Primitives created: 1
+17:53:42 | INFO: Extracting primitive: student-desk_0
+17:53:42 | INFO: Primitives created: 2
+17:53:42 | INFO: Extracting primitive: student-chair_0
+17:53:42 | INFO: Primitives created: 2
+17:53:42 | INFO: Extracting primitive: Cube.073
+17:53:43 | INFO: Primitives created: 1
+17:53:43 | INFO: Extracting primitive: Cube.074
+17:53:43 | INFO: Primitives created: 1
+17:53:43 | INFO: Extracting primitive: Cube.075
+17:53:43 | INFO: Primitives created: 1
+17:53:43 | INFO: Extracting primitive: Cube.076
+17:53:43 | INFO: Primitives created: 1
+17:53:43 | INFO: Extracting primitive: Cylinder.007
+17:53:43 | INFO: Primitives created: 1
+17:53:43 | INFO: Extracting primitive: Cylinder.006
+17:53:43 | INFO: Primitives created: 1
+17:53:43 | INFO: Extracting primitive: Cube.077
+17:53:44 | INFO: Primitives created: 1
+17:53:44 | INFO: Extracting primitive: Cube.078
+17:53:44 | INFO: Primitives created: 1
+17:53:44 | INFO: Extracting primitive: Cube.079
+17:53:44 | INFO: Primitives created: 1
+17:53:44 | INFO: Extracting primitive: Cube.080
+17:53:44 | INFO: Primitives created: 1
+17:53:44 | INFO: Extracting primitive: Cube.081
+17:53:44 | INFO: Primitives created: 1
+17:53:44 | INFO: Extracting primitive: Cube.082
+17:53:44 | INFO: Primitives created: 1
+17:53:44 | INFO: Extracting primitive: Cube.083
+17:53:44 | INFO: Primitives created: 1
+17:53:44 | INFO: Extracting primitive: Cube.084
+17:53:44 | INFO: Primitives created: 1
+17:53:44 | INFO: Extracting primitive: Cube.085
+17:53:44 | INFO: Primitives created: 1
+17:53:44 | INFO: Extracting primitive: Cube.086
+17:53:44 | INFO: Primitives created: 1
+17:53:44 | INFO: Extracting primitive: Cube.087
+17:53:44 | INFO: Primitives created: 1
+17:53:44 | INFO: Extracting primitive: Cylinder.005
+17:53:44 | INFO: Primitives created: 1
+17:53:44 | INFO: Extracting primitive: Cylinder.004
+17:53:44 | INFO: Primitives created: 1
+17:53:44 | INFO: Extracting primitive: Cube.088
+17:53:44 | INFO: Primitives created: 1
+17:53:44 | INFO: Extracting primitive: Cube.089
+17:53:44 | INFO: Primitives created: 1
+17:53:44 | INFO: Extracting primitive: Cube.090
+17:53:45 | INFO: Primitives created: 1
+17:53:45 | INFO: Extracting primitive: Cube.091
+17:53:45 | INFO: Primitives created: 1
+17:53:45 | INFO: Extracting primitive: Cube.092
+17:53:45 | INFO: Primitives created: 1
+17:53:45 | INFO: Extracting primitive: Cube.093
+17:53:45 | INFO: Primitives created: 1
+17:53:45 | INFO: Extracting primitive: Cube.094
+17:53:45 | INFO: Primitives created: 1
+17:53:45 | INFO: Extracting primitive: Cube.095
+17:53:45 | INFO: Primitives created: 1
+17:53:45 | INFO: Extracting primitive: Cube.096
+17:53:45 | INFO: Primitives created: 1
+17:53:45 | INFO: Extracting primitive: Cube.097
+17:53:45 | INFO: Primitives created: 1
+17:53:45 | INFO: Extracting primitive: Cube.098
+17:53:45 | INFO: Primitives created: 1
+17:53:45 | INFO: Extracting primitive: Cylinder.003
+17:53:45 | INFO: Primitives created: 1
+17:53:45 | INFO: Extracting primitive: Cylinder.002
+17:53:45 | INFO: Primitives created: 1
+17:53:45 | INFO: Extracting primitive: Cylinder.001
+17:53:45 | INFO: Primitives created: 1
+17:53:45 | INFO: Extracting primitive: Cylinder
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.099
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.100
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.101
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.102
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.103
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.104
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.105
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.106
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.107
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.108
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.109
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.110
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.111
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.112
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.008
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.113
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.009
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.114
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.010
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.011
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.115
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.116
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.117
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.118
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.119
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.120
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.121
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.122
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.012
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.013
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.014
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.015
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.123
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.124
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.021
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.020
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.017
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.016
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.018
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.019
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.022
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.023
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.024
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.025
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.026
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.027
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.028
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.029
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.030
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.031
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.032
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.033
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.034
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.035
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.036
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.037
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.038
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.039
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.125
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.126
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.127
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.128
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.129
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.130
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.131
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.132
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.133
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.134
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.135
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.136
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.137
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.138
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.139
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.140
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.141
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.142
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.143
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.144
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.145
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.146
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.147
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.148
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.149
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.150
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.151
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.152
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.153
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.154
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.155
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.156
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.157
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.158
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.159
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.160
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.161
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.162
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.163
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.164
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.165
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.166
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.167
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.168
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.169
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.170
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.040
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.041
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.042
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cylinder.043
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.171
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.172
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.173
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.174
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.175
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.176
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.177
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.178
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.179
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.180
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.181
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.182
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.183
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.184
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.185
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.186
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.187
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.188
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.189
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.190
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.191
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.192
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.193
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.194
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.195
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.196
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.197
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.198
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.199
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.200
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.201
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.202
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.203
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.204
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.205
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.206
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.207
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.208
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.209
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.210
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.211
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.212
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.213
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.214
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.215
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.216
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.217
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.218
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.219
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.220
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.221
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.222
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.223
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.224
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.225
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.226
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.227
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.228
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.229
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.230
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.231
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.232
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.233
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.234
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.235
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.236
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.237
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.238
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.239
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.240
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.241
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.242
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Sphere.007
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Sphere.006
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Sphere.005
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Sphere.004
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Sphere.003
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Sphere.002
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Sphere.001
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Sphere
+17:53:46 | INFO: Primitives created: 1
+17:53:46 | INFO: Extracting primitive: Cube.243
+17:53:47 | INFO: Primitives created: 1
+17:53:47 | INFO: Extracting primitive: Cube.244
+17:53:47 | INFO: Primitives created: 1
+17:53:47 | INFO: Extracting primitive: Cube.245
+17:53:47 | INFO: Primitives created: 1
+17:53:47 | INFO: Extracting primitive: door_geo
+17:53:47 | INFO: Primitives created: 2
+17:53:47 | INFO: Extracting primitive: cl-windows_curtain_s4_2
+17:53:47 | INFO: Primitives created: 1
+17:53:47 | INFO: Extracting primitive: cl-windows_curtain_s4_1
+17:53:47 | INFO: Primitives created: 1
+17:53:47 | INFO: Extracting primitive: cl-windows_curtain_s3_2
+17:53:47 | INFO: Primitives created: 1
+17:53:47 | INFO: Extracting primitive: cl-windows_curtain_s3_1
+17:53:47 | INFO: Primitives created: 1
+17:53:47 | INFO: Extracting primitive: cl-windows_curtain_s2_2
+17:53:47 | INFO: Primitives created: 1
+17:53:47 | INFO: Extracting primitive: cl-windows_curtain_s2_1
+17:53:47 | INFO: Primitives created: 1
+17:53:47 | INFO: Extracting primitive: cl-windows_curtain_s1_2
+17:53:47 | INFO: Primitives created: 1
+17:53:47 | INFO: Extracting primitive: cl-windows_curtain_s1_1
+17:53:47 | INFO: Primitives created: 1
+17:53:47 | INFO: Extracting primitive: Cube.246
+17:53:47 | INFO: Primitives created: 1
+17:53:47 | INFO: Extracting primitive: Cube.247
+17:53:47 | INFO: Primitives created: 1
+17:53:47 | INFO: Extracting primitive: Cube.248
+17:53:47 | INFO: Primitives created: 1
+17:53:47 | INFO: Extracting primitive: Cube.249
+17:53:47 | INFO: Primitives created: 1
+17:53:47 | INFO: Extracting primitive: Cube.250
+17:53:47 | INFO: Primitives created: 1
+17:53:47 | INFO: Extracting primitive: Cube.251
+17:53:47 | INFO: Primitives created: 1
+17:53:47 | INFO: Extracting primitive: Cube.252
+17:53:47 | INFO: Primitives created: 1
+17:53:47 | INFO: Extracting primitive: Cube.253
+17:53:47 | INFO: Primitives created: 1
+17:53:48 | INFO: Finished glTF 2.0 export in 7.3977532386779785 s
+17:53:48 | INFO: Data are loaded, start creating Blender stuff
+17:53:48 | INFO: Blender create Mesh node Cube.055
+17:53:48 | INFO: Blender create Mesh node Cube.040
+17:53:48 | INFO: Blender create Mesh node Cube.038
+17:53:48 | INFO: Blender create Mesh node Cube.036
+17:53:48 | INFO: Blender create Mesh node Cube.034
+17:53:48 | INFO: Blender create Mesh node Cube.033
+17:53:48 | INFO: Blender create Mesh node Cube.032
+17:53:48 | INFO: Blender create Mesh node Cube.031
+17:53:48 | INFO: Blender create Mesh node Cube.030
+17:53:48 | INFO: Blender create Mesh node Cube.029
+17:53:48 | INFO: Blender create Mesh node Cube.041
+17:53:48 | INFO: Blender create Mesh node Cube.039
+17:53:48 | INFO: Blender create Mesh node Cube.037
+17:53:48 | INFO: Blender create Mesh node Cube.035
+17:53:48 | INFO: Blender create Mesh node Cube.053
+17:53:48 | INFO: Blender create Mesh node Cube.051
+17:53:48 | INFO: Blender create Mesh node Cube.049
+17:53:48 | INFO: Blender create Mesh node Cube.047
+17:53:48 | INFO: Blender create Mesh node Cube.046
+17:53:48 | INFO: Blender create Mesh node Cube.045
+17:53:48 | INFO: Blender create Mesh node Cube.044
+17:53:48 | INFO: Blender create Mesh node Cube.043
+17:53:48 | INFO: Blender create Mesh node Cube.042
+17:53:48 | INFO: Blender create Mesh node Cube.054
+17:53:48 | INFO: Blender create Mesh node Cube.052
+17:53:48 | INFO: Blender create Mesh node Cube.050
+17:53:48 | INFO: Blender create Mesh node Cube.048
+17:53:48 | INFO: Blender create Mesh node Cube.056
+17:53:48 | INFO: Blender create Mesh node Cube.057
+17:53:48 | INFO: Blender create Mesh node Cube.058
+17:53:48 | INFO: Blender create Mesh node Cube.069
+17:53:48 | INFO: Blender create Mesh node Cube.063
+17:53:48 | INFO: Blender create Mesh node Cube.062
+17:53:48 | INFO: Blender create Mesh node Cube.061
+17:53:48 | INFO: Blender create Mesh node Cube.060
+17:53:48 | INFO: Blender create Mesh node Cube.059
+17:53:48 | INFO: Blender create Mesh node Cube.068
+17:53:48 | INFO: Blender create Mesh node Cube.067
+17:53:48 | INFO: Blender create Mesh node Cube.066
+17:53:48 | INFO: Blender create Mesh node Cube.065
+17:53:48 | INFO: Blender create Mesh node Cube.064
+17:53:48 | INFO: Blender create Mesh node Cube.070
+17:53:48 | INFO: Blender create Mesh node Cube.071
+17:53:48 | INFO: Blender create Mesh node Cube.028
+17:53:48 | INFO: Blender create Mesh node Cube.027
+17:53:48 | INFO: Blender create Mesh node Cube.026
+17:53:48 | INFO: Blender create Mesh node Cube.025
+17:53:48 | INFO: Blender create Mesh node Cube.024
+17:53:48 | INFO: Blender create Mesh node Cube.023
+17:53:48 | INFO: Blender create Mesh node Cube.022
+17:53:48 | INFO: Blender create Mesh node Cube.021
+17:53:48 | INFO: Blender create Mesh node Cube.020
+17:53:48 | INFO: Blender create Mesh node Cube.019
+17:53:48 | INFO: Blender create Mesh node Cube.018
+17:53:48 | INFO: Blender create Mesh node Cube.017
+17:53:48 | INFO: Blender create Mesh node Cube.016
+17:53:48 | INFO: Blender create Mesh node Cube.015
+17:53:48 | INFO: Blender create Mesh node Cube.014
+17:53:48 | INFO: Blender create Mesh node Cube.013
+17:53:48 | INFO: Blender create Mesh node Cube.012
+17:53:48 | INFO: Blender create Mesh node Cube.011
+17:53:48 | INFO: Blender create Mesh node Cube.010
+17:53:48 | INFO: Blender create Mesh node Cube.009
+17:53:48 | INFO: Blender create Mesh node Cube.008
+17:53:48 | INFO: Blender create Mesh node Cube.007
+17:53:48 | INFO: Blender create Mesh node Cube.006
+17:53:48 | INFO: Blender create Mesh node Cube.005
+17:53:48 | INFO: Blender create Mesh node Cube.004
+17:53:48 | INFO: Blender create Mesh node Cube.003
+17:53:48 | INFO: Blender create Mesh node Cube.002
+17:53:48 | INFO: Blender create Mesh node Cube.001
+17:53:48 | INFO: Blender create Mesh node Cube
+17:53:48 | INFO: Blender create Mesh node Cube.072
+17:53:48 | INFO: Blender create Mesh node student-desk_0
+17:53:48 | INFO: Blender create Mesh node student-chair_0
+17:53:48 | INFO: Blender create Mesh node Cube.073
+17:53:48 | INFO: Blender create Mesh node Cube.074
+17:53:48 | INFO: Blender create Mesh node Cube.075
+17:53:48 | INFO: Blender create Mesh node Cube.076
+17:53:48 | INFO: Blender create Mesh node Cylinder.007
+17:53:48 | INFO: Blender create Mesh node Cylinder.006
+17:53:48 | INFO: Blender create Mesh node Cube.077
+17:53:48 | INFO: Blender create Mesh node Cube.078
+17:53:48 | INFO: Blender create Mesh node Cube.079
+17:53:48 | INFO: Blender create Mesh node Cube.080
+17:53:48 | INFO: Blender create Mesh node Cube.081
+17:53:48 | INFO: Blender create Mesh node Cube.082
+17:53:48 | INFO: Blender create Mesh node Cube.083
+17:53:48 | INFO: Blender create Mesh node Cube.084
+17:53:48 | INFO: Blender create Mesh node Cube.085
+17:53:48 | INFO: Blender create Mesh node Cube.086
+17:53:48 | INFO: Blender create Mesh node Cube.087
+17:53:48 | INFO: Blender create Mesh node Cylinder.005
+17:53:48 | INFO: Blender create Mesh node Cylinder.004
+17:53:48 | INFO: Blender create Mesh node Cube.088
+17:53:48 | INFO: Blender create Mesh node Cube.089
+17:53:48 | INFO: Blender create Mesh node Cube.090
+17:53:48 | INFO: Blender create Mesh node Cube.091
+17:53:48 | INFO: Blender create Mesh node Cube.092
+17:53:48 | INFO: Blender create Mesh node Cube.093
+17:53:48 | INFO: Blender create Mesh node Cube.094
+17:53:48 | INFO: Blender create Mesh node Cube.095
+17:53:48 | INFO: Blender create Mesh node Cube.096
+17:53:48 | INFO: Blender create Mesh node Cube.097
+17:53:48 | INFO: Blender create Mesh node Cube.098
+17:53:48 | INFO: Blender create Mesh node Cylinder.003
+17:53:48 | INFO: Blender create Mesh node Cylinder.002
+17:53:48 | INFO: Blender create Mesh node Cylinder.001
+17:53:48 | INFO: Blender create Mesh node Cylinder
+17:53:48 | INFO: Blender create Mesh node Cube.099
+17:53:48 | INFO: Blender create Mesh node Cube.100
+17:53:48 | INFO: Blender create Mesh node Cube.101
+17:53:48 | INFO: Blender create Mesh node Cube.102
+17:53:48 | INFO: Blender create Mesh node Cube.103
+17:53:48 | INFO: Blender create Mesh node Cube.104
+17:53:48 | INFO: Blender create Mesh node Cube.105
+17:53:48 | INFO: Blender create Mesh node Cube.106
+17:53:48 | INFO: Blender create Mesh node Cube.107
+17:53:48 | INFO: Blender create Mesh node Cube.108
+17:53:48 | INFO: Blender create Mesh node Cube.109
+17:53:48 | INFO: Blender create Mesh node Cube.110
+17:53:48 | INFO: Blender create Mesh node Cube.111
+17:53:48 | INFO: Blender create Mesh node Cube.112
+17:53:48 | INFO: Blender create Mesh node Cylinder.008
+17:53:48 | INFO: Blender create Mesh node Cube.113
+17:53:48 | INFO: Blender create Mesh node Cylinder.009
+17:53:48 | INFO: Blender create Mesh node Cube.114
+17:53:48 | INFO: Blender create Mesh node Cylinder.010
+17:53:48 | INFO: Blender create Mesh node Cylinder.011
+17:53:48 | INFO: Blender create Mesh node Cube.115
+17:53:48 | INFO: Blender create Mesh node Cube.116
+17:53:48 | INFO: Blender create Mesh node Cube.117
+17:53:48 | INFO: Blender create Mesh node Cube.118
+17:53:48 | INFO: Blender create Mesh node Cube.119
+17:53:48 | INFO: Blender create Mesh node Cube.120
+17:53:48 | INFO: Blender create Mesh node Cube.121
+17:53:48 | INFO: Blender create Mesh node Cube.122
+17:53:48 | INFO: Blender create Mesh node Cylinder.012
+17:53:48 | INFO: Blender create Mesh node Cylinder.013
+17:53:48 | INFO: Blender create Mesh node Cylinder.014
+17:53:48 | INFO: Blender create Mesh node Cylinder.015
+17:53:48 | INFO: Blender create Mesh node Cube.123
+17:53:48 | INFO: Blender create Mesh node Cube.124
+17:53:48 | INFO: Blender create Mesh node Cylinder.021
+17:53:48 | INFO: Blender create Mesh node Cylinder.020
+17:53:48 | INFO: Blender create Mesh node Cylinder.017
+17:53:48 | INFO: Blender create Mesh node Cylinder.016
+17:53:48 | INFO: Blender create Mesh node Cylinder.018
+17:53:48 | INFO: Blender create Mesh node Cylinder.019
+17:53:48 | INFO: Blender create Mesh node Cylinder.022
+17:53:48 | INFO: Blender create Mesh node Cylinder.023
+17:53:48 | INFO: Blender create Mesh node Cylinder.024
+17:53:48 | INFO: Blender create Mesh node Cylinder.025
+17:53:48 | INFO: Blender create Mesh node Cylinder.026
+17:53:48 | INFO: Blender create Mesh node Cylinder.027
+17:53:48 | INFO: Blender create Mesh node Cylinder.028
+17:53:48 | INFO: Blender create Mesh node Cylinder.029
+17:53:48 | INFO: Blender create Mesh node Cylinder.030
+17:53:48 | INFO: Blender create Mesh node Cylinder.031
+17:53:48 | INFO: Blender create Mesh node Cylinder.032
+17:53:48 | INFO: Blender create Mesh node Cylinder.033
+17:53:48 | INFO: Blender create Mesh node Cylinder.034
+17:53:48 | INFO: Blender create Mesh node Cylinder.035
+17:53:48 | INFO: Blender create Mesh node Cylinder.036
+17:53:48 | INFO: Blender create Mesh node Cylinder.037
+17:53:48 | INFO: Blender create Mesh node Cylinder.038
+17:53:48 | INFO: Blender create Mesh node Cylinder.039
+17:53:48 | INFO: Blender create Mesh node Cube.125
+17:53:48 | INFO: Blender create Mesh node Cube.126
+17:53:48 | INFO: Blender create Mesh node Cube.127
+17:53:48 | INFO: Blender create Mesh node Cube.128
+17:53:48 | INFO: Blender create Mesh node Cube.129
+17:53:48 | INFO: Blender create Mesh node Cube.130
+17:53:48 | INFO: Blender create Mesh node Cube.131
+17:53:48 | INFO: Blender create Mesh node Cube.132
+17:53:48 | INFO: Blender create Mesh node Cube.133
+17:53:48 | INFO: Blender create Mesh node Cube.134
+17:53:48 | INFO: Blender create Mesh node Cube.135
+17:53:48 | INFO: Blender create Mesh node Cube.136
+17:53:48 | INFO: Blender create Mesh node Cube.137
+17:53:48 | INFO: Blender create Mesh node Cube.138
+17:53:48 | INFO: Blender create Mesh node Cube.139
+17:53:48 | INFO: Blender create Mesh node Cube.140
+17:53:48 | INFO: Blender create Mesh node Cube.141
+17:53:48 | INFO: Blender create Mesh node Cube.142
+17:53:48 | INFO: Blender create Mesh node Cube.143
+17:53:48 | INFO: Blender create Mesh node Cube.144
+17:53:48 | INFO: Blender create Mesh node Cube.145
+17:53:48 | INFO: Blender create Mesh node Cube.146
+17:53:48 | INFO: Blender create Mesh node Cube.147
+17:53:48 | INFO: Blender create Mesh node Cube.148
+17:53:48 | INFO: Blender create Mesh node Cube.149
+17:53:48 | INFO: Blender create Mesh node Cube.150
+17:53:48 | INFO: Blender create Mesh node Cube.151
+17:53:48 | INFO: Blender create Mesh node Cube.152
+17:53:48 | INFO: Blender create Mesh node Cube.153
+17:53:48 | INFO: Blender create Mesh node Cube.154
+17:53:48 | INFO: Blender create Mesh node Cube.155
+17:53:48 | INFO: Blender create Mesh node Cube.156
+17:53:48 | INFO: Blender create Mesh node Cube.157
+17:53:48 | INFO: Blender create Mesh node Cube.158
+17:53:48 | INFO: Blender create Mesh node Cube.159
+17:53:48 | INFO: Blender create Mesh node Cube.160
+17:53:48 | INFO: Blender create Mesh node Cube.161
+17:53:48 | INFO: Blender create Mesh node Cube.162
+17:53:48 | INFO: Blender create Mesh node Cube.163
+17:53:48 | INFO: Blender create Mesh node Cube.164
+17:53:48 | INFO: Blender create Mesh node Cube.165
+17:53:48 | INFO: Blender create Mesh node Cube.166
+17:53:48 | INFO: Blender create Mesh node Cube.167
+17:53:48 | INFO: Blender create Mesh node Cube.168
+17:53:48 | INFO: Blender create Mesh node Cube.169
+17:53:48 | INFO: Blender create Mesh node Cube.170
+17:53:48 | INFO: Blender create Mesh node Cylinder.040
+17:53:48 | INFO: Blender create Mesh node Cylinder.041
+17:53:48 | INFO: Blender create Mesh node Cylinder.042
+17:53:48 | INFO: Blender create Mesh node Cylinder.043
+17:53:48 | INFO: Blender create Mesh node Cube.171
+17:53:48 | INFO: Blender create Mesh node Cube.172
+17:53:48 | INFO: Blender create Mesh node Cube.173
+17:53:48 | INFO: Blender create Mesh node Cube.174
+17:53:48 | INFO: Blender create Mesh node Cube.175
+17:53:48 | INFO: Blender create Mesh node Cube.176
+17:53:48 | INFO: Blender create Mesh node Cube.177
+17:53:48 | INFO: Blender create Mesh node Cube.178
+17:53:48 | INFO: Blender create Mesh node Cube.179
+17:53:48 | INFO: Blender create Mesh node Cube.180
+17:53:48 | INFO: Blender create Mesh node Cube.181
+17:53:48 | INFO: Blender create Mesh node Cube.182
+17:53:48 | INFO: Blender create Mesh node Cube.183
+17:53:48 | INFO: Blender create Mesh node Cube.184
+17:53:48 | INFO: Blender create Mesh node Cube.185
+17:53:48 | INFO: Blender create Mesh node Cube.186
+17:53:48 | INFO: Blender create Mesh node Cube.187
+17:53:48 | INFO: Blender create Mesh node Cube.188
+17:53:48 | INFO: Blender create Mesh node Cube.189
+17:53:48 | INFO: Blender create Mesh node Cube.190
+17:53:48 | INFO: Blender create Mesh node Cube.191
+17:53:48 | INFO: Blender create Mesh node Cube.192
+17:53:48 | INFO: Blender create Mesh node Cube.193
+17:53:48 | INFO: Blender create Mesh node Cube.194
+17:53:48 | INFO: Blender create Mesh node Cube.195
+17:53:48 | INFO: Blender create Mesh node Cube.196
+17:53:48 | INFO: Blender create Mesh node Cube.197
+17:53:48 | INFO: Blender create Mesh node Cube.198
+17:53:48 | INFO: Blender create Mesh node Cube.199
+17:53:48 | INFO: Blender create Mesh node Cube.200
+17:53:48 | INFO: Blender create Mesh node Cube.201
+17:53:48 | INFO: Blender create Mesh node Cube.202
+17:53:48 | INFO: Blender create Mesh node Cube.203
+17:53:48 | INFO: Blender create Mesh node Cube.204
+17:53:48 | INFO: Blender create Mesh node Cube.205
+17:53:48 | INFO: Blender create Mesh node Cube.206
+17:53:48 | INFO: Blender create Mesh node Cube.207
+17:53:48 | INFO: Blender create Mesh node Cube.208
+17:53:48 | INFO: Blender create Mesh node Cube.209
+17:53:48 | INFO: Blender create Mesh node Cube.210
+17:53:48 | INFO: Blender create Mesh node Cube.211
+17:53:48 | INFO: Blender create Mesh node Cube.212
+17:53:48 | INFO: Blender create Mesh node Cube.213
+17:53:48 | INFO: Blender create Mesh node Cube.214
+17:53:48 | INFO: Blender create Mesh node Cube.215
+17:53:48 | INFO: Blender create Mesh node Cube.216
+17:53:48 | INFO: Blender create Mesh node Cube.217
+17:53:48 | INFO: Blender create Mesh node Cube.218
+17:53:48 | INFO: Blender create Mesh node Cube.219
+17:53:48 | INFO: Blender create Mesh node Cube.220
+17:53:48 | INFO: Blender create Mesh node Cube.221
+17:53:48 | INFO: Blender create Mesh node Cube.222
+17:53:48 | INFO: Blender create Mesh node Cube.223
+17:53:48 | INFO: Blender create Mesh node Cube.224
+17:53:48 | INFO: Blender create Mesh node Cube.225
+17:53:48 | INFO: Blender create Mesh node Cube.226
+17:53:48 | INFO: Blender create Mesh node Cube.227
+17:53:48 | INFO: Blender create Mesh node Cube.228
+17:53:48 | INFO: Blender create Mesh node Cube.229
+17:53:48 | INFO: Blender create Mesh node Cube.230
+17:53:48 | INFO: Blender create Mesh node Cube.231
+17:53:48 | INFO: Blender create Mesh node Cube.232
+17:53:48 | INFO: Blender create Mesh node Cube.233
+17:53:48 | INFO: Blender create Mesh node Cube.234
+17:53:48 | INFO: Blender create Mesh node Cube.235
+17:53:48 | INFO: Blender create Mesh node Cube.236
+17:53:48 | INFO: Blender create Mesh node Cube.237
+17:53:48 | INFO: Blender create Mesh node Cube.238
+17:53:48 | INFO: Blender create Mesh node Cube.239
+17:53:48 | INFO: Blender create Mesh node Cube.240
+17:53:48 | INFO: Blender create Mesh node Cube.241
+17:53:48 | INFO: Blender create Mesh node Cube.242
+17:53:48 | INFO: Blender create Mesh node Sphere.007
+17:53:48 | INFO: Blender create Mesh node Sphere.006
+17:53:48 | INFO: Blender create Mesh node Sphere.005
+17:53:48 | INFO: Blender create Mesh node Sphere.004
+17:53:48 | INFO: Blender create Mesh node Sphere.003
+17:53:48 | INFO: Blender create Mesh node Sphere.002
+17:53:48 | INFO: Blender create Mesh node Sphere.001
+17:53:48 | INFO: Blender create Mesh node Sphere
+17:53:48 | INFO: Blender create Mesh node Cube.243
+17:53:48 | INFO: Blender create Mesh node Cube.244
+17:53:48 | INFO: Blender create Mesh node Cube.245
+17:53:48 | INFO: Blender create Mesh node door_geo
+17:53:48 | INFO: Blender create Mesh node cl-windows_curtain_s4_2
+17:53:48 | INFO: Blender create Mesh node cl-windows_curtain_s4_1
+17:53:48 | INFO: Blender create Mesh node cl-windows_curtain_s3_2
+17:53:48 | INFO: Blender create Mesh node cl-windows_curtain_s3_1
+17:53:48 | INFO: Blender create Mesh node cl-windows_curtain_s2_2
+17:53:48 | INFO: Blender create Mesh node cl-windows_curtain_s2_1
+17:53:48 | INFO: Blender create Mesh node cl-windows_curtain_s1_2
+17:53:48 | INFO: Blender create Mesh node cl-windows_curtain_s1_1
+17:53:48 | INFO: Blender create Mesh node Cube.246
+17:53:48 | INFO: Blender create Mesh node Cube.247
+17:53:48 | INFO: Blender create Mesh node Cube.248
+17:53:48 | INFO: Blender create Mesh node Cube.249
+17:53:48 | INFO: Blender create Mesh node Cube.250
+17:53:48 | INFO: Blender create Mesh node Cube.251
+17:53:48 | INFO: Blender create Mesh node Cube.252
+17:53:48 | INFO: Blender create Mesh node Cube.253
+17:53:48 | INFO: glTF import finished in 0.46s
+APPEND cl-floor-walls: requested=73 file=/home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/classroom/cl-floor-walls.blend
+APPEND cl-desks: requested=96 file=/home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/classroom/cl-desks.blend
+APPEND cl-board: requested=39 file=/home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/classroom/cl-board.blend
+APPEND cl-ac: requested=58 file=/home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/classroom/cl-ac.blend
+APPEND cl-lights: requested=54 file=/home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/classroom/cl-lights.blend
+APPEND cl-windows: requested=120 file=/home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/classroom/cl-windows.blend
+TOTAL objects in scene: 440
+  cl-floor-walls: 73
+  cl-desks: 96
+  cl-board: 39
+  cl-ac: 58
+  cl-lights: 54
+  cl-windows: 120
+CHECK desks+chairs bbox x[-3.430, 4.472] y[-3.100, 3.100] z[0.000, 0.888]
+CHECK desks nearest board: min_x=-3.430 vs podium front x=-3.695, gap=0.265
+CHECK chairs nearest east wall: max_x=4.472 vs east inner face x=4.765, gap=0.293
+CHECK rear-row chairs (r8) y columns: [-2.8, -1.8, -0.8, 0.8, 1.8, 2.8]; door opening y[-0.5, 0.5] clear=True
+CHECK AC ac_front_ac_body centre=(-4.400, -3.200, 0.920) size=(0.550, 0.380, 1.720)
+CHECK AC ac_rear_ac_body centre=(4.400, 3.200, 0.920) size=(0.550, 0.380, 1.720)
+CHECK windows south (y=-3.58): 4 glass panes, x=[-3.6, -1.2, 1.2, 3.6]
+CHECK windows north (y=3.58): 4 glass panes, x=[-3.6, -1.2, 1.2, 3.6]
+CHECK curtains: 8, y=[-3.55]
+CHECK lights bbox z[2.820, 3.000] (ceiling z=3.0)
+CHECK board/desk bbox x[-4.802, -3.690] y[-1.800, 1.800] z[0.020, 2.200]
+CHECK OVERALL bbox x[-4.915, 4.915] y[-3.705, 3.705] z[-0.050, 3.050]
+Info: Saved "classroom.blend"
+SAVED /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/blender/scenes/classroom.blend
+INFO Draco mesh compression is available, use library at /home/hatch/workspace/tools/blender/blender-4.2.0-linux-x64/4.2/python/lib/python3.11/site-packages/libextern_draco.so
+
+EXPORTED /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/models/scenes/classroom.glb
+GLB factor patch: ['cl-floor-walls_wall_back'] -> /home/hatch/workspace/goals/campus-virtual-power-plant-competition/files/demo-godot/assets/models/scenes/classroom.glb
+REIMPORT objects: 440
+DONE classroom
+
+Blender quit

@@ -1302,3 +1302,15 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 - **推仓**：待填（推后补 commit 号与核对结果）。
 - **验证**：待填（blender-previews classroom 组 + godot-verify run 号与目视结论）。
 - **还剩什么**：① §25 ①⑤ 桌椅腿/篮/横撑 Godot 侧未见、③ 深暖褐墙色、④ 门洞 Godot 图内无法独立确认，均不在本次范围，仍待 T17/终轮；② 本次只露出白板面，背板框边仍在墙内（与黑板背面同例），属有意保留，不另修。
+
+## §27 R2-T27 教室墙面偏暗调色（2026-11-25，只改墙面材质参数，不改结构）
+
+- **问题**：R2-T23 目视：墙面无青绿 ✓，但呈深橄榄褐、比 T17 目标暖褐 (97,88,68) 暗约 25%，判“部分通过”。R2-T24 诊断确认取样真实：后墙 (72,70,57)，右墙受光面三文鱼色 (200,132,100)，天花板同因偏绿 (71,69,57)。
+- **成因（只读分析，线性光模型反推，Web 实拍复核一致）**：墙贴图 `white_stucco__F3E9D2.jpg` 均值 sRGB (243,232,210)，线性 (0.896, 0.807, 0.644)；T17 因子 (1.0, 0.39, 0.32) → 反照率线性 (0.896, 0.315, 0.206)。后墙（西墙）几乎只靠天光，辐照度约 (0.072, 0.195, 0.198)（绿天光主导）；右墙（北墙）受直射，辐照度约 (0.644, 0.733, 0.618)（日光主导，近中性）。后墙要到 (97,88,68) 需反照率 (1.65, 0.50, 0.29)，即因子 (1.85, 0.62, 0.45)；同因子放右墙会算出 (263,163,117)，R 溢出吹成粉红——故必须分墙，不能一刀切改全局 tint。
+- **修法（只改材质参数，几何/灯光一字未动）**：① 西墙另立材质 `cl-floor-walls_wall_back`（同贴图、同缩放、同尺寸，仅 `cl-floor-walls_wall_west` 一个盒子换材质），因子 **(1.85, 0.62, 0.45)**，预测后墙 (97,88,68)；② 南北/东墙沿用 T17 因子 (1.0, 0.39, 0.32) 不动，右墙维持 (200,132,100)，不冲粉；③ 天花板顺带去绿，因子 (1.0, 0.85, 0.78)，预测 (71,64,50)，只去绿不提亮（提亮需因子 ~4，不可行）。
+- **关键坑——Blender 4.2 导出器硬 clamp**：`__gather_base_color_factor()` 里 `rgb = [max(min(c, 1.0), 0.0) for c in rgb]`，>1 的因子导不出，GLB 里会变 1.0（实测：.blend 存 1.85，首版 GLB 只有 1.0）。`cl-floor-walls.py` 与 `classroom.py` 各加 `_patch_glb_factors()`：导出后直接改 GLB 的 JSON chunk，把 `cl-floor-walls_wall_back` 的 baseColorFactor 写回 (1.85, 0.62, 0.45, 1.0)，只动 JSON chunk、不动 BIN chunk；两处补丁须保持同步（classroom.py 从 .blend 重导出，同样触发 clamp）。Godot 4.4 实测认 >1 因子（见本地探针）。
+- **重建**：重跑 cl-floor-walls.py（`assets/blender/classroom/cl-floor-walls-r2t27.log`），`DONE cl-floor-walls`，零 Error/Traceback；GLB 回读 73 对象；`cl-floor-walls.glb` 7,491,808 B，JSON 实测 wall_back [1.85, 0.62, 0.45, 1.0]、wall [1, 0.39, 0.32]、ceiling [1, 0.85, 0.78]。重跑 classroom.py（`assets/blender/scenes/classroom-r2t27.log`，只加补丁函数、其余未改），`DONE classroom`，零 Error/Traceback；APPEND 73+96+39+58+54+120，TOTAL/回读 **440** 对象（与 R2-T22/R2-T25 一致）；classroom.glb 19,091,228 B、classroom.blend 5,527,432 B；门洞 clear、board/desk 包围盒 x[-4.802,-3.690] 与 T25 一致。
+- **本地 Web 探针（复用 R2-T24 最小探针工程，Godot 4.4 Web 导出 + headless Chrome，0 console errors）**：后墙 (72,70,57)→**(96,86,67)**，与目标 (97,88,68) 差 ≤2；右墙 (200,132,100)→**(199,131,100)**，未动；天花板顶带 (41,63,29)→(41,58,25)，略去绿；黑板 (28,41,34) 仍墨绿；桌椅/空调/窗户无回归。截图 `~/workspace/review-rework-r2/r2t27-web-new-classroom.png`。
+- **推仓**：待填（推后补 commit 号与核对结果）。
+- **验证**：待填（blender-previews classroom 组 + godot-verify run 号与目视结论）。
+- **还剩什么**：① 白板面仍显暗灰绿（(62,86,81)，白板材质本身在绿天光下偏色，与墙同因、但属 cl-board 材质，不在本任务“只调墙面”范围，留终轮）；② 南墙遮光面/北墙遮光面仍偏暗橄榄（侧墙因子未动，遮光面辐照度与后墙同级，单靠墙材质无法在不吹亮受光面的前提下提亮，根治需动灯光/天光，不在本任务范围）；③ 天花板只略去绿、仍暗（提亮需因子 ~4 或补光，不在本任务范围）。
