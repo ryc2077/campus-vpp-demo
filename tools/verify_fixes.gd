@@ -1118,13 +1118,15 @@ func _process(_delta: float) -> bool:
 	_chk("暴雨 pv_factor=0.15 阳光射线隐藏", not (pv.ray_planes[0] as MeshInstance3D).visible, str((pv.ray_planes[0] as MeshInstance3D).visible))
 	var chg = _main.chg_detail
 	chg.call("update_frame", 10.0, 12.0, 0.0, 0.30)
-	_chk("雨天 V2G 弧线流光点隐藏", not (chg.arc_dots[0] as MeshInstance3D).visible, str((chg.arc_dots[0] as MeshInstance3D).visible))
-	_chk("雨天 V2G 弧线基线隐藏", not (chg.arc_segs[0] as MeshInstance3D).visible, str((chg.arc_segs[0] as MeshInstance3D).visible))
+	# run 45297927902 修补：弧线不再随雨天隐藏（旧断言“隐藏”已翻转；阳光射线
+	# 雨天隐藏仍在上面三行，不动）。
+	_chk("雨天 V2G 弧线流光点显示（不再随雨天隐藏）", (chg.arc_dots[0] as MeshInstance3D).visible, str((chg.arc_dots[0] as MeshInstance3D).visible))
+	_chk("雨天 V2G 弧线基线显示（不再随雨天隐藏）", (chg.arc_segs[0] as MeshInstance3D).visible, str((chg.arc_segs[0] as MeshInstance3D).visible))
 	chg.call("update_frame", 10.0, 12.0, 0.0, 0.45)
 	_chk("阴天 V2G 弧线流光点显示", (chg.arc_dots[0] as MeshInstance3D).visible, str((chg.arc_dots[0] as MeshInstance3D).visible))
 	_chk("阴天 V2G 弧线基线显示", (chg.arc_segs[0] as MeshInstance3D).visible, str((chg.arc_segs[0] as MeshInstance3D).visible))
 	chg.call("update_frame", 10.0, 12.0, 0.0, 0.15)
-	_chk("暴雨 V2G 弧线隐藏", not (chg.arc_dots[0] as MeshInstance3D).visible, str((chg.arc_dots[0] as MeshInstance3D).visible))
+	_chk("暴雨 V2G 弧线显示（不再随暴雨隐藏）", (chg.arc_dots[0] as MeshInstance3D).visible, str((chg.arc_dots[0] as MeshInstance3D).visible))
 	chg.call("update_frame", 10.0, 12.0, 0.0, 1.0)
 	_chk("晴天 12:00 V2G 弧线流光点显示（雨天对照的阳性对照）", (chg.arc_dots[0] as MeshInstance3D).visible, str((chg.arc_dots[0] as MeshInstance3D).visible))
 	_chk("晴天 12:00 V2G 弧线基线显示", (chg.arc_segs[0] as MeshInstance3D).visible, str((chg.arc_segs[0] as MeshInstance3D).visible))
@@ -1157,6 +1159,23 @@ func _process(_delta: float) -> bool:
 	_main.active_scene = ""
 	_main.call("_update_visuals", _main.sim.state_at(_main.hour), 0.016)
 	_chk("V2G 弧线：总览仍画（跨校园能量流的原设计意图）", _main.chg_detail.visible, str(_main.chg_detail.visible))
+	# ---- 雨天 V2G 弧线（run 45297927902 修补：旧门控 `pv_factor > 0.30` 把弧线
+	# 连同阳光射线一起藏了，11-charge-rain 放电 54kW 却无线无点）----
+	# 直接调 update_frame（绕开场景门控，只验弧线自身的天气门控；段/点的 visible
+	# 是自身标志，与父节点 chg_detail.visible 无关）。
+	# 12:00 放电 54kW：雨天 0.30 / 暴雨 0.15 / 晴天 1.00 都应显示；
+	# 18:00 无放电 0kW：时段门控仍藏（04-charge 行为不变）。
+	_main.chg_detail.update_frame(54.0, 12.0, 1.0, 0.30)
+	_chk("V2G 弧线：雨天 12:00 放电 54kW 仍显示（基线）", _main.chg_detail.arc_segs[0].visible, str(_main.chg_detail.arc_segs[0].visible))
+	_chk("V2G 弧线：雨天 12:00 放电 54kW 流光点仍显示", _main.chg_detail.arc_dots[0].visible, str(_main.chg_detail.arc_dots[0].visible))
+	_main.chg_detail.update_frame(54.0, 12.0, 1.0, 0.15)
+	_chk("V2G 弧线：暴雨 12:00 放电 54kW 仍显示", _main.chg_detail.arc_segs[0].visible, str(_main.chg_detail.arc_segs[0].visible))
+	_main.chg_detail.update_frame(54.0, 12.0, 1.0, 1.0)
+	_chk("V2G 弧线：晴天 12:00 放电 54kW 显示（对照）", _main.chg_detail.arc_segs[0].visible, str(_main.chg_detail.arc_segs[0].visible))
+	_main.chg_detail.update_frame(0.0, 18.0, 1.0, 1.0)
+	_chk("V2G 弧线：18:00 无放电仍隐藏（时段门控未动）", not _main.chg_detail.arc_segs[0].visible, str(_main.chg_detail.arc_segs[0].visible))
+	# 恢复：按当前场景重算一遍，免得直接调用的态污染后续检查。
+	_main.call("_update_visuals", _main.sim.state_at(_main.hour), 0.016)
 	# ---- 回退演练开关 ?fallback=1（验收缺口 5：S1/S3/S5 演练截图用）----
 	# 开关在 GlbLoader.load_glb 入口，不改名/不移走 GLB 文件；main.gd 在
 	# campus.build() 之前按 URL 参数置起，正常截图默认关。
@@ -1218,14 +1237,27 @@ func _process(_delta: float) -> bool:
 			if mi4.mesh is BoxMesh and (mi4.mesh as BoxMesh).size.is_equal_approx(Vector3(2.0, 0.7, 1.6)):
 				cabin_top_y = mi4.position.y + 0.35
 				break
+	# S4 车顶 SOC 条贴车舱顶（分支感知；run 45297927902 回归：旧检查只量位置不量
+	# 可见，GLB 分支整组隐藏时也全过）：回退条中心 y=1.84、条底 1.75 = 程序化车舱顶；
+	# GLB 条中心 y=1.465、条底 1.375 = GLB 车顶（车顶节点 y 1.125 + 网格半高 0.25）。
+	var exp_fill_y := 1.84
+	var exp_top_y := cabin_top_y
+	if cb.charge_glb_active:
+		exp_fill_y = 1.465
+		exp_top_y = 1.375
 	var fills_ok: bool = cb.car_fills.size() == 3
 	var fills_y_ok := true
+	var fills_vis := true
 	for c in cb.car_fills:
 		var fl := c["fill"] as MeshInstance3D
-		if absf(fl.position.y - 1.84) >= 0.001 or absf((fl.position.y - 0.09) - cabin_top_y) >= 0.001:
+		if absf(fl.position.y - exp_fill_y) >= 0.001 or absf((fl.position.y - 0.09) - exp_top_y) >= 0.001:
 			fills_y_ok = false
-	_chk("S4 车顶 SOC 条中心 y=1.84（3 辆）", fills_ok and fills_y_ok, str(cb.car_fills.size()))
-	_chk("S4 车顶 SOC 条底 1.75 贴合车舱顶（不悬空）", fills_ok and fills_y_ok, "cabin_top=" + str(cabin_top_y))
+		if not fl.is_visible_in_tree():
+			fills_vis = false
+	_chk("S4 车顶 SOC 条中心 y（回退 1.84 / GLB 1.465，3 辆）", fills_ok and fills_y_ok, str(cb.car_fills.size()))
+	_chk("S4 车顶 SOC 条底贴合车舱顶/GLB 车顶（不悬空）", fills_ok and fills_y_ok, "top=" + str(exp_top_y))
+	_chk("S4 车顶 SOC 条 3 条在树中可见（GLB 分支整组隐藏即 FAIL）", fills_ok and fills_vis, str(cb.car_fills.size()))
+	_chk("充电区程序化组可见性与分支一致（GLB 藏 / 回退留）", cb.charge_glb_active == (not cb.charge_group.visible), str(cb.charge_group.visible))
 	# ---- 储能外壳开关 + SOC 条（GLB/回退两路，分支感知：GLB 未载入时验回退路） ----
 	# 实时 SOC 与填充比：_process 每帧调 _update_visuals，条子中心/缩放都由它定，
 	# 检查必须按同一 soc 算期望值，不能写死位置。

@@ -67,10 +67,13 @@ func _bezier(u: float) -> Vector3:
 
 func update_frame(ev_kw: float, hour: float, t: float, pv_factor: float = 1.0) -> void:
 	var discharging := ev_kw > 1.0
-	# 天气门控：与 pv_detail 阳光射线同口径（data/weather.json：雨天 pv_factor=0.30、
-	# 暴雨 0.15，阴天 0.45 仍显示）——雨天/暴雨隐藏整条弧线（流光点 + 基线），
-	# 晴/多云/阴天不受影响。pv_factor 由 main.gd 从 current_wx 传入，默认 1.0 保兼容。
-	var active := (discharging or (hour > 7.5 and hour < 17.5)) and pv_factor > 0.30
+	# 天气门控（run 45297927902 修补）：弧线不再随 pv_factor 隐藏——雨天
+	# pv_factor=0.30 时旧条件 `pv_factor > 0.30` 为假，整条弧线（流光点 + 基线）
+	# 被连同阳光射线一起藏掉，11-charge-rain 放电 54kW 却无线无点；晴天 12 同功率
+	# 弧线清晰。V2G 弧线是能量流（放电或日间时段即显示），与光伏出力无关；
+	# 阳光射线雨天隐藏仍在 pv_detail.gd 那一行，不动。
+	# pv_factor 参数保留（main.gd 调用签名不变），此处不再使用。
+	var active := discharging or (hour > 7.5 and hour < 17.5)
 	var col := Color("#fb923c") if discharging else Color("#38bdf8")
 	for s in arc_segs:
 		s.visible = active

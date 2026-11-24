@@ -27,6 +27,7 @@ var storage_glb_shell_base_transp: Array[int] = [] # 开关关时恢复的原始
 var storage_glb_shell_base_depth: Array[int] = [] # 开关关时恢复的原始深度模式
 var transformer_group: Node3D
 var charge_group: Node3D
+var charge_glb_active := false # charge.glb 已接管充电区时，程序化充电组保持隐藏
 var overview_glb_active := false # overview.glb 已接管总览时，程序化宿主保持隐藏
 var _proc_overview_nodes: Array[Node] = [] # 程序化总览件（地面/道路/操场/池塘/树/旗门），overview.glb 成功后隐藏
 
@@ -487,5 +488,50 @@ func _load_scene_glbs() -> void:
 		for arr in pv_arrays.values():
 			(arr as Node3D).visible = false
 	# 充电区（全局坐标，Blender 中心 (44,-76)）
-	if GlbLoader.attach(self, "charge", "ChargeGLB") != null and charge_group != null:
+	var ch_glb := GlbLoader.attach(self, "charge", "ChargeGLB")
+	if ch_glb != null and charge_group != null:
 		charge_group.visible = false
+		charge_glb_active = true
+		_build_charge_glb_soc_bars(ch_glb)
+
+## GLB 分支车顶 SOC 条（run 45297927902 修补：主场景车顶条缺失，回退分支有、主场景无）。
+## 根因：charge.glb 加载成功时上面把整个程序化 charge_group 藏掉，车顶 SOC 条
+## （car_fills）是该组子节点，连带被藏；GLB 车自带车顶，无条。S4 只量条位置不量
+## 可见，整组隐藏时也全过，故回归未被拦住。
+## 修法：GLB 车组（ch-cars_blue/red/white，各自绕 Y 转 −90°、车身长沿全局 z）
+## 下挂与程序化条同尺寸 (3.4, 0.18, 0.3) 的条子，作车组子节点——车组局部系里
+## 条仍沿 x，仍用 main.gd _update_visuals 的 scale.x / position.x 驱动，零改动。
+## 条底 = GLB 车顶 1.375（车顶节点 y 1.125 + 网格半高 0.25，运行时由 mesh AABB 算，
+## 不写死），中心 y 1.465；程序化 car_fills 由此三条替换（仍为 3 条），回退分支不动。
+## 车色按 campus.json hex 认组（蓝 #3b82c4 / 红 #c4534e / 白 #d7dde3），找不到组时
+## 警告并跳过该车（verify 的 3 条计数会拦住，不静默错挂）。
+func _build_charge_glb_soc_bars(ch_glb: Node3D) -> void:
+	var color_key := {"#3b82c4": "blue", "#c4534e": "red", "#d7dde3": "white"}
+	var cars: Array = campus["charge"]["cars"]
+	var glb_fills: Array[Dictionary] = []
+	var i := 0
+	while i < cars.size():
+		var car: Dictionary = cars[i]
+		var key: String = String(color_key.get(String(car["color"]).to_lower(), ""))
+		if key == "":
+			push_warning("[CampusBuilder] GLB 车顶 SOC 条：颜色 %s 未认出，跳过该车" % str(car["color"]))
+			i += 1
+			continue
+		var grp := ch_glb.find_child("ch-cars_" + key, true, false) as Node3D
+		var roof := ch_glb.find_child("ch-cars_" + key + "_roof", true, false) as MeshInstance3D
+		if grp == null or roof == null or roof.mesh == null:
+			push_warning("[CampusBuilder] GLB 车顶 SOC 条：%s 车组/车顶未找到，跳过该车" % key)
+			i += 1
+			continue
+		var roof_top: float = roof.position.y + roof.mesh.get_aabb().size.y / 2.0
+		var fill_mat := StandardMaterial3D.new()
+		fill_mat.albedo_color = Color("#2fbf71")
+		fill_mat.emission_enabled = true
+		fill_mat.emission = Color("#2fbf71")
+		fill_mat.emission_energy_multiplier = 0.8
+		var fill := _box(grp, Vector3(roof.position.x, roof_top + 0.09, roof.position.z), Vector3(3.4, 0.18, 0.3), fill_mat)
+		fill.scale.x = float(car["base_soc"])
+		fill.position.x = roof.position.x - 3.4 * (1.0 - float(car["base_soc"])) / 2.0
+		glb_fills.append({"fill": fill, "base_soc": float(car["base_soc"]), "v2g": bool(car.get("v2g", false)), "cx": roof.position.x})
+		i += 1
+	car_fills = glb_fills
