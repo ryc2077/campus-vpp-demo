@@ -13,6 +13,8 @@ var sun: DirectionalLight3D
 var env: WorldEnvironment
 var rain: GPUParticles3D
 var rain_mat: ParticleProcessMaterial
+var rain_quad: QuadMesh
+var rain_dm: StandardMaterial3D
 var clouds: Array[MeshInstance3D] = []
 var cloud_mats: Array[StandardMaterial3D] = []
 var shadow_blobs: Array[MeshInstance3D] = []
@@ -93,15 +95,15 @@ func _build_rain() -> void:
 	rain_mat.emission_box_extents = Vector3(170, 1, 130)
 	rain.process_material = rain_mat
 	var draw := ParticleProcessMaterial.new()
-	var quad := QuadMesh.new()
-	quad.size = Vector2(0.12, 1.6)
-	rain.draw_pass_1 = quad
-	var dm := StandardMaterial3D.new()
-	dm.albedo_color = Color(0.86, 0.94, 1.0, 0.7)
-	dm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	dm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	dm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	rain.material_override = dm
+	rain_quad = QuadMesh.new()
+	rain_quad.size = Vector2(0.12, 1.6)
+	rain.draw_pass_1 = rain_quad
+	rain_dm = StandardMaterial3D.new()
+	rain_dm.albedo_color = Color(0.86, 0.94, 1.0, 0.7)
+	rain_dm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	rain_dm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	rain_dm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	rain.material_override = rain_dm
 	rain.position = Vector3(0, 45, 0)
 	rain.emitting = false
 	add_child(rain)
@@ -131,8 +133,27 @@ func set_weather(key: String) -> void:
 	current_key = key
 	current = presets[key]
 	rain.emitting = bool(current.get("rain", false))
-	rain.amount = 2200 if key == "storm" else 820
+	# 雨丝可见性修补（2026-11-24，run #91 遗留：06/11 小雨雨丝未见、07 暴雨明显）：
+	# 根因是量不是开关——雨天与暴雨同源同管线（同发射盒 340×260m、同材质），
+	# 但雨天只有 820 粒 × 0.12×1.6m 细丝、alpha 0.7 近白色：
+	# PV/充电区机位 dist 27–30m、FOV 55° 时帧内仅约 14 条、宽约 3px，
+	# 贴在亮蓝天/浅色板面上对比度不足；暴雨 2200 粒 + 场景更暗所以可见。
+	# 修法只动雨丝参数（五档 pv_factor/时长不动）：雨天提到 1800 粒、
+	# 丝加粗加长 0.15×1.9m、alpha 0.85、颜色压深一档蓝灰（亮背景下才有对比）；
+	# 暴雨提到 2800 粒、丝与颜色原样，粒数仍高于雨天、强度顺序不变。
+	# restart()：amount 运行时改动须重启粒子循环才可靠落盘，发射前 20s+
+	# 截图等待早已进入稳态，不影响出图。
+	if key == "rain":
+		rain.amount = 1800
+		rain_quad.size = Vector2(0.15, 1.9)
+		rain_dm.albedo_color = Color(0.70, 0.80, 0.92, 0.85)
+	elif key == "storm":
+		rain.amount = 2800
+		rain_quad.size = Vector2(0.12, 1.6)
+		rain_dm.albedo_color = Color(0.86, 0.94, 1.0, 0.7)
 	rain_mat.gravity = Vector3(0, -82, 0) if key == "storm" else Vector3(0, -55, 0)
+	if rain.emitting:
+		rain.restart()
 	var cloud_col := Color.WHITE
 	match key:
 		"sunny": cloud_col = Color("#ffffff")

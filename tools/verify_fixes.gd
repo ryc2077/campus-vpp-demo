@@ -1180,6 +1180,27 @@ func _process(_delta: float) -> bool:
 	_chk("V2G 弧线：18:00 无放电仍隐藏（时段门控未动）", not _main.chg_detail.arc_segs[0].visible, str(_main.chg_detail.arc_segs[0].visible))
 	# 恢复：按当前场景重算一遍，免得直接调用的态污染后续检查。
 	_main.call("_update_visuals", _main.sim.state_at(_main.hour), 0.016)
+	# ---- 小雨雨丝可见性（2026-11-24 修补，run #91 遗留：06/11 雨丝未见）----
+	# 根因是量：雨天 820 粒 × 0.12m 细丝、alpha 0.7 近白，细节机位帧内仅约
+	# 14 条、宽约 3px，贴亮背景无对比；暴雨 2200 粒 + 场景暗所以可见。
+	# 修后雨天 1800 粒、丝 0.15×1.9m、alpha 0.85、蓝灰加深；暴雨 2800 粒、
+	# 丝与色原样；五档 pv_factor 不动。
+	var _wx: WeatherSystem = _main.weather
+	_main.call("set_weather", "rain")
+	_chk("雨丝：雨天 emitting=true（雨确在下）", _wx.rain.emitting, str(_wx.rain.emitting))
+	_chk("雨丝：雨天 1800 粒（修前 820，细节机位帧内约 31 条）", _wx.rain.amount == 1800, str(_wx.rain.amount))
+	_chk("雨丝：雨天丝 0.15×1.9m（修前 0.12×1.6，加粗加长）", _wx.rain_quad.size.is_equal_approx(Vector2(0.15, 1.9)), str(_wx.rain_quad.size))
+	var _rc: Color = _wx.rain_dm.albedo_color
+	_chk("雨丝：雨天 alpha 0.85（修前 0.7）", absf(_rc.a - 0.85) < 0.001, str(_rc.a))
+	_chk("雨丝：雨天颜色压深蓝灰 #b2cceb（亮背景下有对比，修前近白）", _col(_rc) == "#b2cceb", _col(_rc))
+	_main.call("set_weather", "storm")
+	_chk("雨丝：暴雨 2800 粒 > 雨天 1800（强度顺序不变）", _wx.rain.amount == 2800, str(_wx.rain.amount))
+	_chk("雨丝：暴雨丝仍 0.12×1.6m（暴雨原样未动）", _wx.rain_quad.size.is_equal_approx(Vector2(0.12, 1.6)), str(_wx.rain_quad.size))
+	_chk("雨丝：暴雨颜色仍近白 #dbf0ff（原样未动）", _col(_wx.rain_dm.albedo_color) == "#dbf0ff", _col(_wx.rain_dm.albedo_color))
+	_main.call("set_weather", "sunny")
+	_chk("雨丝：晴天 emitting=false（晴天无雨，回归）", not _wx.rain.emitting, str(_wx.rain.emitting))
+	_chk("雨丝：五档数值未动（雨 pv 0.30 / 暴雨 0.15）", absf(float((_wx.presets["rain"] as Dictionary)["pv_factor"]) - 0.30) < 0.001 and absf(float((_wx.presets["storm"] as Dictionary)["pv_factor"]) - 0.15) < 0.001, "rain=" + str((_wx.presets["rain"] as Dictionary)["pv_factor"]) + " storm=" + str((_wx.presets["storm"] as Dictionary)["pv_factor"]))
+	_main.call("set_weather", "sunny")
 	# ---- 回退演练开关 ?fallback=1（验收缺口 5：S1/S3/S5 演练截图用）----
 	# 开关在 GlbLoader.load_glb 入口，不改名/不移走 GLB 文件；main.gd 在
 	# campus.build() 之前按 URL 参数置起，正常截图默认关。
