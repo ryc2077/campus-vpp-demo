@@ -1,3 +1,5 @@
+# ov-trees v4 (R2-T32, 2026-11-25): v3 + 密植带 3 对拉开至 2.60m（只动 3 棵旧树位置，
+#   数量/模型/高度一字不改）；西沿线 3 棵经实测已在现行跑道缓冲外，不动（见下）。
 # ov-trees v3 (R2-T15, 2026-11-24): 树木（总览件）— 网上现成 CC0 模型换模重建
 # Blender 坐标 x 向东、y 向北、z 向上，单位米
 # 内容：473 棵（新种 327 + 旧树换模 146），全部用下载的现成模型，零手搓树
@@ -37,7 +39,10 @@
 #   (0,-94) 正压南门中轴）→ 移至广场两侧 y=-94（x -44/-36/-28/28/36）；③北沿线
 #   移位点与抖动后邻树仅 1.7m/0.95m → 相邻 (96,105)/(120,105) 去抖动钉网格点；
 #   ④楼间旧树 (0,12) 压步道 2 → (4,12)，(-80,45) 压新路 R-N1 → (-80,49)。
-#   西沿线 3 棵旧树落在操场 3m 缓冲内（跑道面外），系 v2 原位、方案未列，保持不动。
+#   西沿线 3 棵旧树 (-120,-33/-25/-17) 在旧椭圆 (-80,-25) rx40/ry28 +3m 缓冲内（r² 0.84–0.93），
+#   系 v2 原位、方案未列。R2-T32 实测：现行跑道已是 R2-T1b 新椭圆（中心 (-62,-25)、
+#   rx28/ry40，禁入椭圆 +1m，见 R2-T18 §8.3；旧椭圆已废），3 棵树距新跑道西缘 -90.3
+#   约 29m、缓冲归一化半径 r² 3.91–3.98（>1 即在缓冲外），已合规，不移动（见 §32）。
 # 链接复制：每源模型只留一个 master mesh，其余全部 obj.copy() 共享 mesh 数据。
 # 三角面预算：ov-trees GLB ≤300k tris（实测见 TREES/TRIS 日志）。
 # v2 规矩保留：渲染走 GitHub Actions，本地不渲染、不出预览图（太阳/世界背景保留进 .blend，
@@ -277,8 +282,12 @@ assert len(spots) == 146, len(spots)
 #   (96,105)/(120,105) 去抖动钉到网格点——否则与移位树仅 1.7m/0.95m（实测）。
 #   楼间两棵旧树亦压路：(0,12) 压步道 2（x=0 宽 3m）→ (4,12)；
 #   (-80,45) 压新路 R-N1（y=44 宽 3m）→ (-80,49)。
-#   另：西沿线 3 棵旧树 (-120,-33/-25/-17) 落在操场 3m 缓冲内（但在跑道面外），
-#   系 v2 原位、方案未列，位置不变、如实记录。
+#   另：西沿线 3 棵旧树 (-120,-33/-25/-17) 在旧椭圆 +3m 缓冲内（但在跑道面外），
+#   系 v2 原位、方案未列；R2-T32 实测现行新跑道（中心 (-62,-25) rx28/ry40 +1m）
+#   下 r² 3.91–3.98，已在缓冲外，不移动（见文件头）。
+# R2-T32：D1/旧沿线 3 对间距 1.56–1.81m → 旧树东移，距 D1 伙伴 2.60m（y 不变，
+#   仍在密植带内、不压路/缓冲；键为抖动前坐标，值为 D1 伙伴 y）：
+R32_D1 = {(120, -41): -40.5, (120, 79): 78.5, (120, -89): -89.5}
 PLAZA_FLANK = {-16: -28, -8: -36, 0: -44, 8: 28, 16: 36}
 relocated = []
 fixed = []
@@ -300,6 +309,11 @@ for (x, y, k, px, py) in spots:
     elif k == "perimeter" and (px, py) == (112, 105):
         fixed.append((118.0, 105.0, k))
         relocated.append((px, py, 118.0, 105.0, "L1-north"))
+    elif k == "perimeter" and (px, py) in R32_D1:
+        d1y = R32_D1[(px, py)]
+        nx = 117.5 + math.sqrt(2.6 ** 2 - (y - d1y) ** 2)
+        fixed.append((nx, y, k))
+        relocated.append((px, py, round(nx, 2), round(y, 2), "R2-T32-dense-pair-2.6m"))
     elif k == "perimeter" and (px, py) in ((96, 105), (120, 105)):
         fixed.append((float(px), float(py), k))  # 去抖动钉网格点（保与 L1 移位树 ≥2m）
         relocated.append((px, py, float(px), float(py), "L1-dejitter"))
@@ -311,7 +325,7 @@ for (x, y, k, px, py) in spots:
         relocated.append((px, py, -80.0, 49.0, "newroad-R-N1"))
     else:
         fixed.append((x, y, k))
-print(f"L1 RELOCATED: {len(relocated)}")
+print(f"L1+R2-T32 RELOCATED: {len(relocated)}")
 for r in relocated:
     print(f"  RELOC {r[0]},{r[1]} -> {r[2]},{r[3]} ({r[4]})")
 
@@ -409,4 +423,4 @@ blend1 = BLEND_PATH + "1"
 if os.path.exists(blend1):
     os.remove(blend1)
 
-print("DONE ov-trees v3")
+print("DONE ov-trees v4")
