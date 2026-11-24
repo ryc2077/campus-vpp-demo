@@ -405,6 +405,18 @@ def save_and_export(building):
                 bpy.data.images.remove(im)
             except Exception as e:
                 print("purge image skip:", im.name, e)
+    # 贴图打包进 .blend (Actions 渲染用; hook 换入的 PBR 图只存相对路径
+    # //../../external/..., 不打包会在 Actions 检出后找不到而渲成品红;
+    # R2-T21a 首版漏了这步, run #99 的 ov-tower.png 全塔品红, 此处补上)
+    for im in list(bpy.data.images):
+        if im.name in ("Render Result", "Viewer Node"):
+            continue
+        if im.packed_file is None:
+            try:
+                im.pack()
+                print("packed image:", im.name, im.size[:])
+            except Exception as e:
+                print("pack image skip:", im.name, e)
     for m in list(bpy.data.materials):
         if m.users == 0:
             try:
