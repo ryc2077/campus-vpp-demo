@@ -20,20 +20,13 @@ extends Node3D
 ##    用“动效结束后的终态 rect”（_final_rect 按 scale 关于 pivot 反推），
 ##    动效本身与时长一行不动；ABC 面板同理（储能 ABC 打开态 SOC 标签
 ##    终态 overlap 仅 0.09，动效中段实测会闪现，见 verify 检查）。
-## 6) 锚点钉住（pin）：配电变压器与储能 SOC 锚点在总览屏上只差约 32px，
-##    两字盒（高 30px）无论如何排不开——0/±22/±44 档全撞 SOC，+44 落到
-##    宿舍楼 A 屋顶、−66 落到餐厅屋顶（探针：箱体附近 18 组锚点全量扫查，
-##    无一落在箱体上）。故变压器标签允许在锚点原位（dy 0）与 SOC 标签叠放
-##    一行（字距约 3px，两色区分）：仅 dy 0、仅撞 SOC 时放行，顶栏/场景栏/
-##    面板守卫一律不绕过，全局净空规则与档位表一行不动。
-##    适用范围（回退总览修补，2026-11-24 探针实测）：pin 只在 GLB 总览放行
-##    （main.gd 按 campus.overview_glb_active 置 pin_enabled）；回退总览 pin 关，
-##    变压器走正常档位排开。探针数：回退总览两锚点投影纵向只差 12.77px
-##    （SOC 378.33 / 变压器 391.10），字高约 16px，dy 0 叠放时字盒交叠
-##    17.23px、字形也贴住（15 帧 SOC 字形 y373–385、变压器 y385–398，
-##    与 00 帧逐像素一致）；F2 的“约 32px”是两锚点投影的直线距
-##    （横向 24.8px 占大头），纵向从来不够一张字高。GLB 总览保留 F2 有意叠放，
-##    回退总览不再沿用 pin。
+## 6) 锚点钉住（pin）已删除（R2-T6，2026-11-24）：旧规则 6 允许配电变压器
+##    在 dy 0 与 SOC 标签叠放一行（字距约 3px），GLB 总览 00 帧字形微叠
+##    即此规则所致；回退总览修补（fc4e61b6）已证实去掉 pin 后变压器走
+##    正常档位取 +44（渲染 868.9,435.1，盒 y420.1–450.1，与 SOC 盒底
+##    净空 26.8px），宿舍楼 A/B 各被顶到 +66（494.8/551.9），18 条全可见、
+##    0 重叠。本轮把该结论推广到 GLB 总览：pin 机制整段删除，两个分支
+##    同走正常去重叠，不再有任何叠放例外。
 
 var camera: Camera3D
 var font: Font # Label3D 不走 Control 主题，main.gd 启动时把中文字体直接赋过来
@@ -49,15 +42,12 @@ var panel_control: Control = null # 场景面板（右侧固定 UI）：main.gd 
 var abc_panel_control: Control = null # ABC 面板（右侧浮层 UI）：main.gd 把 $UI/ABCPanel 赋过来；
 # 与场景面板同一模式：_update 里取其实时 get_global_rect() 作碰撞区，打开时才碰撞，
 # 关闭时不碰撞；双开时场景面板下移、ABC 面板 rect 本身不动，实时取都跟得上。
-var pin_enabled := true # pin 总开关（规则 6）：main.gd 在 _setup_labels 里按
-# campus.overview_glb_active 置位——GLB 总览 true（F2 有意叠放保留），回退总览
-# false（变压器走正常档位排开，不再原位叠 SOC 之下）。默认 true，旧行为不变。
 var _min_gap := 20.0 # 去重叠最小净空（屏上 px，720p 口径）：候选字盒与已放字盒之间
 # 至少留 20px 空隙才算排开，否则继续试下一档。只扩判定用的盒，不改 est_h。
 # （02-storage 实测：储能柜标签 y≈48 落在顶栏带内，隔着 93% 白面板只剩约 7% 可见度，白字压白底）
 var _ray: PhysicsRayQueryParameters3D
 
-func add_label(text: String, color: Color, prio: int, anchor: Vector3, dynamic: String = "", pin: bool = false) -> Dictionary:
+func add_label(text: String, color: Color, prio: int, anchor: Vector3, dynamic: String = "") -> Dictionary:
 	var l := Label3D.new()
 	l.text = text
 	if font != null:
@@ -85,7 +75,7 @@ func add_label(text: String, color: Color, prio: int, anchor: Vector3, dynamic: 
 	l.position = anchor
 	l.visible = false
 	add_child(l)
-	var d := {"label": l, "text": text, "color": color, "prio": prio, "anchor": anchor, "dynamic": dynamic, "occ": false, "pin": pin}
+	var d := {"label": l, "text": text, "color": color, "prio": prio, "anchor": anchor, "dynamic": dynamic, "occ": false}
 	defs.append(d)
 	return d
 
@@ -183,7 +173,6 @@ func _update() -> void:
 	var sorted: Array = defs.duplicate()
 	sorted.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["prio"]) < int(b["prio"]))
 	var placed: Array[Rect2] = []
-	var placed_defs: Array = [] # 与 placed 一一对应：pin 判定要知道撞上的是谁（只撞 SOC 才放行）
 	var dbg: Array[String] = []
 	var n_visible := 0
 	for d in sorted:
@@ -254,21 +243,14 @@ func _update() -> void:
 			#（总览屋顶光伏/艺体馆曾只差 6px、冻结帧只差 16px）也算撞上，
 			# 继续试下一档。扩的是判定用的盒，est_h 与顶栏检查口径不变。
 			var hit2 := false
-			var hit_soc_only := true # 撞上的是否全是 SOC 标签（pin 放行的前提）
 			var rg := r.grow_individual(0.0, _min_gap, 0.0, _min_gap)
 			for k in range(placed.size()):
 				if rg.intersects(placed[k]):
 					hit2 = true
-					if String(placed_defs[k].get("dynamic", "")) != "soc":
-						hit_soc_only = false
-			# pin（规则 6，配电变压器专用）：dy 0 是箱体上唯一位置，撞的又只有
-			# SOC 时原位叠放；顶栏/场景栏/面板守卫在上面已 continue，不绕过；
-			# 其余档位、其余标签一律走原规则。pin_enabled 关时（回退总览）
-			# 不放行，走正常档位排开。
-			if hit2 and not (pin_enabled and bool(d.get("pin", false)) and dy == 0.0 and hit_soc_only):
+			# R2-T6：pin 已删除，撞上就继续试下一档，无任何叠放例外。
+			if hit2:
 				continue
 			placed.append(r)
-			placed_defs.append(d)
 			# 把微调量折回 3D：dy>0 是向屏下移，对应 anchor 沿相机上方向的
 			# 反方向（anchor - up * world_dy）；旧代码这里是 + 号，方向反了。
 			# px_per_world = vp_h / (2*tan(fov/2))。

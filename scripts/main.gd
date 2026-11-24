@@ -161,10 +161,8 @@ func _rebuild_classroom() -> void:
 	}
 
 func _setup_labels() -> void:
-	# pin 只在 GLB 总览放行（labels.gd 规则 6）：overview.glb 接管时 true，
-	# 回退总览（程序化）时 false，变压器走正常档位排开。_setup_labels 在
-	# campus.build() 之后调，overview_glb_active 已定型。
-	labels.pin_enabled = campus.overview_glb_active
+	# R2-T6：pin 已删除（labels.gd 规则 6 旧文），GLB/回退总览同走正常
+	# 去重叠，变压器取 +44 档与 SOC 分开，不再原位叠放。
 	labels.camera = rig
 	labels.panel_control = panel # 场景面板实时 rect 作标签碰撞区（labels.gd 内取，不硬编码像素）
 	labels.abc_panel_control = $UI/ABCPanel # ABC 面板实时 rect 作标签碰撞区，同一模式；关闭时不碰撞
@@ -195,10 +193,11 @@ func _setup_labels() -> void:
 		labels.add_label(String(b["name"]), DataLoader.color_from_hex("#17557f"), int(b["label_prio"]), anchor)
 	for e in campus_data["labels_extra"]:
 		var pos: Array = e["pos"]
-		# F2（配电变压器标签错位）：pin 见 labels.gd 规则 6——锚点本身没错，
-		# 投影距箱体顶面中心仅约 13px，是去重叠 +44 档把它顶到宿舍楼 A 屋顶。
-		var pin := String(e["text"]) == "配电变压器"
-		labels.add_label(String(e["text"]), DataLoader.color_from_hex(e["color"]), int(e["prio"]), Vector3(pos[0], pos[1], pos[2]), "", pin)
+		# F2（配电变压器标签错位）：锚点本身没错，投影距箱体顶面中心仅约 13px；
+		# R2-T6 删 pin 后走正常档位取 +44（渲染 868.9,435.1，盒 y420.1–450.1，
+		# 与 SOC 盒底净空 26.8px），宿舍楼 A/B 各被顶到 +66，18 条全可见、0 重叠
+		#（回退总览 fc4e61b6 已实测，GLB 总览本轮同口径）。
+		labels.add_label(String(e["text"]), DataLoader.color_from_hex(e["color"]), int(e["prio"]), Vector3(pos[0], pos[1], pos[2]))
 	labels.add_label("操场 · 田径场", Color("#c2503f"), int(campus_data["playground"]["label_prio"]), Vector3(-80, 5, 25))
 	labels.add_label("池塘", Color("#2e7f86"), int(campus_data["pond"]["label_prio"]), Vector3(82, 2.5, 78))
 	labels.add_label("充电区 · V2G", Color("#9a3412"), int(campus_data["charge"]["label_prio"]), Vector3(44, 8.4, 76))
