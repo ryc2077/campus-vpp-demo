@@ -391,6 +391,8 @@
   - **推送**：charge.glb 7,105,740 B + charge.blend 3,373,068 B + 瘦身 overview.glb/.blend + 本文档一次提交；完整版 overview .glb/.blend 留本地未推。
   - **Godot 验收**：待新 godot-verify run success 后下载截图复核（04-charge 与 00-overview 车窗应为深色镀膜、有反射层次；回归 01/02/03），见 `~/workspace/review-rework-r1/godot-acceptance/ACCEPTANCE.md` 新节。
 
+- 2026-11-24 09:46 CST 本地陈旧截图目录清理（工人 a84d39f1）：本地 `screenshots/blender/` 40 张全是 640×360 旧渲染（2026-11-22，另 ch-marking 一张 11-23 本地重渲），对应 .blend 全部在仓（ch-marking.blend blob SHA 与仓库一致），Actions run #81/#82 单件预览均 55/55（含全部 40 个名字），无孤本；但该路径仍被 17 个渲染脚本作 PNG 写出目标、被 `blender-previews.yml` 作 Actions 暂存目录、被 SPEC/本文档述及，按任务分支不删目录，改为在目录内放 README.md 标注已废弃、缺图核查以 Actions artifact 清单为准。
+
 ## §10 总览大文件瘦身入仓（2026-11-23 11:39–12:00 CST，瘦身任务 8bb03134）
 
 - **根因**：Git Data API 建 blob 有实际大小上限，实测探针（孤 blob，不污染仓库）：40MB 原始文件 OK（base64 约 55.9MB），46MB 报 HTTP 422 "input too large"。阈值在 40–46MB 之间，**不是 100MB**；先前文档里写的"约 26MB 上限"是低估，实际可推到 40MB。另一次 37.8MB 推送曾遇 HTTP 502 "Server Error"，属 GitHub 侧临时错误，重试一次即成功（凡推必核 commit）。
