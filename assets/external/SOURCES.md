@@ -688,6 +688,7 @@ Sports 2 ×1.108）或保留原生 3.97–4.22 m（紧凑轿车实尺，差 <10%
 | `roof_424A52_color.jpg` | Poly Haven grey_roof_01（https://polyhaven.com/a/grey_roof_01）diff 图染色 | 屋顶深灰 `#424A52` |
 | `brick_8E2F28_color.jpg` / `brick_A63A2C_color.jpg` | Poly Haven red_bricks_04（https://polyhaven.com/a/red_bricks_04）diff 图染色 | 艺体馆红墙 `#8E2F28` / 砖砌压边 `#A63A2C` |
 | `asphalt_424A52_color.jpg` | Poly Haven asphalt_01（https://polyhaven.com/a/asphalt_01）diff 图染色 | 沥青路 `#424A52` |
+| `track_B8543F_color.jpg` | 同上 diff 图染色（R2-T9b，2026-11-25；与 `tint_textures.py` 同款线性空间染色，R 缩放钳制 4.0，实测均值 (170,84,63)） | 跑道红 `#B8543F` |
 | `asphalt_normal_amp2.png` | 同上 nor_gl 图 ×2.0 | 沥青法线 |
 | `asphalt_rough_090.jpg` | 同上 rough 图缩放至均值 0.90 | 沥青粗糙度 |
 | `paving_D8D2C4_color.jpg` / `paving_DCD6C8_color.jpg` / `paving_C9C2B0_color.jpg` / `paving_E8B400_color.jpg` | Poly Haven concrete_pavement_03（https://polyhaven.com/a/concrete_pavement_03）diff 图染色 | 铺装 `#D8D2C4` / 步道 `#DCD6C8` / 压边石 `#C9C2B0` / 盲道黄 `#E8B400` |

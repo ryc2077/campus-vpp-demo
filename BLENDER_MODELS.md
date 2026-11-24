@@ -1101,3 +1101,144 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 
 - 待填（Actions blender-previews overview 组 success 后，下载 artifact 逐张目视 5 栋楼：尺寸、层数感、窗带、入口、配色都对，无穿模；godot-verify 总览验收由终轮整合做）。
 - **还剩什么**：① 终轮整合：总览重拼 + Godot 侧验收；② **ov-windows-roofs 的 A/B 窗带与屋顶膜是按旧实心楼体做的，与本件玻璃幕墙重叠**（窗带双层、屋顶膜与本件屋顶板 18.1–18.35 共面）——终轮须更新 ov-windows-roofs（A/B 窗带与屋顶膜改 C 栋专用或删除），本任务未动它；③ 塔 F1 南面窗段为让位正门外移 ±4.75、塔钟面为空白圆盘，目视时确认读感。
+
+## §24 R2-T9b PBR 材质硬性整改收尾（2026-11-25 00:18–01:00 CST，接替中断的 R2-T9；只改材质与贴图挂接）
+
+- **任务**：用户 2026-11-24 22:42 硬性要求：建筑外立面、沥青路必须挂真实 PBR
+  材质，不许留光板。上一任 R2-T9（agent 69c868fd）23:21 死于运行时重启，
+  BLENDER_MODELS.md 全文无 "T9" 记录。本任务先核查半成品归属与逐件材质实态，
+  再只修无人认领的光板件；未动楼体/道路尺寸与位置，未动 Godot scripts/scenes/data，
+  未拼总览场景。开工 HEAD `7d5de9cf`（2026-11-24T16:20:55Z，R2-T21b 换装 .blend 入仓后）。
+
+### 半成品归属核查结论（以文件时间戳 + 日志 + 代码注释三方对证，均为 CST）
+
+- **`_pbr_apply.py` 原件属 T9**：文件头即写 "R2-T9 PBR hard fix (2026-11-24)"，
+  含全套 `SETS`（14 种）与 `PBR_MAP`（12 件），12 个 `ov-*.py` 里同名 hook
+  注释均写 R2-T9；`pbr-tinted/` 19 个染色贴图同日落盘。**00:11 的一次改动属
+  R2-T21b**：`_load` 用 `BLEND_PATH` / 已打开 .blend 算相对路径的修法，
+  本文件 §21 已记（修前 gym 首版 GLB 仅 440KB、只剩 1 张 243 字节空白图）。
+  本任务只追加 1 个 TRACK 集 + 1 条 ov-track 映射（见下），其余一字未动。
+- **沥青贴图组 00:03–00:10 的改动属 R2-T14b**：`ov-road-main.py` /
+  `ov-road-walk.py` 内 "R2-T14b" 补丁注释（`_load` 相对路径 bug 的存盘前
+  改写）+ `/tmp/r2t14b-main.log`（00:12，`DONE ov-road-main`，Asphalt 三图
+  全套回读通过）+ `/tmp/r2t14b-walk.log`（23:56 首跑）/
+  `r2t14b-walk-repair.log` + `/tmp/r2t14b-fix-walk.py`（修后 171 对象、
+  每种材质 ≥3 图）+ `/tmp/r2t14b-walk2.log`（00:18–00:29 重跑，
+  `DONE ov-road-walk`）。T14b 未在本文档留节，本段即补记。
+- **T9 中断前已跑完 bldA/bldB/bldC/lib/tower**：五件 .blend/.glb 时间戳
+  23:11–23:19 CST，GLB 实测 PBR 贴图全套（见下）。**ov-dorm.blend 在 23:20
+  有一次改动但 .glb 未更新**，疑似 T9 正在跑 dorm 脚本时中断，无日志留存，
+  内容无法确认；随后 T21a 00:26 完整重建覆盖，本任务不追认。
+  **ov-road-main/walk 的 .py 在 00:05 被 T14b 改过**（补丁注释为证），
+  与 T9 无关。**ov-gym/lab/canteen 的 00:13–00:15 改动属 T21b**（§21）。
+
+### 核查方法（不猜，全实测）
+
+- GLB 直读：`/tmp/audit_glb.py` 解析各件 `.glb` JSON——每种材质
+  baseColor / metallicRoughness / normal 三槽贴图名 + 内嵌字节数，
+  <2KB 判空白坏图；同时计无材质 primitive 数。
+- .blend 直读：`/tmp/audit_blend3.py`（Blender 4.2.0 `--background` 只读
+  打开，不保存）——每种材质 Principled 三路链接、粗糙度默认值、
+  Normal Map 强度、**逐面** UV tile（世界跨度/UV 跨度中位数；按对象
+  取并集会把不同朝向面的 UV 轴混在一起，初版误报 0.08m，已修正）。
+- 贴图平坦度：PIL 实测烘焙图均值/std；渲染图 ROI 统计 + 高频残差。
+
+### 光板清单（改前，2026-11-25 00:20 CST 实测）
+
+| 件 | 面 | 缺什么（实测） |
+|---|---|---|
+| ov-windows-roofs | 屋顶膜 ovw_roof_membrane（3 栋屋顶，39/31/21m） | 烘焙三图仍在但近乎平色：color 均值 (67,74,81)、std 8–10，UV 单张 1024 铺 39m |
+| ov-windows-roofs | 女儿墙压顶 ovw_coping / ovw_coping.001（39/31/21m） | 烘焙 color 均值 (7,7,8)——近乎纯黑（旧烘焙 bug），std 16，UV 单张铺 39m |
+| ov-track（任务书“跑道同理”，12 件清单外追加，见下） | 跑道红 Track_Red_B8543F（400m 环） | 烘焙 color 仅 28,634 B，UV 单张铺整环；分道线/路缘为细线，不算光板 |
+| ov-dorm | 全件（米白/蓝灰墙、屋顶、檐口） | 旧烘焙图（11-23 版，.glb 2026-11-23 03:14），但**属 T21a 换装范围，本任务只核查不修** |
+| ov-road-main / ov-road-walk | — | 改前已由 T14b 修完（见归属段），本任务只复核 |
+
+### 逐件核查结果（其余 10 件改前即已达标，不动）
+
+- **ov-bldA / ov-bldB / ov-bldC / ov-lib / ov-tower（T9，23:11–23:19 跑完）**：
+  GLB 内墙/檐口/混凝土/屋顶四种大面材质均为 PBR 三图全套实尺寸
+  （如 plaster_F3E9D2_color 347,347 B、plaster_normal_amp2 2,723,411 B、
+  concrete_B9B3A8_color 480,874 B、roof_424A52_color 359,855 B），
+  0 张 <2KB 坏图，0 无材质 primitive；.blend 逐面 tile 中位数**墙 2.00m /
+  混凝土 2.00m / 屋顶 3.00m**（p10=p90，分毫不差，与 `SETS` 一致），
+  法线强度墙/混凝土 1.0、屋顶 0.7，粗糙度默认值 1.0（以 rough 贴图为准）。
+  玻璃（Door_Glass / Lib_Glass / Glass_Window）无贴图——素色玻璃按设计，
+  不算光板。小件（AC 机身/格栅、门、金属灰、窗框）保留烘焙三图。
+  bldC 本地 640×360 预览已出（`screenshots/blender/ov-bldC.png`）：
+  屋顶灰瓦纹理成片可见、浅橙墙面有灰泥起伏。
+- **ov-gym / ov-lab / ov-canteen（T21b，§21）**：GLB 实测墙/屋顶/混凝土/
+  砖红 4–5 种 PBR 材质各三图全套（gym 9 图、lab 13 图、canteen 19 图），
+  与 §21 记录一致；玻璃/金属/框料素色保留，不动。
+- **ov-road-main（T14b，00:12）**：Asphalt_424A52 三图全套
+  （asphalt_424A52_color 518,470 B、asphalt_rough_090 591,733 B、
+  asphalt_normal_amp2 2,621,275 B），路缘混凝土三图全套，黄线烘焙三图；
+  asphalt_rough_090.jpg 实测均值 229.5 → **粗糙度 0.90**、std 0.5（按
+  0.9 档设计），法线强度 1.0。
+- **ov-road-walk（T14b，walk2 00:29 重跑完）**：8 种材质全部三图全套
+  （铺装/步道/压边石/盲道用 concrete_pavement_03 染色 + paving_normal_amp2，
+  PavingNew 直接用 concrete_pavement_03 三图，JointLine 烘焙三图），
+  0 坏图；回读 171 对象。
+- **ov-windows-roofs 其余材质**：ovw_frame 烘焙 color 均值 (65,67,69)、
+  std ~70（有明暗变化，非平色，窗框细条，保留）；ovw_equip / ovw_fan
+  小设备盒 std 21–27，保留；ovw_glass 素色玻璃按设计；ovw_preview_*
+  4 种为预览辅助质量，不进 GLB（GLB 7 材质无它们）。
+- **ov-track 追加说明**：12 件清单无跑道，但任务书 §2 明写“跑道/铺装
+  同理”，且跑道红是校园内最大一片单色面（400m 环），留烘焙 flat 图
+  即违背“不许再留光板”，故纳入本次修复；ov-field（球场草皮，烘焙
+  color 228–244KB，非平色）不在任务书点名范围，本次未动，留作残留。
+
+### 修复（只改材质挂接；楼体/道路尺寸位置一字未动）
+
+- **ov-windows-roofs（直接对 .blend 应用 `_pbr_apply`，不重跑建模+烘焙）**：
+  ovw_roof_membrane → CONCRETE_424A52（concrete_424A52_color +
+  concrete_wall_007_rough + concrete_normal_amp15，tile 2.0m，法线 1.0），
+  ovw_coping / ovw_coping.001 → CONCRETE_B9B3A8（同源，tile 2.0m）。
+  90 面重投 UV，9 张旧烘焙图 purge；路径断言全过
+  （`//../../external/` + 1024×1024 有像素）。`.blend` 1,975,928 B、
+  `.glb` 4,156,720 B（原 3,318,672 B），回读 127 对象（与原脚本
+  piece_objs 127 一致），除玻璃外每种材质 ≥3 图。
+  `.py` 未改（hook 早已在内，重跑可复现）。
+- **ov-track（同上 + 两处新增）**：`_pbr_apply.py` 新增 `TRACK_B8543F` 集
+  （`pbr-tinted/track_B8543F_color.jpg` + asphalt_rough_090 +
+  asphalt_normal_amp2，tile 4.0m，法线 1.0）与 `PBR_MAP["ov-track"]`；
+  染色用 `tint_textures.py` 同款线性空间逐通道缩放（asphalt_01 diff →
+  SPEC 跑道红 `#B8543F`，R 缩放钳制 4.0，实测均值 (170,84,63)，ΔR 14，
+  在 SPEC 常用 ±15 容差内）；`ov-track.py` 在烘焙与存盘之间插入
+  `_pbr_hook` + R2-T14b 路径改写块（与 road 两件同款，幂等）。
+  Track_Red_B8543F 512 面重投 UV（tile 4.0m），3 张旧烘焙图 purge。
+  `.blend` 1,477,780 B、`.glb` 4,540,664 B（原 1,142,348 B），回读 17 对象，
+  track_ring 三图为 track_B8543F_color / asphalt_rough_090 / asphalt_normal_amp2。
+- **来源**：全部沿用已下载 CC0 包，无新下载——Poly Haven asphalt_01
+  （https://polyhaven.com/a/asphalt_01）与 concrete_wall_007
+  （https://polyhaven.com/a/concrete_wall_007），见 SOURCES.md §1.1/§9.2
+  （本任务在 §9.2 补 `track_B8543F_color.jpg` 一行）。
+
+### 本地验证（Actions 为准之前，先本地看过图）
+
+- `ov-windows-roofs.png`（640×360，Eevee 16 采样）：屋顶膜整片深灰颗粒
+  可见（ROI std R 13.1 / G 11.7 / B 10.5），压顶浅色边条清晰，不再光板。
+- `ov-track.png`（同规格）+ 临时近摄 `/tmp/track_closeup.png`（未保存进
+  工程）：远景红环 + 白分道线完整；近摄红面细颗粒 mottling 清晰，
+  高频残差 std G 6.0 / B 7.2（R 通道近饱和，std 1.5，属沥青原图低对比，
+  非挂接失败）；渲染均值 R 184.3 与目标 `#B8543F` 的 R=184 一致。
+- `ov-bldC.png`（同规格，T9 成果复核）：屋顶灰瓦纹理成片、墙面灰泥可见。
+- 三图均非黑非白。注：本地渲染未走 xvfb（沿用已有 Blender 直跑，
+  日志有 1 条 EGL_BAD_MATCH 警告，PNG 均正常写出，319,858 / 258,865 /
+  273,934 B）；验收仍以 Actions 为准。
+
+### 推仓
+
+- 待填（推后补 commit 号与核对结果）。
+
+### 验证
+
+- 待填（Actions blender-previews overview 组 success 后，下载 artifact 逐张目视
+  本任务两件 + 回归（road-main/walk、bldC、gym/lab/canteen）：纹理可见、无穿模；
+  godot-verify 总览 00-overview 目视由终轮整合做）。
+- **还剩什么**：① ov-field 草皮仍用烘焙图（未在任务书点名，本次未动）；
+  ② T21a §23 ②：ov-windows-roofs 的 A/B 窗带与屋顶膜与新换装 bldA/bldB
+  玻璃幕墙重叠（窗带双层、屋顶膜与屋顶板共面），终轮整合须更新本件
+  （改 C 栋专用或删除），本次只换了膜/压顶的贴图、几何一字未动，
+  不加重也不解决该重叠；③ T21a 换装 5 栋的细部素色材质
+  （tower/dorm/lib/bldA/bldB 的 MetalGrey/AC/窗框/门等源模型自带平色）
+  不在本任务范围，其 §23 验证仍待填；④ 总览重拼与 Godot 侧验收由终轮整合做。

@@ -72,6 +72,12 @@ SETS = {
     "PAVING_E8B400": (os.path.join(TINT, "paving_E8B400_color.jpg"),
                       os.path.join(PH, "concrete_pavement_03_rough_1k.jpg"),
                       os.path.join(TINT, "paving_normal_amp2.png"), 3.0, 1.0),
+    # R2-T9b (2026-11-25): running track, same asphalt maps as ASPHALT,
+    # color tinted to SPEC track red #B8543F (asphalt_01 diff, linear-space
+    # tint, R scale clamped at 4.0 -> achieved mean (170,84,63), dR 14).
+    "TRACK_B8543F": (os.path.join(TINT, "track_B8543F_color.jpg"),
+                     os.path.join(TINT, "asphalt_rough_090.jpg"),
+                     os.path.join(TINT, "asphalt_normal_amp2.png"), 4.0, 1.0),
 }
 
 # piece -> {material name: set key}
@@ -126,6 +132,10 @@ PBR_MAP = {
     "ov-windows-roofs": {"ovw_roof_membrane": "CONCRETE_424A52",
                          "ovw_coping": "CONCRETE_B9B3A8",
                          "ovw_coping.001": "CONCRETE_B9B3A8"},
+    # R2-T9b (2026-11-25): task says track follows the same standard as
+    # asphalt ("跑道/铺装同理"); only the red ring gets PBR, lane lines and
+    # curbs keep their baked maps (thin lines, not big faces).
+    "ov-track": {"Track_Red_B8543F": "TRACK_B8543F"},
 }
 
 _img_cache = {}

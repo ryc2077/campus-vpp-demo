@@ -408,6 +408,38 @@ if _wear_attr is not None:
 print("bake done, materials rebuilt with image textures, elapsed %.1fs"
       % (time.time() - _bake_t0))
 
+# R2-T9b PBR hard fix (2026-11-25): baked track map was near-flat (28KB
+# color over a 400 m ring). Re-link real CC0 photo texture (asphalt_01
+# tinted to SPEC track red #B8543F) + world-scale UVs after the bake step,
+# before save/export. Idempotent; see _pbr_apply.py in this dir.
+_pbr_hook = os.path.join(os.path.dirname(BLEND_PATH), "_pbr_apply.py")
+if os.path.exists(_pbr_hook):
+    _pbr_g = {"__name__": "_pbr_apply", "__file__": _pbr_hook}
+    exec(compile(open(_pbr_hook).read(), _pbr_hook, "exec"), _pbr_g)
+    _pbr_g["apply_pbr"](os.path.splitext(os.path.basename(BLEND_PATH))[0])
+
+# R2-T14b path fix-up (same as ov-road-main/walk.py): _pbr_apply._load()
+# may store a wrong-base "//" path when run from a fresh session; resolve
+# against the .blend directory / CWD and rewrite before save. Idempotent.
+for _im in bpy.data.images:
+    _fp = _im.filepath
+    if not _fp.startswith("//"):
+        continue
+    _rel = _fp[2:]
+    _abs = None
+    for _base in (PY_DIR, os.getcwd()):
+        _cand = os.path.join(_base, _rel)
+        if os.path.exists(_cand):
+            _abs = os.path.normpath(_cand)
+            break
+    if _abs is None:
+        print("PBR path fix: file not found, keep:", _im.name, _fp)
+        continue
+    _new = "//" + os.path.relpath(_abs, PY_DIR)
+    if _new != _fp:
+        print("PBR path fix:", _im.name, _fp, "->", _new)
+        _im.filepath = _new
+
 # ---- save .blend ----
 os.makedirs(PY_DIR, exist_ok=True)
 os.makedirs(os.path.dirname(GLB_PATH), exist_ok=True)
