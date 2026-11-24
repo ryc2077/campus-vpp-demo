@@ -13,6 +13,15 @@
 # R2-T1b 2026-11-24 操场收界：禁入椭圆跟新跑道走——中心 (-62,-25)、
 #   长轴南北向、外椭圆 rx28/ry40 +1m（旧 (-80,-25) rx40/ry28 已废）。
 # R2-T18 2026-11-24 草地重铺：见文件末尾 R2-T18 段（色带底板 + tevy 高草）。
+# R2-T51 2026-11-25 总览草不可见整改（只改本件）：①色带对比加强——
+#   A #69B45E→#86CC74、B #57A04B→#3E7A32、C #7FC46A→#A9BE4A（旧 A/B 基色
+#   ΔG 仅 20，渲染后只剩 ~10，C 完全并入 A；新 A/B ΔG=82、C 另成黄绿色相，
+#   PNG 与本段 _strip_mat 同名文件已同步换色）；②色带沿长边 ≤16m 切段、
+#   段间 A↔B 交错（C 条用 C↔A），由条纹改棋盘格斑驳（163→453 块，
+#   +3,480 面，总计 397,112 ≤400k，见文件末尾 R2-T51 段）；③tevy 放大——
+#   lod2 ×1.5–2.0、lod1 ×1.25–1.65、lod0 ×1.1–1.35、红燕麦 ×1.5–2.0
+#   （0 面，lod2 高 0.76m→1.14–1.52m、幅 1.21m→1.8–2.4m；总览约
+#   4.6px/m 下单丛由 ~3×5px 变 ~6×10px）。禁入椭圆（新跑道）一字不动。
 # Blender 坐标 x 向东、y 向北、z 向上，单位米
 # 内容：3 块草地（实体草丛铺满）、南门广场两侧 4 个花坛、20 个灌木球
 # v3 改动：草地底板/土面/灌木/花/草丛加程序化噪波纹理（颜色+粗糙度+轻微凹凸），
@@ -1082,6 +1091,7 @@ _slab_meshes = {"A": _slab_unit_mesh(mat_strip_a),
 _rng18 = _random.Random(20261124)
 slab_count = 0
 slab_area = 0.0
+SLAB_SEG_R251 = 16.0  # R2-T51：色带切段长度（见循环内注释）
 for _zid, (_rects, _n2, _nr1, _nr2) in GRASS_ZONES_R218.items():
     for (_x0, _x1, _y0, _y1) in _rects:
         _w, _h = _x1 - _x0, _y1 - _y0
@@ -1105,25 +1115,40 @@ for _zid, (_rects, _n2, _nr1, _nr2) in GRASS_ZONES_R218.items():
                     _cur = None
             if _cur is not None:
                 _runs.append((_cur, _hi))
+            # R2-T51：色带沿长边 ≤16m 切段、段间交错成棋盘格（原整条一色
+            #   在总览下只剩条纹，斑驳感不足）。切段只改本循环，采样断开
+            #   逻辑（_runs）与禁入判定（_blocked_new）一字不动；段长
+            #   16m 经离线仿真核定：163→453 块、+3,480 面，总计 397,112
+            #   ≤400k（12m 段会到 398,540、8m 段超预算 401,408，故取 16m）。
             _key = 'C' if (_s + 1) % 5 == 0 else ('A' if _s % 2 == 0 else 'B')
+            _alt = 'A' if _key == 'B' else ('B' if _key == 'A' else 'A')
             for (_a, _b) in _runs:
                 if _b - _a < 1.0:
                     continue
-                _mid = (_a + _b) / 2.0
-                _ln = _b - _a
-                _o = bpy.data.objects.new(
-                    "Slab_%s_%03d" % (_zid, slab_count), _slab_meshes[_key])
-                bpy.context.collection.objects.link(_o)
-                if _along_x:
-                    _o.location = (_mid, _c, 0.025)
-                    _o.scale = (_ln, _wid, 0.05)
-                else:
-                    _o.location = (_c, _mid, 0.025)
-                    _o.scale = (_wid, _ln, 0.05)
-                objs.append(_o)
-                slab_count += 1
-                slab_area += _ln * _wid
-print("SLABS R2-T18: %d boxes, %.0f m2, %d tris (4m stripes A/B, every 5th C)"
+                _nseg = max(1, math.ceil((_b - _a) / SLAB_SEG_R251))
+                _seg_len = (_b - _a) / _nseg
+                for _j in range(_nseg):
+                    _sa, _sb = _a + _j * _seg_len, _a + (_j + 1) * _seg_len
+                    if _sb - _sa < 1.0:
+                        continue
+                    _mid = (_sa + _sb) / 2.0
+                    _ln = _sb - _sa
+                    _skey = _key if _j % 2 == 0 else _alt
+                    _o = bpy.data.objects.new(
+                        "Slab_%s_%03d" % (_zid, slab_count),
+                        _slab_meshes[_skey])
+                    bpy.context.collection.objects.link(_o)
+                    if _along_x:
+                        _o.location = (_mid, _c, 0.025)
+                        _o.scale = (_ln, _wid, 0.05)
+                    else:
+                        _o.location = (_c, _mid, 0.025)
+                        _o.scale = (_wid, _ln, 0.05)
+                    objs.append(_o)
+                    slab_count += 1
+                    slab_area += _ln * _wid
+print("SLABS R2-T18+R2-T51: %d boxes, %.0f m2, %d tris (4m stripes A/B, "
+      "every 5th C; R2-T51: <=16m segments, alternating checker)"
       % (slab_count, slab_area, slab_count * 12))
 
 # ---- tevy 网格与材质（只导 5 个用到的 LOD；其余候选不进件）----
@@ -1156,9 +1181,19 @@ for _k, _mesh in _tevy_meshes.items():
     _mesh.materials.append(_tevy_mats[_k])
 
 
+# R2-T51 总览可见性放大（0 面）：tevy 全系按 mesh 放大——lod2 0.76m 高
+#   在总览约 4.6px/m 下单丛仅 ~3×5px、370 丛只占草地像素约 1.8%，
+#   放大后 lod2 高 1.14–1.52m、幅 1.8–2.4m（~6×10px/丛），drift 带
+#   由 faint 点线变为可见草线；lod1/lod0 只近机位特写，放大倍率收敛。
+_TEVY_SCALE_R251 = {'lod0': (1.10, 1.35), 'lod1': (1.25, 1.65),
+                    'lod2': (1.50, 2.00), 'oat1': (1.50, 2.00),
+                    'oat2': (1.50, 2.00)}
+
+
 def _place_tevy(mesh, prefix, points, z0=0.05, smin=0.85, smax=1.15):
     """按给定 (x, y) 点表放实例：共享 mesh，随机 Z 向旋转 + 缩放；
-    丛高随缩放 0.65–0.87m（lod1 原高 0.76m）。"""
+    丛高随缩放（lod1 原高 0.76m；R2-T51 起各 mesh 用 _TEVY_SCALE_R251
+    的放大倍率，调用处传入）。"""
     n = 0
     for (_i, (_x, _y)) in enumerate(points):
         o = bpy.data.objects.new("%s_%04d" % (prefix, _i), mesh)
@@ -1257,8 +1292,10 @@ for _zid, (_rects, _n2, _nr1, _nr2) in GRASS_ZONES_R218.items():
             ('lod2', 'lod2', "TevyMeadowLOD2_%s" % _zid),
             ('oat1', 'oat1', "TevyRedOatLOD1_%s" % _zid),
             ('oat2', 'oat2', "TevyRedOatLOD2_%s" % _zid)):
+        _smin, _smax = _TEVY_SCALE_R251[_mesh_key]
         _tevy_counts[_prefix] = _place_tevy(_tevy_meshes[_mesh_key],
-                                             _prefix, _picks[_key])
+                                             _prefix, _picks[_key],
+                                             smin=_smin, smax=_smax)
         _tevy_by_mesh[_mesh_key] += _tevy_counts[_prefix]
     print("TEVY %s: drift cands=%d lod2=%d oat1=%d oat2=%d" % (
         _zid, len(_cands), _tevy_counts["TevyMeadowLOD2_%s" % _zid],
@@ -1309,8 +1346,9 @@ for _mesh_key, _prefix, _pts, (_lx0, _lx1, _ly0, _ly1) in _HEROES:
             continue
         _final.append(_placed_pt)
         _placed_xy.append(_placed_pt)
+    _smin, _smax = _TEVY_SCALE_R251[_mesh_key]
     _tevy_counts[_prefix] = _place_tevy(_tevy_meshes[_mesh_key], _prefix,
-                                         _final)
+                                         _final, smin=_smin, smax=_smax)
     _tevy_by_mesh[_mesh_key] += _tevy_counts[_prefix]
     print("TEVY hero %s: %d placed" % (_prefix, _tevy_counts[_prefix]))
 
@@ -1346,6 +1384,8 @@ n_verts = sum(len(o.data.vertices) for o in imported
 print(f"GLB reimport OK: {len(imported)} objects, "
       f"{n_tris} tris, {n_verts} verts")
 # R2-T18 预算：ov-lawn ≤400k tris（GREEN_PLAN.md §8.3 约 393,644）。
+# R2-T51 预期 397,112（色带 163→453 块、+3,480 面；tevy 放大 0 面），
+# 仍 ≤400k，余量 2,888。
 assert n_tris <= 400000, "ov-lawn over tri budget: %d tris" % n_tris
 # 回读验证 (di-walls 做法): 地面基底材质的贴图数 >= 3 (烘焙贴图齐全);
 # 草叶材质已挂绿斑贴图，alpha 草丛材质带 MASK 镂空贴图，均要求有贴图。
