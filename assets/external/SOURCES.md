@@ -1031,3 +1031,34 @@ Kenney 塔 1 个）；CC BY 4.0——vinish.dev 6 栋（署名 vinish.dev）；C
 - 缺失成因：此前推仓只推了 hook 当时直接引用的图（`4228878e` 漏了 5 张 polyhaven diff/nor、`967a3f28` 只推了 ambientCG 每套 3 张 hook 用图），染色源图与非 hook 用图一直只在本地；`.blend` 靠打包自给自足，渲染不受影响，但干净检出重跑烘焙 / PBR hook 会因文件缺失失败。
 - 本次未动任何 `.blend` / `.glb` / `.py`，未重跑烘焙与渲染；补推未触发任何 workflow run（blender-previews 只监听 `assets/blender/**` 等路径，本次只动 `assets/external/**`，按 head SHA 查 runs 为 0）。
 - 还剩：ambientCG 4 套附带的 `.blend` / `.mtlx` / `.tres` / `.usdc` 共 16 个文件仍只在本地（非贴图源文件，不在本次审计范围）；如以后需要干净检出重建厂商材质包，再另行补推。
+
+## ambientCG 厂商格式文件是否需补推评估（R2-T34，2026-11-25 04:29–04:40 CST，只审计与记录，不补推）
+
+背景：R2-T31 遗留的 16 个文件（见上节末尾“还剩”），本节为其闭环结论。审计时 HEAD `c31ea9bf`。
+
+16 个文件清单（本地 `assets/external/ambientcg/` 下，合计 4,441,243 B；blob SHA 为本地算出，仅作审计记录，未入仓故远端无对应 blob）：
+
+| 文件 | 大小 (B) | 本地 blob SHA | 格式 / 说明 |
+|---|---|---|---|
+| `ambientcg/Concrete034/Concrete034_1K-JPG.blend` | 1,099,204 | `c80336d3bd41bb922c652249d5839449b8ac93c6` | Blender 材质包，只引用同目录 JPG |
+| `ambientcg/Concrete034/Concrete034_1K-JPG.mtlx` | 2,302 | `4aaac41af2546c09b6cd006a7cf53ce2a875652f` | MaterialX 材质描述 |
+| `ambientcg/Concrete034/Concrete034_1K-JPG.tres` | 816 | `f60366fe60191172490993b322384d8f08713c41` | Godot StandardMaterial3D，只引用同目录 JPG |
+| `ambientcg/Concrete034/Concrete034_1K-JPG.usdc` | 2,907 | `ae805f74a4355b4a5dce30ce7a88756a73b5b00a` | USD 材质包 |
+| `ambientcg/Grass004/Grass004_1K-JPG.blend` | 1,109,012 | `3957698a5fa3f38cbd15372512c774a0b953f2c3` | Blender 材质包，只引用同目录 JPG |
+| `ambientcg/Grass004/Grass004_1K-JPG.mtlx` | 2,257 | `9a23c5aaa90bde8c423c3fc02288cf09fe33679a` | MaterialX 材质描述 |
+| `ambientcg/Grass004/Grass004_1K-JPG.tres` | 1,015 | `903bc5df8fc12157b696f2305ca6c7118b63eb5c` | Godot StandardMaterial3D，只引用同目录 JPG |
+| `ambientcg/Grass004/Grass004_1K-JPG.usdc` | 2,969 | `5457c57a59c60f211260c04d1ddb4ae245944d55` | USD 材质包 |
+| `ambientcg/Plaster001/Plaster001_1K-JPG.blend` | 1,099,204 | `71d7b834a52b56475cd7239bfbec5eff8c42f44e` | Blender 材质包，只引用同目录 JPG |
+| `ambientcg/Plaster001/Plaster001_1K-JPG.mtlx` | 2,287 | `1810e4bc69ff14ed579a279c099785df5f3ea71f` | MaterialX 材质描述 |
+| `ambientcg/Plaster001/Plaster001_1K-JPG.tres` | 812 | `f4f9bec5337eec566aea468277ec4db3d12813ff` | Godot StandardMaterial3D，只引用同目录 JPG |
+| `ambientcg/Plaster001/Plaster001_1K-JPG.usdc` | 2,903 | `8833dc6ce59ceed8988c23a7b1566349c833a0e8` | USD 材质包 |
+| `ambientcg/WoodFloor051/WoodFloor051_1K-JPG.blend` | 1,109,220 | `1353ade85dce8c83e27981a90c4fa53759ebd472` | Blender 材质包，只引用同目录 JPG |
+| `ambientcg/WoodFloor051/WoodFloor051_1K-JPG.mtlx` | 2,317 | `3449b8bd288b475d2d5d6b75ff208752d894b9aa` | MaterialX 材质描述 |
+| `ambientcg/WoodFloor051/WoodFloor051_1K-JPG.tres` | 1,035 | `d471f1cef3e7d95f5ea7fa038b4e52bc09f8e28f` | Godot StandardMaterial3D，只引用同目录 JPG |
+| `ambientcg/WoodFloor051/WoodFloor051_1K-JPG.usdc` | 2,983 | `0076031d8cfc339b007f9335ad8dedd9fd700b07` | USD 材质包 |
+
+审计证据（工程根目录下 grep，全部零命中；详见 `BLENDER_MODELS.md` §34）：厂商格式精确文件名（`.py` / `.gd` / `.sh` / `.cfg` / `.tscn` / `.tres`，除 ambientcg 自身外）0 命中；`.mtlx` / `.usdc`（`.py` / `.gd` / `.sh`）0 命中；`.gd` 中 `blend|mtlx|usdc` 0 命中；`.github` / `tools` / `scripts` / `scenes` / `shaders` / `data` 0 命中；`.import` / `.tscn` / `.godot` / `.cfg` 0 命中；50 个工程 `.blend` 二进制 `strings` 中厂商格式文件名 0 命中（`ambientcg` 字符串只见于 12 个 `.blend`，全部是 `*_Roughness.jpg` / `*_NormalGL.jpg` 贴图路径）。`_pbr_apply.py` 只加载 JPG（`bpy.data.images.load`），其余引用 ambientCG 的脚本也只引 `*_Color` / `*_Roughness` / `*_NormalGL.jpg`。远端递归 tree 核对：PBR 贴图 73/73 在仓（`pbr-tinted/` 20 + `polyhaven/` 27 + `ambientcg/` 26），厂商格式 0 个在仓。
+
+结论①：**不需要补推**。干净检出重建（重跑烘焙 / PBR hook、Actions 渲染）只读 JPG 贴图；工程内没有任何脚本、流程、场景或 `.blend` 读取这 16 个厂商格式文件。16 个文件继续只放本地；万一以后真要厂商材质包，可从 ambientCG 官网原包重下（CC0）。
+
+本次未动任何 `.blend` / `.glb` / `.py`，未重跑烘焙与渲染；只改两处文档（本节 + `BLENDER_MODELS.md` §34），一次 push-files 提交，推后以 API 核对 HEAD 与两文档 blob SHA 与本地一致。

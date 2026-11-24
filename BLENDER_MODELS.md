@@ -1421,3 +1421,38 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 - **验证**：本次未改任何 `.blend` / `.glb` / `.py`，未重跑烘焙与渲染；补推未触发任何 workflow run（blender-previews 只监听 `assets/blender/**` 等路径，本次只动 `assets/external/**`，按 head SHA 查 runs 为 0），无需等 run。
 - **编号说明**：任务书称“新起 §30”，但 §30 已被 R2-T30（教室补光）占用，故本节顺延为 §31；§24/§29 一字未动。
 - **还剩什么**：ambientCG 4 套附带的 `.blend` / `.mtlx` / `.tres` / `.usdc` 共 16 个文件仍只在本地（非贴图源文件）；如以后需要干净检出重建厂商材质包，再另行补推。
+
+## §34 R2-T34 ambientCG 厂商格式文件是否需补推评估（2026-11-25 04:29–04:40 CST，只审计与记录，不改模型、不补推文件）
+
+- **背景**：R2-T31 遗留：ambientCG 4 套（Concrete034、Grass004、Plaster001、WoodFloor051）附带的 `.blend` / `.mtlx` / `.tres` / `.usdc` 共 16 个文件仍只在本地，未入仓；R2-T31 已把 73 张贴图原图全量入仓（73/73），这 16 个是厂商格式包、不是贴图原图。本任务实证：干净检出重建时到底用不用得上它们。
+- **16 个文件清单**（本地 `assets/external/ambientcg/` 下，合计 4,441,243 B，单文件最大 1,109,220 B，均远 <40MB Git Data API 单 blob 上限；blob SHA 为本地算出，仅作审计记录，未入仓故远端无对应 blob）：
+
+| 文件 | 大小 (B) | 本地 blob SHA |
+|---|---|---|
+| `ambientcg/Concrete034/Concrete034_1K-JPG.blend` | 1,099,204 | `c80336d3bd41bb922c652249d5839449b8ac93c6` |
+| `ambientcg/Concrete034/Concrete034_1K-JPG.mtlx` | 2,302 | `4aaac41af2546c09b6cd006a7cf53ce2a875652f` |
+| `ambientcg/Concrete034/Concrete034_1K-JPG.tres` | 816 | `f60366fe60191172490993b322384d8f08713c41` |
+| `ambientcg/Concrete034/Concrete034_1K-JPG.usdc` | 2,907 | `ae805f74a4355b4a5dce30ce7a88756a73b5b00a` |
+| `ambientcg/Grass004/Grass004_1K-JPG.blend` | 1,109,012 | `3957698a5fa3f38cbd15372512c774a0b953f2c3` |
+| `ambientcg/Grass004/Grass004_1K-JPG.mtlx` | 2,257 | `9a23c5aaa90bde8c423c3fc02288cf09fe33679a` |
+| `ambientcg/Grass004/Grass004_1K-JPG.tres` | 1,015 | `903bc5df8fc12157b696f2305ca6c7118b63eb5c` |
+| `ambientcg/Grass004/Grass004_1K-JPG.usdc` | 2,969 | `5457c57a59c60f211260c04d1ddb4ae245944d55` |
+| `ambientcg/Plaster001/Plaster001_1K-JPG.blend` | 1,099,204 | `71d7b834a52b56475cd7239bfbec5eff8c42f44e` |
+| `ambientcg/Plaster001/Plaster001_1K-JPG.mtlx` | 2,287 | `1810e4bc69ff14ed579a279c099785df5f3ea71f` |
+| `ambientcg/Plaster001/Plaster001_1K-JPG.tres` | 812 | `f4f9bec5337eec566aea468277ec4db3d12813ff` |
+| `ambientcg/Plaster001/Plaster001_1K-JPG.usdc` | 2,903 | `8833dc6ce59ceed8988c23a7b1566349c833a0e8` |
+| `ambientcg/WoodFloor051/WoodFloor051_1K-JPG.blend` | 1,109,220 | `1353ade85dce8c83e27981a90c4fa53759ebd472` |
+| `ambientcg/WoodFloor051/WoodFloor051_1K-JPG.mtlx` | 2,317 | `3449b8bd288b475d2d5d6b75ff208752d894b9aa` |
+| `ambientcg/WoodFloor051/WoodFloor051_1K-JPG.tres` | 1,035 | `d471f1cef3e7d95f5ea7fa038b4e52bc09f8e28f` |
+| `ambientcg/WoodFloor051/WoodFloor051_1K-JPG.usdc` | 2,983 | `0076031d8cfc339b007f9335ad8dedd9fd700b07` |
+
+- **审计证据（HEAD `c31ea9bf`，2026-11-25 约 04:30 CST，工程根目录下 grep，全部零命中）**：
+  1. 厂商格式精确文件名（`Concrete034_1K-JPG.(blend|mtlx|tres|usdc)` 等 4 套，`.py` / `.gd` / `.sh` / `.cfg` / `.tscn` / `.tres`，除 `assets/external/ambientcg/` 自身外）：**0 命中**。
+  2. `.mtlx` / `.usdc`（全工程 `.py` / `.gd` / `.sh`）：**0 命中**；`.gd` 中 `blend|mtlx|usdc`：**0 命中**；`.github` / `tools` / `scripts` / `scenes` / `shaders` / `data` 中 `.mtlx` / `.usdc` / `ambientcg.*.(blend|tres)`：**0 命中**；`.import` / `.tscn` / `.godot` / `.cfg` 引用厂商格式：**0 命中**。
+  3. 工程内 50 个 `.blend` 二进制 `strings` 审计：厂商格式文件名 **0 命中**；`ambientcg` 字符串只见于 12 个 `.blend`（ov-tower / ov-bldC / ov-lab / ov-canteen / cl-windows / cl-desks / cl-floor-walls / cl-board / di-busbar / scenes/dist / scenes/overview / scenes/classroom），**全部是 `*_Roughness.jpg` / `*_NormalGL.jpg` 贴图路径**（hook 换入的 JPG，相对 `//../../external/ambientcg/...`），无一指向厂商格式。
+  4. `_pbr_apply.py` 加载逻辑：`SETS` 只列 JPG（Plaster001 只用 `Plaster001_1K-JPG_Roughness.jpg`，其余为 `pbr-tinted/` 与 `polyhaven/` 的 JPG）；`_load` 用 `bpy.data.images.load`（图片加载器，读不了 `.blend` / `.mtlx` / `.usdc`）。其余引用 ambientCG 的脚本（cl-desks / cl-board / cl-windows / cl-floor-walls / di-busbar / `tint_textures.py`）也只引 `*_Color` / `*_Roughness` / `*_NormalGL.jpg`。代码里出现的 `.blend` 引用全部是工程自有件（ov-*/cl-*/di-*/ch-*/st-*/pv-*/scenes/*.blend），无一指向 `ambientcg/`。
+  5. 厂商文件自身只指向 JPG：4 个 `.tres` 是 Godot `StandardMaterial3D`，只引用同目录 JPG（`./*_Color/_Displacement/_Roughness/_NormalGL.jpg`），且未被任何场景/脚本引用；4 个 `.blend` 只引用同目录 JPG（相对 `//*_Color/_Displacement/_NormalGL/_Roughness.jpg`）。它们是同一材质的另一种格式封装（Blender / MaterialX / Godot / USD），不是重建流程的输入。
+  6. 远端 tree 核对（HEAD `c31ea9bf`，递归 tree，未截断，共 1028 个 blob）：PBR 贴图 **73/73 在仓**（`pbr-tinted/` 20 + `polyhaven/` 27 + `ambientcg/` 26，张数与 R2-T31 结论一致）；`assets/external/ambientcg/` 下厂商格式文件 **0 个在仓**。
+- **结论①：不需要补推**。干净检出重建（重跑烘焙 / PBR hook、Actions 渲染）只读 JPG 贴图；工程内没有任何脚本、流程、场景或 `.blend` 读取这 16 个厂商格式文件。16 个文件继续只放本地即可；万一以后真要厂商材质包，可从 ambientCG 官网原包重下（CC0），无需为它们占仓库。
+- **验证**：本次未改任何 `.blend` / `.glb` / `.py`，未重跑烘焙与渲染；只改两处文档（本节 + `assets/external/SOURCES.md` 新增同名一节），一次 push-files 提交，推后以 API 核对 HEAD 与两文档 blob SHA 与本地一致。
+- **编号说明**：§32 已派给 R2-T32、§33 已派给 R2-T33，本节顺延为 §34；§24/§29 一字未动。R2-T31 §31 末尾与 SOURCES.md 末尾的“还剩 16 个文件”两处旧行是历史记录、原文保留，本节为其闭环结论。
