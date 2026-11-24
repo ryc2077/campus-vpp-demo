@@ -105,6 +105,13 @@ func _build_rain() -> void:
 	rain_dm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	rain.material_override = rain_dm
 	rain.position = Vector3(0, 45, 0)
+	# 雨丝不可见的真根因（run #97 实测：参数已进包、verify 235 全过，06/11
+	# 仍零雨丝）：GPUParticles3D 默认 visibility_aabb 只有 8m 立方，位于节点
+	# 原点 (0,45,0)；总览机位能看到该点所以暴雨有雨丝，PV/充电区细节机位
+	# 根本看不到该点——整个粒子系统被视锥裁剪。雨丝发射盒 340×260m、
+	# 下落约 50m，必须把可见 AABB 放到覆盖发射盒 + 下落全程（局部坐标：
+	# x ±170、z ±130、y +1 至 −50）。
+	rain.visibility_aabb = AABB(Vector3(-170, -50, -130), Vector3(340, 51, 260))
 	rain.emitting = false
 	add_child(rain)
 
@@ -134,15 +141,12 @@ func set_weather(key: String) -> void:
 	current = presets[key]
 	rain.emitting = bool(current.get("rain", false))
 	# 雨丝可见性修补（2026-11-24，run #91 遗留：06/11 小雨雨丝未见、07 暴雨明显）：
-	# 根因是量不是开关——雨天与暴雨同源同管线（同发射盒 340×260m、同材质），
-	# 但雨天只有 820 粒 × 0.12×1.6m 细丝、alpha 0.7 近白色：
-	# PV/充电区机位 dist 27–30m、FOV 55° 时帧内仅约 14 条、宽约 3px，
-	# 贴在亮蓝天/浅色板面上对比度不足；暴雨 2200 粒 + 场景更暗所以可见。
-	# 修法只动雨丝参数（五档 pv_factor/时长不动）：雨天提到 1800 粒、
-	# 丝加粗加长 0.15×1.9m、alpha 0.85、颜色压深一档蓝灰（亮背景下才有对比）；
-	# 暴雨提到 2800 粒、丝与颜色原样，粒数仍高于雨天、强度顺序不变。
-	# restart()：amount 运行时改动须重启粒子循环才可靠落盘，发射前 20s+
-	# 截图等待早已进入稳态，不影响出图。
+	# 真根因在 _build_rain：默认 visibility_aabb 只有 8m 立方，细节机位看不到
+	# 节点原点 (0,45,0) 时整个粒子系统被视锥裁剪（run #97 证实：参数已进包
+	# 且 verify 全过，06/11 仍零雨丝）。密度是次要因素：雨天 820 粒 ×
+	# 0.12m 细丝在细节机位帧内也偏稀，故一并提到 1800 粒、丝 0.15×1.9m、
+	# alpha 0.85、颜色压深一档蓝灰；暴雨 2800 粒、丝与色原样，粒数仍高于雨天。
+	# 五档 pv_factor/时长、阳光射线门控、V2G 弧线均未动。
 	if key == "rain":
 		rain.amount = 1800
 		rain_quad.size = Vector2(0.15, 1.9)

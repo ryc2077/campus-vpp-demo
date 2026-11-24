@@ -1181,11 +1181,16 @@ func _process(_delta: float) -> bool:
 	# 恢复：按当前场景重算一遍，免得直接调用的态污染后续检查。
 	_main.call("_update_visuals", _main.sim.state_at(_main.hour), 0.016)
 	# ---- 小雨雨丝可见性（2026-11-24 修补，run #91 遗留：06/11 雨丝未见）----
-	# 根因是量：雨天 820 粒 × 0.12m 细丝、alpha 0.7 近白，细节机位帧内仅约
-	# 14 条、宽约 3px，贴亮背景无对比；暴雨 2200 粒 + 场景暗所以可见。
-	# 修后雨天 1800 粒、丝 0.15×1.9m、alpha 0.85、蓝灰加深；暴雨 2800 粒、
-	# 丝与色原样；五档 pv_factor 不动。
+	# 真根因是 visibility_aabb：默认 8m 立方，细节机位看不到节点原点
+	# (0,45,0) 时整个粒子系统被视锥裁剪（run #97：参数已进包且 verify 全过，
+	# 06/11 仍零雨丝）。密度是次要因素：雨天 820 粒也偏稀，一并提到 1800 粒。
 	var _wx: WeatherSystem = _main.weather
+	# 真根因（run #97 证实）：默认 visibility_aabb 只有 8m 立方，细节机位
+	# 看不到节点原点 (0,45,0) 时整个粒子系统被视锥裁剪；必须覆盖发射盒
+	# 340×260m + 下落约 50m（局部坐标 x ±170、z ±130、y +1 至 −50）。
+	var _va: AABB = _wx.rain.visibility_aabb
+	_chk("雨丝：visibility_aabb 覆盖发射盒宽 340m（不被视锥裁剪）", _va.size.x >= 340.0 and _va.position.x <= -170.0 and _va.end.x >= 170.0, str(_va))
+	_chk("雨丝：visibility_aabb 覆盖发射盒深 260m + 下落至 y−50", _va.size.z >= 260.0 and _va.position.z <= -130.0 and _va.end.z >= 130.0 and _va.position.y <= -50.0 and _va.end.y >= 1.0, str(_va))
 	_main.call("set_weather", "rain")
 	_chk("雨丝：雨天 emitting=true（雨确在下）", _wx.rain.emitting, str(_wx.rain.emitting))
 	_chk("雨丝：雨天 1800 粒（修前 820，细节机位帧内约 31 条）", _wx.rain.amount == 1800, str(_wx.rain.amount))
@@ -1283,6 +1288,53 @@ func _process(_delta: float) -> bool:
 	_chk("S4 车顶 SOC 条底贴合车舱顶/GLB 车顶（不悬空）", fills_ok and fills_y_ok, "top=" + str(exp_top_y))
 	_chk("S4 车顶 SOC 条 3 条在树中可见（GLB 分支整组隐藏即 FAIL）", fills_ok and fills_vis, str(cb.car_fills.size()))
 	_chk("充电区程序化组可见性与分支一致（GLB 藏 / 回退留）", cb.charge_glb_active == (not cb.charge_group.visible), str(cb.charge_group.visible))
+	# ---- 充电区标准机位下车顶 SOC 条可见长度（2026-11-24 修补，run #95 遗留）----
+	# 根因是机位不是条子：标准机位 el 0.34 时相机高 11.6m，视线穿车棚顶（y≈3.2）
+	# 与南边梁，条子只露南端 35–50%（#95 04/11/12 像素实测）；条底 1.375 贴车顶、
+	# 条中心 y 1.465 均无误。修法：charge cam el 0.34→0.20（data/scenes.json，
+	# 相机高 7.6m），视线从车棚南沿下穿过。量法：按 CameraRig 同口径由 charge cam
+	# 算相机位置，沿每条 SOC 条采 20 点，线段与车棚顶/四边梁全局 AABB 求交
+	# （AABB.intersects_segment），可见占比 = 未挡点 / 20；回退分支无车棚，占比恒 1.0。
+	var _chg_scenes: Dictionary = _main.scenes_data["scenes"]
+	var _chg_entry: Dictionary = _chg_scenes["charge"]
+	var _chg_cam: Dictionary = _chg_entry["cam"]
+	var _chg_t: Array = _chg_cam["target"]
+	var _chg_cam_pos := Vector3(
+		float(_chg_t[0]) + float(_chg_cam["dist"]) * cos(float(_chg_cam["el"])) * sin(float(_chg_cam["az"])),
+		float(_chg_t[1]) + float(_chg_cam["dist"]) * sin(float(_chg_cam["el"])),
+		float(_chg_t[2]) + float(_chg_cam["dist"]) * cos(float(_chg_cam["el"])) * cos(float(_chg_cam["az"])))
+	var _canopy_boxes: Array[AABB] = []
+	var _chg_glb: Node = cb.find_child("ChargeGLB", true, false)
+	if _chg_glb != null:
+		for _nm in ["CanopyRoof", "CanopyEdgeBeam_S", "CanopyEdgeBeam_N", "CanopyEdgeBeam_E", "CanopyEdgeBeam_W"]:
+			var _cmi := _chg_glb.find_child(_nm, true, false) as MeshInstance3D
+			if _cmi != null and _cmi.mesh != null:
+				_canopy_boxes.append(_cmi.global_transform * _cmi.mesh.get_aabb())
+	var _bar_vis: Array[float] = []
+	for _cf in cb.car_fills:
+		var _fl := _cf["fill"] as MeshInstance3D
+		var _axis: Vector3 = (_fl.global_transform.basis * Vector3(1, 0, 0)).normalized()
+		var _blen: float = 3.4 * _fl.scale.x
+		var _ctr: Vector3 = _fl.global_position
+		var _vis_n := 0
+		for _si in range(20):
+			var _sp: Vector3 = _ctr + _axis * (_blen * (float(_si) + 0.5) / 20.0 - _blen / 2.0)
+			var _blocked := false
+			for _bx in _canopy_boxes:
+				if _bx.intersects_segment(_chg_cam_pos, _sp):
+					_blocked = true
+					break
+			if not _blocked:
+				_vis_n += 1
+		_bar_vis.append(float(_vis_n) / 20.0)
+	var _bar_min := 1.0
+	var _bar_sum := 0.0
+	for _v in _bar_vis:
+		_bar_min = minf(_bar_min, _v)
+		_bar_sum += _v
+	var _bar_mean: float = _bar_sum / maxf(1.0, float(_bar_vis.size()))
+	_chk("充电区标准机位：车顶 SOC 条 3 条每条可见占比 ≥0.60（修前 0.35–0.50）", fills_ok and _bar_vis.size() == 3 and _bar_min >= 0.60, str(_bar_vis))
+	_chk("充电区标准机位：车顶 SOC 条可见占比均值 ≥0.80", fills_ok and _bar_vis.size() == 3 and _bar_mean >= 0.80, str(_bar_vis))
 	# ---- 储能外壳开关 + SOC 条（GLB/回退两路，分支感知：GLB 未载入时验回退路） ----
 	# 实时 SOC 与填充比：_process 每帧调 _update_visuals，条子中心/缩放都由它定，
 	# 检查必须按同一 soc 算期望值，不能写死位置。
