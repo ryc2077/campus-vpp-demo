@@ -1205,6 +1205,18 @@ func _process(_delta: float) -> bool:
 	_main.call("set_weather", "sunny")
 	_chk("雨丝：晴天 emitting=false（晴天无雨，回归）", not _wx.rain.emitting, str(_wx.rain.emitting))
 	_chk("雨丝：五档数值未动（雨 pv 0.30 / 暴雨 0.15）", absf(float((_wx.presets["rain"] as Dictionary)["pv_factor"]) - 0.30) < 0.001 and absf(float((_wx.presets["storm"] as Dictionary)["pv_factor"]) - 0.15) < 0.001, "rain=" + str((_wx.presets["rain"] as Dictionary)["pv_factor"]) + " storm=" + str((_wx.presets["storm"] as Dictionary)["pv_factor"]))
+	# ---- 天气加载冒烟（run #97 回归：demo-godot 副本同名类冲突致导出包天气
+	# 系统根本没加载，全帧洗白，verify 235 全绿未拦住）----
+	# 太阳光能量是最强信号：09:00 晴天约 0.83，暴雨约 0.11（wx_dim×lf 双压暗）；
+	# 若天气系统未加载/未调光，两者会相等。晴天须亮（>0.5），暴雨须不到晴天一半。
+	_main.call("set_weather", "sunny")
+	_wx.update_frame(9.0, 0.016)
+	var _sun_e: float = _wx.sun.light_energy
+	_main.call("set_weather", "storm")
+	_wx.update_frame(9.0, 0.016)
+	var _sto_e: float = _wx.sun.light_energy
+	_chk("天气冒烟：晴天 09:00 太阳光 >0.5（调光在工作）", _sun_e > 0.5, str(_sun_e))
+	_chk("天气冒烟：暴雨 09:00 太阳光 < 晴天一半（天气压暗生效，非洗白）", _sto_e < _sun_e * 0.5, "storm=" + str(_sto_e) + " sunny=" + str(_sun_e))
 	_main.call("set_weather", "sunny")
 	# ---- 回退演练开关 ?fallback=1（验收缺口 5：S1/S3/S5 演练截图用）----
 	# 开关在 GlbLoader.load_glb 入口，不改名/不移走 GLB 文件；main.gd 在
