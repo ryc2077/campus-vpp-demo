@@ -421,7 +421,10 @@ def _ensure_camera(scene):
     (2) If the piece is sparse -- several well-separated clusters whose
     projected share under one whole-bbox camera is <2% -- each cluster
     is rendered as its own still (<name>-<cluster>.png) at max quality,
-    and the main <name>.png keeps the WHOLE-PIECE view (whole_cam).
+    and the main <name>.png keeps the WHOLE-PIECE view (whole_cam) --
+    or the piece's built-in camera when it frames every subject object
+    (di-signs' designed 22mm collection camera; see the sparse branch
+    below for why the auto 3/4 view is wrong there).
     It must NOT keep the largest cluster's view: that made the main
     still byte-identical to the largest cluster still (run #83目视,
     maxdiff=0: di-signs == di-signs-Warn, pv-inverter ==
@@ -500,13 +503,26 @@ def _ensure_camera(scene):
                   f"({len(sub)} objects) -> "
                   f"{scene.render.filepath}.png")
             bpy.ops.render.render(write_still=True)
-        # Main still: the whole-piece view (whole_cam), NOT the largest
-        # cluster's camera -- see step (2) above (R2-T13: largest-cluster
-        # main duplicated the largest cluster still pixel-for-pixel).
-        scene.camera = whole_cam
+        # Main still: the whole-piece view -- but prefer the piece's
+        # built-in camera when it frames every subject object. A model
+        # author may have framed the collection on purpose: di-signs'
+        # built-in 22mm south camera shows all 8 plates face-on, while
+        # the auto whole-bbox 3/4 view (from the south-east) shows the
+        # east-wall "禁止合闸" plate from its back -- red backing only,
+        # no text (run #85目视). The keep-test above rejected that
+        # camera only for projected share <2% (thin plates), never for
+        # missing anything, so n_out == 0 is the right test here.
+        # Pieces without a built-in camera (pv-inverter) keep whole_cam.
+        main_cam = whole_cam
+        if cam is not None and cam.type == 'CAMERA':
+            _, _, n_out_builtin = _projected_stats(scene, cam, objs)
+            if n_out_builtin == 0:
+                main_cam = cam
+        scene.camera = main_cam
         scene.render.filepath = base
         print(f"render_max: sparse piece: {len(work)} cluster renders "
-              f"({', '.join(labels)}), main view = whole piece")
+              f"({', '.join(labels)}), main view = "
+              f"{'built-in camera ' + main_cam.name if main_cam is not whole_cam else 'whole piece'}")
         return
     print(f"render_max: whole-piece framing, frame share {whole_area:.3f}")
 
