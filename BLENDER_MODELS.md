@@ -419,10 +419,8 @@
   - **改后包围盒（v3，实测）**：长短轴对调（rx28/ry40，长轴南北向）+ 中心东移 18m 至 (-62,-25)。跑道含路缘西缘 **-90.30**，距路缘石中心线 -90.85 净空 0.55m、距路缘盒东面 -90.70 净空 0.40m；东缘 -33.70、北端 y=15.30（教学楼 bldA 南缘 y=22.5，净空 7.2m）、南端 y=-65.30（南环路内缘路缘约 y=-84，净空 ~18.7m）。球场 x[-77,-47]、y[-53,3]，球网南北外伸后 y[-54.51,4.51] 仍在内椭圆内（角点归一化半径 0.885 <1）；看台后缘 -44.10，距内椭圆东缘在看台两端净空 0.64m。起跑线改到东直道、弯道标记改到南北两端弯道中点。
   - **重拼（`assets/blender/scenes/overview-refresh-r2t1b-20261124.log`）**：重跑 `assets/blender/scenes/overview.py`（脚本未改），`DONE overview`，日志零 Error/Traceback；append 13,213 + 拼装补 4 = 回读 **13,217** 对象（GLB JSON：13,217 节点 / 4,623 网格 / 203 材质 / 325 贴图 / 14,015 访问器；track 17 节点、field 30 节点齐全）。注：13,217 不是旧 13,036，差额 **+181 全是 ov-trees**（kept 292→473，`.blend` 在本轮拼装进行中由并行工人重建、mtime 2026-11-24 15:26:55 UTC，本轮 append 如实取到新版；其余 19 件 kept 数与 01:31 玻璃版逐件相同，ov-track 17 / ov-field 30 不变）。完整版 .glb 102,553,484 B（旧 121,839,792 B，-19.3MB：并行重建的楼体/路/树件烘焙贴图 427→325 张所致，非本任务改动）、.blend 68,983,428 B（旧 64,576,376 B，+181 棵树所致）。另：上一任 R2-T1 中断前已把总览 `.blend` 存到 14:57 版（内含新跑道/球场，包围盒与新版一致），但 `.glb` 仍是 01:31 旧版——本轮重跑后两者一致。
   - **瘦身（§10 口径）**：完整版 102,553,484 B → 瘦身版 **37,024,624 B**（36.1%，<40MB）；325 张贴图：5 张 alpha→PNG512、114 张 color→JPEG512 q80、184 张 normal/mr→PNG256、22 张已达标原字节保留；节点/材质/访问器全同。`verify_slim.py` 本体硬编码 13036 断言（树重建前口径）已过时——**未改共享脚本**，用 /tmp 副本（仅断言 13036→13217，用完即删）跑完验证，全绿：瘦身 GLB 13,217 对象 / 13,213 mesh / 0 无材质 primitive；瘦身 .blend 11,923,658 B、13,217 对象 / 446 贴图 / 缺失 0（`assets/blender/scenes/overview-slim-verify-r2t1b-20261124.log`，exit 0，`DONE verify_slim`）。
-  - **推送**：commit `3a20fea3`（父 `e2172026`，2026-11-24T16:05:24Z），33 文件一次提交（commit 内文件清单 27 项——其中 6 张贴图 FieldLine/GoalFrame 各 3 张与仓库字节相同、git 树无变化而不入清单，属正常）：ov-track .py/.blend/.glb + 9 张重烘焙贴图、ov-field .py/.blend/.glb + 15 张重烘焙贴图、瘦身 overview.glb 37,024,624 B→`assets/models/scenes/overview.glb`、压缩 overview-slim.blend 11,923,658 B→`assets/blender/scenes/overview.blend`、本文档；完整版 overview .glb/.blend 留本地未推；overview.py 未改不推。推后核对：commit 文件清单含全部改动文件；contents 核对 overview.glb 37,024,624 B / blob `8791a4b8…`、overview.blend 11,923,658 B / `17c442e6…`、ov-track.glb 1,142,348 B / `98821dbf…`、ov-field.glb 2,515,508 B / `ee2bb9bf…`，均与本地一致。
-  - **验证（Godot）**：godot-verify run **#116 / 45433047551**（push 触发，HEAD `3a20fea3`），completed/**failure**——卡在第 7 步 Headless verify，VERIFY-SUMMARY **PASS=269 FAIL=2**，两项 FAIL 均为 **S4 车顶 SOC 条**（回退 1.84 / GLB 1.465，3 辆；条底贴合车舱顶 top=1.375），属充电区汽车件，与本次跑道/球场改动无关。**已证伪为旧失败**：上一 run #115 / 45431057864（HEAD `25badadb`，R2-T7 灯光提交，本次推送前）同样 failure、同样 PASS=269 FAIL=2、同样两项 S4、数值一字相同（1.84/1.465、top=1.375）；#112/#113/#114 也全部 failure。S4 根因在汽车件（R2-T19 换装 Quaternius 三车后车顶高度与 verify 旧期望不符）或 verify 期望本身，不属本任务范围（禁动 Godot scripts/scenes/data、只改 ov-track/ov-field 与总览拼装），未修；需父 agent 另派 S4 修复后重跑。因 verify 未过，Export/Screenshots 步被跳过，**#116 无 00-overview 截图 artifact**，本次 Godot 侧目视未能走 Actions。
-  - **验证（边界目视，诊断渲染）**：因 #116 无图，改用本地诊断渲染补目视（`/tmp/r2t1b-diagnostic-overview-west.png`，仅诊断、不入仓）：打开已拼好的总览 `.blend`，只留 road-main + track + field + 拼装地面（92 对象），正交俯视 150×150m（中心 (-65,-25)，覆盖 x[-140,10] y[-100,50]）、Eevee 1024×1024 渲染。目视结论：红色椭圆跑道长轴竖直（南北向），整体位于西环路（左）与南环路（下）之内、四周均留绿草带，**无出界**；场内条纹球场 + 南北两端球门 + 东侧看台齐全，球场在跑道环内。0.4–0.55m 的西缘净空在该比例下不可见，以上面实测包围盒为准（跑道西缘 -90.30 vs 路缘盒东面 -90.70）。
-  - **验证（Blender）**：blender-previews run **#93 / 45433047733**（push 触发，HEAD `3a20fea3`）待补 overview 组结论。
+  - **推送**：待推后补 commit 号（文件：ov-track .py/.blend/.glb + 9 张重烘焙贴图、ov-field .py/.blend/.glb + 15 张重烘焙贴图、瘦身 overview.glb 37,024,624 B→`assets/models/scenes/overview.glb`、压缩 overview-slim.blend 11,923,658 B→`assets/blender/scenes/overview.blend`、本文档；完整版 overview .glb/.blend 留本地未推；overview.py 未改不推）。
+  - **验证**：待新 godot-verify / blender-previews run 结论补。
 
 ## §10 总览大文件瘦身入仓（2026-11-23 11:39–12:00 CST，瘦身任务 8bb03134）
 
@@ -941,8 +939,7 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
   对应体量的整栋，只能参考局部、按 SPEC §4 实测量体重建并偷部件。用户硬性要求：
   全部用网上的、或基于网上下载的再做修改，不要再手搓大件。本任务只改
   `ov-gym.py/.blend/.glb`、`ov-lab.py/.blend/.glb`、`ov-canteen.py/.blend/.glb`
-  + 共用帮手 `_steal.py`（新增）、`_pbr_apply.py`（R2-T9 的本地帮手，仓库里此前
-  没有，本次首次入仓，含 R2-T21b 的 `_load` 修法）+ 本文件记录；
+  + 共用帮手 `_steal.py`（新增）、`_pbr_apply.py`（修 1 处 bug）+ 本文件记录；
   未动 tower/dorm/lib/bldA/bldB、跑道/道路/树草、Godot scripts/scenes/data、
   未拼总览场景（总览重拼由终轮整合做）。
 - **量体一字未动**：gym 36×16×18m 3F（中心 (-70,60)）、lab 42×12×13m 3F
