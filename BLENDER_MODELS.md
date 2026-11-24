@@ -420,3 +420,15 @@
 - 检查：每 10 分钟有人检查是否偏离；发现又回头全手捏、或交出来的还是平板 AI 味，立刻纠正路线。
 - 其余不变：草一根一根建模铺满、丢色一起修、渲染全走 Actions、本地不渲染。
 - 注：ov-transformer 补件（commit 7228f6b）是本指令下达前手捏完成的，不返工；自本节起一律按上述路线。
+
+## §12 blender-previews run #83 单件渲染图逐张目视复核（2026-11-24 22:39–22:44 CST，R2-T5）
+
+- **对象**：run #83（45306226357，`Blender previews (max quality)`，HEAD `0317452b`，结论 success）；6 个 artifacts 全部下载解包，**55 张齐**（overview 20、dist 13、classroom 6、charge 4、pv 7、storage 5），全部 1280×720 RGBA；55/55 逐张目视（10 张拼图通读 + 5 张全尺寸复看）+ 像素级筛查（品红 0.00%、无黑/白帧）。
+- **结论：通过 52 张，不通过 3 张；独立画面 53 张**（详见 `REVIEW-83.md`，与本文档同次提交；55 张图本身不推仓，只留本地 `~/workspace/review-rework-r2/blender-83/`）。
+- **不通过**：
+  1. `dist/di-signs.png`——与 `di-signs-Warn.png` 逐像素相同（maxdiff=0），图中只有“高压危险”一块牌，无独立的标识集合渲染。
+  2. `pv/pv-inverter.png`——与 `pv-inverter-LAB.png` 逐像素相同（maxdiff=0），图中就是 LAB 那台逆变器，无独立的通用逆变器渲染。
+  3. `pv/pv-mount.png`——左下角第二组支架被画面边缘截断只剩一角；银灰支架与浅灰背景对比度极低，全图几乎融为一体。
+  - 重图根因推测：渲染脚本里 `di-signs`/`di-signs-Warn`、`pv-inverter`/`pv-inverter-LAB` 很可能指向同一对象/相机位，需核对件名—对象映射表；`pv-mount` 重渲建议换深色背景、收紧取景。
+- **通过但有弱项备注**：`ov-lawn`（绿篱远景呈虚线状、草叶单体不可辨、主体偏小）、`ov-road-walk`（步道细长、留白大）、`ov-trees`（全景尺度下单棵仅为小点）；`ov-windows-roofs` 中、右两栋窗带间可透视见对侧，是单件渲染隐藏墙体件 ov-bldA/B/C 所致（与 cl-windows 悬空窗同理），非本件缺失；`st-fence` 右侧一根孤立立柱疑似门柱待核对。faces 表 hx/hy 对调遗留（§9 遗留①）本图无法核验长短，不计入本次不通过。
+- **只复核、不建模**：未改任何模型/Godot 文件。
