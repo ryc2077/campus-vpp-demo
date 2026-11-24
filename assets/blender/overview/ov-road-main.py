@@ -1,4 +1,6 @@
 # ov-road-main: 主干道 (overview piece)
+# R2-T14 (2026-11-24): 环校路内缘路缘石在 5 处新路口断开 (R-N1 两端、R-N2/R-N3 南口、
+# R-N4 spur 口与东接口), 让新步道直通环路、路缘不横穿路口; 其余不动。
 # 南侧主路 y=-108 (x -130..130, 宽 12m) + 东侧主路 x=108 (y -102..110, 宽 12m)
 # + 环校路矩形环 x ±95 / y ±80 (宽 8m, 拐角 45°倒角) + 黄色中心线 + 路缘石
 # 只做路面、中心线、路缘石；不做步道铺装 (ov-road-walk)、不做路灯 (ov-flag-lamp)。
@@ -296,9 +298,19 @@ box("curb_ring_outer_S", 0.0, -84.15, CURB_Z0, CURB_Z1, 190.0, 0.3, MAT_CURB)
 box("curb_ring_outer_W", -99.15, 0.0, CURB_Z0, CURB_Z1, 0.3, 160.0, MAT_CURB)
 box("curb_ring_outer_E", 99.15, 0.0, CURB_Z0, CURB_Z1, 0.3, 160.0, MAT_CURB)
 box("curb_ring_inner_N", 0.0, 75.85, CURB_Z0, CURB_Z1, 174.0, 0.3, MAT_CURB)
-box("curb_ring_inner_S", 0.0, -75.85, CURB_Z0, CURB_Z1, 174.0, 0.3, MAT_CURB)
-box("curb_ring_inner_W", -90.85, 0.0, CURB_Z0, CURB_Z1, 0.3, 144.0, MAT_CURB)
-box("curb_ring_inner_E", 90.85, 0.0, CURB_Z0, CURB_Z1, 0.3, 144.0, MAT_CURB)
+# R2-T14: 内缘路缘石在新路口断开 (原 3 条整段改为分段, 断口与新步道口同宽):
+#  南段断 R-N2 口 (x -34.5..-31.5)、R-N3 口 (56.5..59.5)、R-N4 spur 口 (66.7..69.3,
+#  spur 末端 x 66.81..69.19, 两侧各留 0.1m);
+#  西段断 R-N1 口 (y 42.5..45.5); 东段断 R-N1 口 (y 42.5..45.5) 与 R-N4 东接口 (y -70..-68)。
+for _i, (_x0, _x1) in enumerate(((-87.0, -34.5), (-31.5, 56.5), (59.5, 66.7), (69.3, 87.0))):
+    box("curb_ring_inner_S_%d" % _i, (_x0 + _x1) / 2.0, -75.85,
+        CURB_Z0, CURB_Z1, _x1 - _x0, 0.3, MAT_CURB)
+for _i, (_y0, _y1) in enumerate(((-72.0, 42.5), (45.5, 72.0))):
+    box("curb_ring_inner_W_%d" % _i, -90.85, (_y0 + _y1) / 2.0,
+        CURB_Z0, CURB_Z1, 0.3, _y1 - _y0, MAT_CURB)
+for _i, (_y0, _y1) in enumerate(((-72.0, -70.0), (-68.0, 42.5), (45.5, 72.0))):
+    box("curb_ring_inner_E_%d" % _i, 90.85, (_y0 + _y1) / 2.0,
+        CURB_Z0, CURB_Z1, 0.3, _y1 - _y0, MAT_CURB)
 # 环校路: 倒角斜段 8 条 (长 4*sqrt(2)=5.657m, 沿倒角线, 向内外各偏 0.15m)
 OFF = 0.15 / math.sqrt(2.0)
 box("curb_ring_chamfer_outer_NE", 97 + OFF, 82 + OFF, CURB_Z0, CURB_Z1,
@@ -496,6 +508,43 @@ print("bake done, materials rebuilt with image textures, elapsed %.1fs"
 os.makedirs(PY_DIR, exist_ok=True)
 os.makedirs(os.path.dirname(GLB_PATH), exist_ok=True)
 os.makedirs(os.path.dirname(PNG_PATH), exist_ok=True)
+# R2-T9 PBR hard fix (2026-11-24): baked maps on big faces were near-flat
+# (wall normal std ~0.5-3, asphalt color std ~4 in-tile, one 1024 texture
+# stretched over 40 m walls / 260 m roads) so everything rendered as flat
+# panels. Re-link real CC0 photo textures + world-scale UVs after the bake
+# step, before save/export. Idempotent; see _pbr_apply.py in this dir.
+_pbr_hook = os.path.join(os.path.dirname(BLEND_PATH), "_pbr_apply.py")
+if os.path.exists(_pbr_hook):
+    _pbr_g = {"__name__": "_pbr_apply", "__file__": _pbr_hook}
+    exec(compile(open(_pbr_hook).read(), _pbr_hook, "exec"), _pbr_g)
+    _pbr_g["apply_pbr"](os.path.splitext(os.path.basename(BLEND_PATH))[0])
+
+# R2-T14b: 见 ov-road-walk.py 同名补丁。_pbr_apply._load() 用 bpy.path.relpath()
+# 写 PBR 贴图路径, 本脚本从空场景起步 (bpy.data.filepath 为空), relpath 以 CWD
+# 为基准: CWD 若是工程根目录会得到 "//assets/..."(相对 .blend 所在 overview/
+# 目录是错的, 应为 "//../../assets/..."), 导致导出时贴图找不到、GLB 里 PBR
+# 材质只剩 1 张空白图 (ov-road-walk 已实测复现, 回读断言失败)。
+# 此处按 .blend 所在目录 + CWD 双候选解析已存在的真实文件, 改写为正确的
+# 相对路径; 已正确的路径原样不动, 幂等。
+for _im in bpy.data.images:
+    _fp = _im.filepath
+    if not _fp.startswith("//"):
+        continue
+    _rel = _fp[2:]
+    _abs = None
+    for _base in (PY_DIR, os.getcwd()):
+        _cand = os.path.join(_base, _rel)
+        if os.path.exists(_cand):
+            _abs = os.path.normpath(_cand)
+            break
+    if _abs is None:
+        print("PBR path fix: file not found, keep:", _im.name, _fp)
+        continue
+    _new = "//" + os.path.relpath(_abs, PY_DIR)
+    if _new != _fp:
+        print("PBR path fix:", _im.name, _fp, "->", _new)
+        _im.filepath = _new
+
 bpy.ops.wm.save_as_mainfile(filepath=BLEND_PATH)
 print("saved blend:", BLEND_PATH)
 if os.path.exists(BLEND_PATH + "1"):

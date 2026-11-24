@@ -1,4 +1,8 @@
 # ov-road-walk v2: 步道与铺装 (overview piece)
+# R2-T14 (2026-11-24): 按 GREEN_PLAN.md §2 / green_layout.json roads[] 新增 6 条步道
+#  (R-N1/R-N2/R-N3/R-N3x/R-N4/R-N5, 约 438m 中心线长), 全部归本件 (ov-road-walk 分工);
+#  新路面用已下载的 Poly Haven concrete_pavement_03 (CC0, SOURCES.md §1.1),
+#  经本件既有烘焙管线进 GLB; 环路内缘路缘石在 5 处新路口断开, 改动在 ov-road-main.py。
 # 返工目标: 旧版南门广场是均匀 2m 小方格, 与鸟瞰图浅色石材大广场带拼花对不上。
 # v2 改动:
 #  ① 南门广场改浅色石材大板铺装: 大板缝走程序化 Voronoi(材质 Bump),
@@ -188,6 +192,50 @@ MAT_TACT_NS = make_mat("Tactile_E8B400_NS", "#E8B400", 0.85, kind="tactile",
 MAT_TACT_EW = make_mat("Tactile_E8B400_EW", "#E8B400", 0.85, kind="tactile",
                        wave_rot_z=0.0)
 
+# ---- R2-T14 新路铺装: 已下载的 Poly Haven concrete_pavement_03 (CC0) ----
+# SOURCES.md §1.1 指定本贴图对应浅色铺装 #D8D2C4 (南门广场/步道)。
+# TexCoord Object -> Mapping(1/2m) -> TexImage, 贴图每 2m 重复一次 (与 st-base 平台
+# 每 1m 一 tile 的米制投影同思路); 之后走本件既有 _bake_images/_rebuild_with_images
+# 烘焙管线, 最终 GLB 里是烘焙版贴图, 与旧步道做法一致 (烘焙时只读本地 JPG, 不进 .blend)。
+PAVE_TEX_DIR = os.path.join(BASE, "assets/external/polyhaven")
+
+
+def make_pbr_pave(name, tile_m=2.0):
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    bsdf.inputs["Roughness"].default_value = 1.0
+    bsdf.inputs["Metallic"].default_value = 0.0
+    texcoord = nt.nodes.new("ShaderNodeTexCoord")
+    mapping = nt.nodes.new("ShaderNodeMapping")
+    mapping.inputs["Scale"].default_value = (1.0 / tile_m, 1.0 / tile_m, 1.0 / tile_m)
+    nt.links.new(texcoord.outputs["Object"], mapping.inputs["Vector"])
+
+    def _img(fname, colorspace):
+        path = os.path.join(PAVE_TEX_DIR, fname)
+        assert os.path.exists(path), "missing paving texture: %s" % path
+        img = bpy.data.images.load(path, check_existing=True)
+        img.colorspace_settings.name = colorspace
+        t = nt.nodes.new("ShaderNodeTexImage")
+        t.image = img
+        nt.links.new(mapping.outputs["Vector"], t.inputs["Vector"])
+        return t
+
+    tex_c = _img("concrete_pavement_03_diff_1k.jpg", "sRGB")
+    tex_r = _img("concrete_pavement_03_rough_1k.jpg", "Non-Color")
+    tex_n = _img("concrete_pavement_03_nor_gl_1k.jpg", "Non-Color")
+    nt.links.new(tex_c.outputs["Color"], bsdf.inputs["Base Color"])
+    nt.links.new(tex_r.outputs["Color"], bsdf.inputs["Roughness"])
+    nmap = nt.nodes.new("ShaderNodeNormalMap")
+    nmap.space = 'TANGENT'
+    nt.links.new(tex_n.outputs["Color"], nmap.inputs["Color"])
+    nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+    return m
+
+
+MAT_PAVE_NEW = make_pbr_pave("PavingNew_ConcretePavement03")
+
 # ---- clean scene ----
 bpy.ops.object.select_all(action="SELECT")
 bpy.ops.object.delete(use_global=False)
@@ -221,6 +269,62 @@ def ring(name, cx, cy, r, n, z0, z1, w, mat):
         box("%s_%02d" % (name, i),
             cx + r * math.cos(a_mid), cy + r * math.sin(a_mid),
             z0, z1, chord, w, mat, bevel=0.0, rot_z=a_mid + math.pi / 2)
+
+
+def _signed_area(pts):
+    return 0.5 * sum(x1 * y2 - x2 * y1
+                     for (x1, y1), (x2, y2) in zip(pts, pts[1:] + pts[:1]))
+
+
+def _seg_intersect(p1, p2, p3, p4):
+    """两线段交点 (2D); 平行或交点落在线段外返回 None。"""
+    d1 = (p2[0] - p1[0], p2[1] - p1[1])
+    d2 = (p4[0] - p3[0], p4[1] - p3[1])
+    den = d1[0] * d2[1] - d1[1] * d2[0]
+    if abs(den) < 1e-12:
+        return None
+    t = ((p3[0] - p1[0]) * d2[1] - (p3[1] - p1[1]) * d2[0]) / den
+    u = ((p3[0] - p1[0]) * d1[1] - (p3[1] - p1[1]) * d1[0]) / den
+    if -1e-9 <= t <= 1 + 1e-9 and -1e-9 <= u <= 1 + 1e-9:
+        return (p1[0] + t * d1[0], p1[1] + t * d1[1])
+    return None
+
+
+def _poly_simple(pts):
+    """简单多边形校验: 不相邻边无交点 (R-N4 并集轮廓用, 自交会让棱柱法线翻转)。"""
+    n = len(pts)
+    for i in range(n):
+        for j in range(i + 2, n):
+            if i == 0 and j == n - 1:
+                continue
+            if _seg_intersect(pts[i], pts[(i + 1) % n], pts[j], pts[(j + 1) % n]):
+                return False
+    return True
+
+
+def ribbon(name, pts, z0, z1, mat):
+    """扁平棱柱: 2D 多边形 (x, y) 列表, z0..z1。无倒角。
+    (照抄 ov-road-main.py 的 prism, 归属本件 walk 列表; 多边形须为 CCW,
+    顺时针传进来时自动反转, 并校验简单多边形。)"""
+    pts = list(pts)
+    if _signed_area(pts) < 0:
+        pts = list(reversed(pts))
+    assert _signed_area(pts) > 0, "ribbon %s: degenerate polygon" % name
+    assert _poly_simple(pts), "ribbon %s: self-intersecting polygon" % name
+    n = len(pts)
+    verts = [(x, y, z0) for x, y in pts] + [(x, y, z1) for x, y in pts]
+    faces = [tuple(reversed(range(n))), tuple(range(n, 2 * n))]
+    for i in range(n):
+        j = (i + 1) % n
+        faces.append((i, j, n + j, n + i))
+    me = bpy.data.meshes.new(name + "_mesh")
+    me.from_pydata(verts, [], faces)
+    me.update()
+    o = bpy.data.objects.new(name, me)
+    bpy.context.collection.objects.link(o)
+    o.data.materials.append(mat)
+    walk.append(o)
+    return o
 
 
 # ---- 南门广场: 中心 (0,-98), 40(x) x 25(y)m, x -20..20, y -110.5..-85.5 ----
@@ -281,6 +385,138 @@ box("curb_walk1_south_E", 25.75, 18.425, CURB_Z0, CURB_Z1, 48.5, 0.15, MAT_CURB,
 # 步道 2: 东西两侧, y -85.35..18.35 (两端顶住相邻路缘石, 不重叠)
 box("curb_walk2_west", -1.575, -33.5, CURB_Z0, CURB_Z1, 0.15, 103.7, MAT_CURB, bevel=0.03)
 box("curb_walk2_east", 1.575, -33.5, CURB_Z0, CURB_Z1, 0.15, 103.7, MAT_CURB, bevel=0.03)
+
+# ---- R2-T14 新路 (GREEN_PLAN.md §2 / green_layout.json roads[], 2026-11-24) ----
+# 全部 3m 铺装步道 (R-N4 2m), 顶面 z=0.10 与旧步道同高, 路面 concrete_pavement_03
+# (MAT_PAVE_NEW), 两侧路缘石 0.15m #B9B3A8 (MAT_CURB, 与旧件同款)。
+# 接缝规矩照旧件: 端头与相邻路面精确对接、互不重叠; 路缘石在路口处断开、顶住相邻
+# 路缘石面 (南/北端照 walkway_2 做法: 路缘止于相邻路缘石面, 不重叠)。
+# 实施几何 (中心线长; 铺装以对接计, 两端已是既有路面的 3m/1.5m 不重复铺):
+#  R-N1 y=44, x -91..91 (182m): 两端顶环西/东路内缘 (x=±91)。
+#  R-N2 x=-33, y -76..18.5 (94.5m): 南端顶环南路北缘 (y=-76), 北端顶步道 1 南缘。
+#  R-N3 x=58, y -76..18.5 (94.5m): 同上; 复核见本段末尾。
+#  R-N3x y=20, x 50..59.5 (9.5m): 西端接步道 1 东端 (x=50), 东端齐 R-N3 东缘 (59.5)。
+#  R-N5 x=9.5, y 21.5..42.5 (21m 新铺装; 中心线 18.5..44 共 25.5m): 南端顶步道 1
+#    北缘, 北端顶 R-N1 南缘。
+#  R-N4 池塘北岸弧 (2m): 弧线点取自 green_layout.json arc.points (55°~140°),
+#    中心 (82,-78) rx14/ry11; 西侧斜 spur (71.3,-70.9)->(68,-76), 末端齐环南路北缘;
+#    东接 (90,-69)->(91,-69) 顶环东路内缘。弧+spur+东接拼成一条并集轮廓棱柱 (无重叠)。
+# R-N3 复核 (GREEN_PLAN §2 施工注意事项第 1 条, 2026-11-24 实测):
+#  配电房 dist 外轮廓 SPEC §4: 中心 (48,30) 16x10m -> 东墙 x=56, R-N3 西缘 56.5,
+#  净空 0.5m; 储能站 st-base 平台 x 60.5..67.5 / st-fence 围栏 x 60..68, R-N3 东缘
+#  59.5, 距围栏 0.5m、距平台 1.0m (方案写的 0.2m 是按另一口径, 实测更宽松, 无需改线);
+#  且 R-N3 北端 y=18.5 距两建筑南缘 (y=25/28.5) 6.5m 以上, 纵向无交集。
+#  结论: 按原线施工, 无调整。另: R-N2 西缘距操场缓冲椭圆东尖 (-37) 2.5m、距 bldA
+#  东墙 (-36) 1.5m; R-N1 距 tower 南墙 1.5m、距 canteen 南墙 4m; R-N5 走 bldB/bldC
+#  之间 11m 缺口, 距两墙各 4m; R-N4 弧线距水面 3m、spur 在池塘椭圆+0.5m 外 (已采样复核)。
+# ---- 直道铺装 ----
+box("walkway_RN1_y44", 0.0, 44.0, PAVE_Z0, PAVE_Z1, 182.0, 3.0, MAT_PAVE_NEW)
+box("walkway_RN2_x-33", -33.0, -28.75, PAVE_Z0, PAVE_Z1, 3.0, 94.5, MAT_PAVE_NEW)
+box("walkway_RN3_x58", 58.0, -28.75, PAVE_Z0, PAVE_Z1, 3.0, 94.5, MAT_PAVE_NEW)
+box("walkway_RN3x_y20", 54.75, 20.0, PAVE_Z0, PAVE_Z1, 9.5, 3.0, MAT_PAVE_NEW)
+box("walkway_RN5_x9p5", 9.5, 32.0, PAVE_Z0, PAVE_Z1, 3.0, 21.0, MAT_PAVE_NEW)
+# ---- 直道路缘石 (0.15m 宽; 在路口处断开) ----
+# R-N1: 南北缘在 R-N5 口 (x 8..11) 断开
+box("curb_RN1_north_W", -41.5, 45.575, CURB_Z0, CURB_Z1, 99.0, 0.15, MAT_CURB, bevel=0.03)
+box("curb_RN1_north_E", 51.0, 45.575, CURB_Z0, CURB_Z1, 80.0, 0.15, MAT_CURB, bevel=0.03)
+box("curb_RN1_south_W", -41.5, 42.425, CURB_Z0, CURB_Z1, 99.0, 0.15, MAT_CURB, bevel=0.03)
+box("curb_RN1_south_E", 51.0, 42.425, CURB_Z0, CURB_Z1, 80.0, 0.15, MAT_CURB, bevel=0.03)
+# R-N2/R-N3: 两侧路缘 y -75.7..18.35 (南端止于环南路内缘石北面, 北端止于步道 1 南缘石南面)
+box("curb_RN2_west", -34.575, -28.675, CURB_Z0, CURB_Z1, 0.15, 94.05, MAT_CURB, bevel=0.03)
+box("curb_RN2_east", -31.425, -28.675, CURB_Z0, CURB_Z1, 0.15, 94.05, MAT_CURB, bevel=0.03)
+box("curb_RN3_west", 56.425, -28.675, CURB_Z0, CURB_Z1, 0.15, 94.05, MAT_CURB, bevel=0.03)
+box("curb_RN3_east", 59.575, -28.675, CURB_Z0, CURB_Z1, 0.15, 94.05, MAT_CURB, bevel=0.03)
+# R-N3x: 北缘通长 (x 50..59.5); 南缘只到 R-N3 西缘 (x 50..56.5), 东段是 R-N3 路口
+box("curb_RN3x_north", 54.75, 21.575, CURB_Z0, CURB_Z1, 9.5, 0.15, MAT_CURB, bevel=0.03)
+box("curb_RN3x_south", 53.25, 18.425, CURB_Z0, CURB_Z1, 6.5, 0.15, MAT_CURB, bevel=0.03)
+# R-N5: 两侧路缘 y 21.65..42.35 (南端顶步道 1 北缘石, 北端顶 R-N1 南缘石)
+box("curb_RN5_west", 7.925, 32.0, CURB_Z0, CURB_Z1, 0.15, 20.7, MAT_CURB, bevel=0.03)
+box("curb_RN5_east", 11.075, 32.0, CURB_Z0, CURB_Z1, 0.15, 20.7, MAT_CURB, bevel=0.03)
+# ---- R-N4 池塘北岸步道 (2m): 弧 + spur + 东接, 一条并集轮廓棱柱 ----
+# 弧线点照抄 green_layout.json R-N4 arc.points (18 点, 55°~140°)。
+ARC_PTS = [(90.03, -68.99), (89.0, -68.47), (87.92, -68.03), (86.79, -67.66),
+           (85.62, -67.37), (84.43, -67.17), (83.22, -67.04), (82.0, -67.0),
+           (80.78, -67.04), (79.57, -67.17), (78.38, -67.37), (77.21, -67.66),
+           (76.08, -68.03), (75.0, -68.47), (73.97, -68.99), (73.0, -69.57),
+           (72.1, -70.22), (71.28, -70.93)]
+POND_C = (82.0, -78.0)
+ARC_RX, ARC_RY = 14.0, 11.0
+
+
+def _arc_n(px, py):
+    """池塘椭圆外法向 ∝ ((x-cx)/rx², (y-cy)/ry²), 归一化。"""
+    nx = (px - POND_C[0]) / ARC_RX ** 2
+    ny = (py - POND_C[1]) / ARC_RY ** 2
+    l = math.hypot(nx, ny)
+    return (nx / l, ny / l)
+
+
+_arc_nrm = [_arc_n(x, y) for x, y in ARC_PTS]
+_arc_outer = [(x + nx, y + ny) for (x, y), (nx, ny) in zip(ARC_PTS, _arc_nrm)]
+_arc_inner = [(x - nx, y - ny) for (x, y), (nx, ny) in zip(ARC_PTS, _arc_nrm)]
+# spur: A=(71.3,-70.9) -> B=(68,-76); 末端切齐环南路北缘 y=-76 (不伸进环路)。
+SPUR_A = (71.3, -70.9)
+_spur_d = (68.0 - SPUR_A[0], -76.0 - SPUR_A[1])
+_spur_l = math.hypot(*_spur_d)
+_spur_dir = (_spur_d[0] / _spur_l, _spur_d[1] / _spur_l)
+_spur_out = (_spur_dir[1], -_spur_dir[0])    # 西北侧, 远离池塘
+_spur_in = (-_spur_dir[1], _spur_dir[0])     # 东南侧, 朝向池塘
+
+
+def _spur_side_pt(side, y_target):
+    px = SPUR_A[0] + side[0]
+    py = SPUR_A[1] + side[1]
+    t = (y_target - py) / _spur_dir[1]
+    return (px + _spur_dir[0] * t, y_target)
+
+
+_spur_out_end = _spur_side_pt(_spur_out, -76.0)
+_spur_in_end = _spur_side_pt(_spur_in, -76.0)
+# 东接: 弧东端盖线 (过 ARC_PTS[0], 方向为该点外法向) 与 y=-70 (东接南缘) 的交点。
+_n0 = _arc_nrm[0]
+_tcap = (-70.0 - ARC_PTS[0][1]) / _n0[1]
+_cap_s = (ARC_PTS[0][0] + _n0[0] * _tcap, -70.0)
+# spur 内侧边与弧内缘最后一段的交点: spur 走向与弧切向约差 13°, 内侧边会切过弧内缘
+# 最后一段, 并集轮廓须走交点 (不走弧内缘末点, 否则轮廓自交)。
+_spur_in_start = (SPUR_A[0] + _spur_in[0], SPUR_A[1] + _spur_in[1])
+_rn4_join = _seg_intersect(_arc_inner[-2], _arc_inner[-1],
+                           _spur_in_start, _spur_in_end)
+assert _rn4_join is not None, "R-N4: spur inner edge misses arc inner edge"
+print("R-N4 spur/arc inner join:", _rn4_join,
+      "spur tip x range: %.2f..%.2f" % (min(_spur_out_end[0], _spur_in_end[0]),
+                                        max(_spur_out_end[0], _spur_in_end[0])))
+_rn4_outline = [
+    (91.0, -68.0), (91.0, -70.0), _cap_s,
+    _arc_inner[0],
+] + _arc_inner[1:-1] + [
+    _rn4_join,
+    _spur_in_end, _spur_out_end,
+    (SPUR_A[0] + _spur_out[0], SPUR_A[1] + _spur_out[1]),
+    _arc_outer[-1],
+] + list(reversed(_arc_outer[:-1]))
+ribbon("walkway_RN4_pond_arc", _rn4_outline, PAVE_Z0, PAVE_Z1, MAT_PAVE_NEW)
+# R-N4 路缘石: 弧两侧各一条带状棱柱 (距中心线 1.0~1.15m); 1m 东接 stub 不另做路缘
+# (两端分别是弧端路缘与环路内缘石); spur 两侧各一条斜盒, 南端止于环南路内缘石北面。
+_rn4_curb_out = [(x + nx * 1.15, y + ny * 1.15) for (x, y), (nx, ny)
+                 in zip(ARC_PTS, _arc_nrm)]
+_rn4_curb_out += [(x + nx * 1.0, y + ny * 1.0) for (x, y), (nx, ny)
+                  in zip(reversed(ARC_PTS), reversed(_arc_nrm))]
+ribbon("curb_RN4_outer", _rn4_curb_out, CURB_Z0, CURB_Z1, MAT_CURB)
+_rn4_curb_in = [(x - nx * 1.0, y - ny * 1.0) for (x, y), (nx, ny)
+                in zip(ARC_PTS, _arc_nrm)]
+_rn4_curb_in += [(x - nx * 1.15, y - ny * 1.15) for (x, y), (nx, ny)
+                 in zip(reversed(ARC_PTS), reversed(_arc_nrm))]
+ribbon("curb_RN4_inner", _rn4_curb_in, CURB_Z0, CURB_Z1, MAT_CURB)
+_spur_curb_len = 5.72  # 自 spur 起点 A 至 y=-75.7 (环南路内缘石北面)
+_spur_curb_c = (SPUR_A[0] + _spur_dir[0] * _spur_curb_len / 2.0,
+                SPUR_A[1] + _spur_dir[1] * _spur_curb_len / 2.0)
+_spur_ang = math.atan2(_spur_dir[1], _spur_dir[0])
+box("curb_RN4_spur_out",
+    _spur_curb_c[0] + _spur_out[0] * 1.075, _spur_curb_c[1] + _spur_out[1] * 1.075,
+    CURB_Z0, CURB_Z1, _spur_curb_len, 0.15, MAT_CURB, bevel=0.0, rot_z=_spur_ang)
+box("curb_RN4_spur_in",
+    _spur_curb_c[0] + _spur_in[0] * 1.075, _spur_curb_c[1] + _spur_in[1] * 1.075,
+    CURB_Z0, CURB_Z1, _spur_curb_len, 0.15, MAT_CURB, bevel=0.0, rot_z=_spur_ang)
 
 print("walk objects:", len(walk))
 
@@ -418,6 +654,44 @@ print("bake done, materials rebuilt with image textures, elapsed %.1fs"
 # ---- save .blend (落盘优先, 先存盘再导出) ----
 os.makedirs(PY_DIR, exist_ok=True)
 os.makedirs(os.path.dirname(GLB_PATH), exist_ok=True)
+# R2-T9 PBR hard fix (2026-11-24): baked maps on big faces were near-flat
+# (wall normal std ~0.5-3, asphalt color std ~4 in-tile, one 1024 texture
+# stretched over 40 m walls / 260 m roads) so everything rendered as flat
+# panels. Re-link real CC0 photo textures + world-scale UVs after the bake
+# step, before save/export. Idempotent; see _pbr_apply.py in this dir.
+_pbr_hook = os.path.join(os.path.dirname(BLEND_PATH), "_pbr_apply.py")
+if os.path.exists(_pbr_hook):
+    _pbr_g = {"__name__": "_pbr_apply", "__file__": _pbr_hook}
+    exec(compile(open(_pbr_hook).read(), _pbr_hook, "exec"), _pbr_g)
+    _pbr_g["apply_pbr"](os.path.splitext(os.path.basename(BLEND_PATH))[0])
+
+# R2-T14b: _pbr_apply._load() 用 bpy.path.relpath() 写 PBR 贴图路径, 而本脚本
+# 从空场景起步 (bpy.data.filepath 为空), relpath 以 CWD 为基准: CWD 若是工程
+# 根目录会得到 "//assets/..."(相对 .blend 所在 overview/ 目录是错的, 应为
+# "//../../assets/..."), 导致导出时贴图找不到、GLB 里 6 种 PBR 材质只剩 1 张
+# 空白图 (回读断言 Curb_B9B3A8 贴图 <3 张即为此因, 2026-11-24 实测复现)。
+# 此处按 .blend 所在目录 + CWD 双候选解析已存在的真实文件, 改写为正确的
+# 相对路径 (存盘时 Blender 不动已是相对的路径, 故须在存盘前修好); 已正确
+# 的路径 (如 //ov-road-walk_textures/ 与 //../../assets/) 原样不动, 幂等。
+for _im in bpy.data.images:
+    _fp = _im.filepath
+    if not _fp.startswith("//"):
+        continue
+    _rel = _fp[2:]
+    _abs = None
+    for _base in (PY_DIR, os.getcwd()):
+        _cand = os.path.join(_base, _rel)
+        if os.path.exists(_cand):
+            _abs = os.path.normpath(_cand)
+            break
+    if _abs is None:
+        print("PBR path fix: file not found, keep:", _im.name, _fp)
+        continue
+    _new = "//" + os.path.relpath(_abs, PY_DIR)
+    if _new != _fp:
+        print("PBR path fix:", _im.name, _fp, "->", _new)
+        _im.filepath = _new
+
 bpy.ops.wm.save_as_mainfile(filepath=BLEND_PATH)
 print("saved blend:", BLEND_PATH)
 if os.path.exists(BLEND_PATH + "1"):
