@@ -1085,13 +1085,47 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 
 ### 推仓
 
-- 待填（推后补 commit 号与核对结果）。
+- 5 批 push-files，12 个文件一次未超 40MB 单 blob（最大单文件 13,925,492 B）：
+  脚本 `7aa927fe`（ov-gym/lab/canteen.py + `_steal.py` 新增 + `_pbr_apply.py`
+  首次入仓）、.blend `7d5de9cf`、.glb `1a8e3b98`、本文档 `4e4dfcc7`；
+  另 1 批补推 PBR 贴图 `4228878e`（见下“品红”一段，25 张），
+  1 批 fix-up `60896d31`（恢复 `4e4dfcc7` 误覆盖的 R2-T1b 填充
+  `192bb97b`——两批在同一分钟内先后写同一文件，事后已核对恢复；
+  另 §21 一处措辞修正：`_pbr_apply.py` 是首次入仓非修改）。
+  推后核对：HEAD 即 `60896d31`；contents API 逐文件核对 12 个文件大小与本地
+  逐项一致（.py 5/5、.blend 3/3、.glb 3/3、BLENDER_MODELS.md blob
+  `105db052…`）；`_pbr_apply.py` 与 `_steal.py` 在推前查仓库树确认此前不存在。
+- **品红事故与补推**：首版 Actions 渲染（run #95，head `7d5de9cf`）3 栋楼墙面全
+  品红——缺图色。根因：`_pbr_apply.SETS` 引用的 27 张贴图里 25 张只在本地、
+  从未入仓（`pbr-tinted/` 20 张 + polyhaven 粗糙/法线 5 张；R2-T9 只建未推；
+  仓库里只有 ambientcg Plaster001 rough 与 polyhaven concrete_wall_007 rough
+  2 张）。GLB 不受影响（贴图已内嵌，Godot 侧无恙），只坏 Blender 预览渲染
+  （.blend 存 `//../../external/...` 相对路径，Actions 检出后找不到文件）。
+  已补推 25 张（commit `4228878e`，CC0，SOURCES.md §9 已有 pbr-tinted 记录）；
+  注意该提交只动 `assets/external/**`，不触发 blender-previews（workflow 只监听
+  `assets/blender/**`），故另用 workflow_dispatch 触发 run #104。
+  另：R2-T21a 的 ov-tower 同病（commit `77c73269`）改用“打包进 .blend”修法，
+  本任务仍用“补推贴图”修法，两法都通，不必统一。
 
 ### 验证
 
-- 待填（Actions blender-previews overview 组 success 后，下载 artifact 逐张目视
-  3 栋楼：尺寸、层数感、窗带、入口、配色都对，无穿模；godot-verify 总览验收由
-  终轮整合做）。
+- blender-previews run **#104 / 45448772104**（workflow_dispatch，head `e0eaadf1`，
+  含贴图补推）：completed/**success**；artifact `blender-previews-overview`
+  （17,975,067 B）20 张
+  已下载，3 栋逐张目视通过——
+  - **gym**：红砖墙 #8E2F28 + 深灰屋顶，3 层蓝玻璃窗带，tevy 偷件雨棚（浅灰
+    混凝土板 + 3 根细柱）正门前落位正确，无穿模。遗留小瑕疵：雨棚下地面有
+    3 条细黄线（tevy 雨棚自带的 yellow_paint 地面标线，贴地、读作停车线，
+    不影响结构，暂留）。
+  - **lab**：蓝灰墙 + 深灰屋顶 + 红饰带，3 层清晰；长面 12 条偷窗带为白框+
+    蓝玻璃小窗格的通长带窗（发电厂窗行本色，白框占面大、远看偏白，近看蓝
+    玻璃格可见），短面为整片蓝玻璃带，正门雨棚+台阶+玻璃门齐全，无穿模。
+    法向核过：偷窗带玻璃/框面为闭合小盒（±x/±y/±z 各 8/18 面），正反两面
+    都有面，Godot 单面渲染也不丢。
+  - **canteen**：浅橙墙 + 深灰屋顶 + 红饰带，3 层清晰；博物馆偷件柱廊 8 根
+    白石柱 + 台座正门前落位正确，室外取餐台（红柜 + 台面食物 + 玻璃罩）在
+    柱廊西侧可见，长面灰玻璃带窗齐全，无穿模。
+- godot-verify 总览验收由终轮整合做（本任务未做）。
 - **还剩什么**：tower/dorm/lib/bldA/bldB 换装（R2-T21a 另做）；总览重拼与 Godot
   侧验收由终轮整合做；旧 `ov-gym/lab/canteen_textures/` 烘焙图已无引用，待清理。
 
