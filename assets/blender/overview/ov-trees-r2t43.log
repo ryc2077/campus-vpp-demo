@@ -1,0 +1,247 @@
+22:10:44 | INFO: Data are loaded, start creating Blender stuff
+22:10:44 | INFO: Blender create Mesh node Mesh tree_default
+22:10:44 | INFO: glTF import finished in 0.00s
+22:10:44 | INFO: Data are loaded, start creating Blender stuff
+22:10:44 | INFO: Blender create Mesh node Mesh tree_oak
+22:10:44 | INFO: glTF import finished in 0.01s
+22:10:44 | INFO: Data are loaded, start creating Blender stuff
+22:10:44 | INFO: Blender create Mesh node Mesh tree_detailed
+22:10:44 | INFO: glTF import finished in 0.00s
+22:10:44 | INFO: Data are loaded, start creating Blender stuff
+22:10:44 | INFO: Blender create Mesh node Mesh tree_tall
+22:10:44 | INFO: glTF import finished in 0.00s
+22:10:44 | INFO: Data are loaded, start creating Blender stuff
+22:10:44 | INFO: Blender create Mesh node Mesh tree_pineDefaultA
+22:10:44 | INFO: glTF import finished in 0.00s
+22:10:44 | INFO: Data are loaded, start creating Blender stuff
+22:10:44 | INFO: Blender create Mesh node Mesh tree_pineDefaultB
+22:10:44 | INFO: glTF import finished in 0.00s
+22:10:44 | INFO: Data are loaded, start creating Blender stuff
+22:10:44 | INFO: Blender create Mesh node Mesh tree_plateau
+22:10:44 | INFO: glTF import finished in 0.00s
+22:10:44 | INFO: Data are loaded, start creating Blender stuff
+22:10:44 | INFO: Blender create Mesh node Mesh tree_thin
+22:10:44 | INFO: glTF import finished in 0.00s
+22:10:44 | INFO: Data are loaded, start creating Blender stuff
+22:10:44 | INFO: Blender create Mesh node Mesh tree_pineTallA
+22:10:44 | INFO: glTF import finished in 0.00s
+22:10:44 | INFO: Data are loaded, start creating Blender stuff
+22:10:44 | INFO: Blender create Mesh node Mesh tree_pineTallB
+22:10:44 | INFO: glTF import finished in 0.00s
+22:10:44 | INFO: Data are loaded, start creating Blender stuff
+22:10:44 | INFO: Blender create Mesh node Mesh tree_pineTallC
+22:10:44 | INFO: glTF import finished in 0.01s
+22:10:44 | INFO: Data are loaded, start creating Blender stuff
+22:10:44 | INFO: Blender create Mesh node Mesh tree_pineTallD
+22:10:44 | INFO: glTF import finished in 0.00s
+22:10:44 | INFO: Data are loaded, start creating Blender stuff
+22:10:44 | INFO: Blender create Mesh node Mesh tree_pineTallA_detailed
+22:10:44 | INFO: glTF import finished in 0.00s
+22:10:44 | INFO: Data are loaded, start creating Blender stuff
+22:10:44 | INFO: Blender create Mesh node Mesh tree_pineTallB_detailed
+22:10:44 | INFO: glTF import finished in 0.00s
+22:10:44 | INFO: Data are loaded, start creating Blender stuff
+22:10:44 | INFO: Blender create Mesh node Mesh tree_pineTallC_detailed
+22:10:44 | INFO: glTF import finished in 0.00s
+22:10:44 | INFO: Data are loaded, start creating Blender stuff
+22:10:44 | INFO: Blender create Mesh node Mesh tree_pineTallD_detailed
+22:10:44 | INFO: glTF import finished in 0.00s
+22:10:44 | INFO: Data are loaded, start creating Blender stuff
+22:10:44 | INFO: Blender create Mesh node tree.025
+22:10:44 | INFO: glTF import finished in 0.08s
+22:10:44 | INFO: Data are loaded, start creating Blender stuff
+22:10:44 | INFO: Blender create Mesh node tree.027
+22:10:44 | INFO: glTF import finished in 0.02s
+22:10:44 | INFO: Data are loaded, start creating Blender stuff
+22:10:44 | INFO: Blender create Mesh node tree.031
+22:10:44 | INFO: glTF import finished in 0.02s
+22:10:44 | INFO: Data are loaded, start creating Blender stuff
+22:10:44 | INFO: Blender create Mesh node tree.032
+22:10:44 | INFO: glTF import finished in 0.01s
+Blender 4.2.0 (hash a51f293548ad built 2024-07-16 06:27:02)
+Info: Total files 4 | Changed 4 | Failed 0
+MEASURED tree_default: native_h=1.71 zmin=0.00 tris=114 crown_z0=0.80 mats=['woodBark', 'leafsGreen']
+MEASURED tree_oak: native_h=1.23 zmin=0.00 tris=196 crown_z0=0.50 mats=['leafsGreen.001', 'woodBark.001']
+MEASURED tree_detailed: native_h=1.33 zmin=0.00 tris=402 crown_z0=0.45 mats=['leafsGreen.002', 'woodBark.002', '_defaultMat']
+MEASURED tree_tall: native_h=1.69 zmin=0.00 tris=72 crown_z0=0.29 mats=['leafsGreen.003', 'woodBark.003']
+MEASURED tree_pineDefaultA: native_h=1.55 zmin=0.00 tris=230 crown_z0=0.54 mats=['leafsDark', 'woodBarkDark']
+MEASURED tree_pineDefaultB: native_h=1.55 zmin=0.00 tris=246 crown_z0=0.54 mats=['woodBarkDark.001', 'leafsDark.001']
+MEASURED tree_plateau: native_h=1.25 zmin=0.00 tris=215 crown_z0=0.42 mats=['leafsGreen.004', 'woodBark.004']
+MEASURED tree_thin: native_h=1.49 zmin=0.00 tris=228 crown_z0=0.50 mats=['leafsGreen.005', 'woodBark.005']
+MEASURED tree_pineTallA: native_h=1.53 zmin=0.00 tris=78 crown_z0=0.63 mats=['woodBarkDark.002', 'leafsDark.002']
+MEASURED tree_pineTallB: native_h=1.93 zmin=0.00 tris=78 crown_z0=1.03 mats=['leafsDark.003', 'woodBarkDark.003']
+MEASURED tree_pineTallC: native_h=1.67 zmin=0.00 tris=98 crown_z0=0.63 mats=['leafsDark.004', 'woodBarkDark.004']
+MEASURED tree_pineTallD: native_h=2.08 zmin=0.00 tris=98 crown_z0=1.03 mats=['leafsDark.005', 'woodBarkDark.005']
+MEASURED tree_pineTallA_detailed: native_h=1.53 zmin=0.00 tris=134 crown_z0=0.63 mats=['woodBarkDark.006', 'leafsDark.006']
+MEASURED tree_pineTallB_detailed: native_h=1.93 zmin=0.00 tris=166 crown_z0=1.03 mats=['leafsDark.007', 'woodBarkDark.007']
+MEASURED tree_pineTallC_detailed: native_h=1.67 zmin=0.00 tris=154 crown_z0=0.63 mats=['leafsDark.008', 'woodBarkDark.008']
+MEASURED tree_pineTallD_detailed: native_h=2.08 zmin=0.00 tris=170 crown_z0=1.03 mats=['leafsDark.009', 'woodBarkDark.009']
+MEASURED CommonTree_3: native_h=9.18 zmin=-0.24 tris=3505 crown_z0=4.59 mats=['Bark_NormalTree', 'Leaves_NormalTree']
+MEASURED CommonTree_5: native_h=6.76 zmin=-0.24 tris=3182 crown_z0=3.38 mats=['Bark_NormalTree.001', 'Leaves_NormalTree.001']
+MEASURED Pine_4: native_h=10.00 zmin=-0.24 tris=3370 crown_z0=5.00 mats=['Bark_NormalTree.002', 'Leaves_Pine']
+MEASURED Pine_5: native_h=8.49 zmin=-0.24 tris=1646 crown_z0=4.24 mats=['Bark_NormalTree.003', 'Leaves_Pine.001']
+MASTERS: 20 models imported
+MAT Bark_NormalTree: use_nodes=True
+MAT Leaves_NormalTree: use_nodes=True
+MAT Leaves_Pine: use_nodes=True
+MAT _defaultMat: use_nodes=True
+MAT leafsDark: use_nodes=True
+MAT leafsGreen: use_nodes=True
+MAT woodBark: use_nodes=True
+MAT woodBarkDark: use_nodes=True
+  RELOC -38,-40 -> -45.8,-40.0 (R2-T43-west-off-ring)
+  RELOC -38,-32 -> -43.44,-32.0 (R2-T43-west-off-ring)
+  RELOC -38,-16 -> -45.5,-12.0 (R2-T43-west-off-ring-y-shift)
+  RELOC -38,-8 -> -46.16,-8.0 (R2-T43-west-off-ring)
+  RELOC -38,0 -> -36.0,0.0 (R2-T43-east-off-buffer)
+NEW TREES: 327 (zones 12)
+R2-T43 RELOCATED: 5 (expected 5)
+ZONE T-A: n=18 models={'tree_detailed': 3, 'tree_default': 4, 'tree_thin': 3, 'tree_oak': 1, 'tree_pineDefaultA': 2, 'tree_pineDefaultB': 3, 'tree_plateau': 2}
+ZONE T-B: n=24 models={'tree_thin': 6, 'tree_plateau': 2, 'tree_pineDefaultB': 3, 'tree_detailed': 4, 'tree_default': 2, 'tree_pineDefaultA': 4, 'tree_oak': 3}
+ZONE T-C: n=64 models={'tree_plateau': 11, 'tree_detailed': 13, 'tree_pineDefaultB': 5, 'tree_oak': 5, 'tree_thin': 11, 'tree_pineDefaultA': 7, 'tree_default': 9, 'tree_tall': 3}
+ZONE D1: n=28 models={'tree_pineTallD': 3, 'tree_pineTallB_detailed': 6, 'tree_pineTallA': 5, 'tree_tall': 4, 'tree_pineTallB': 2, 'tree_pineTallC_detailed': 1, 'tree_oak': 3, 'tree_pineTallD_detailed': 3, 'tree_pineTallC': 1}
+ZONE D3: n=12 models={'CommonTree_3': 5, 'Pine_5': 2, 'Pine_4': 2, 'CommonTree_5': 3}
+ZONE D4: n=18 models={'tree_pineTallB_detailed': 5, 'tree_pineTallA': 2, 'tree_tall': 4, 'tree_pineTallD_detailed': 2, 'tree_pineTallD': 1, 'tree_pineTallA_detailed': 1, 'tree_pineTallB': 1, 'tree_pineTallC': 2}
+ZONE D5: n=29 models={'tree_oak': 4, 'tree_pineTallC': 3, 'tree_pineTallD': 3, 'tree_pineTallB': 4, 'tree_pineTallD_detailed': 2, 'tree_pineTallA': 4, 'tree_pineTallB_detailed': 2, 'tree_pineTallA_detailed': 3, 'tree_pineTallC_detailed': 2, 'tree_tall': 2}
+ZONE D5b: n=29 models={'tree_pineTallA_detailed': 2, 'tree_tall': 6, 'tree_oak': 3, 'tree_pineTallC': 4, 'tree_pineTallD_detailed': 2, 'tree_pineTallA': 2, 'tree_pineTallD': 1, 'tree_pineTallB': 5, 'tree_pineTallB_detailed': 1, 'tree_pineTallC_detailed': 3}
+ZONE D6: n=19 models={'tree_default': 2, 'tree_detailed': 4, 'tree_pineDefaultA': 4, 'tree_plateau': 3, 'tree_pineDefaultB': 2, 'tree_oak': 2, 'tree_thin': 2}
+ZONE R-N1-T: n=40 models={'tree_thin': 7, 'tree_plateau': 4, 'tree_oak': 7, 'tree_pineDefaultB': 8, 'tree_pineDefaultA': 6, 'tree_tall': 1, 'tree_default': 3, 'tree_detailed': 4}
+ZONE R-N2-T: n=22 models={'tree_pineDefaultA': 5, 'tree_default': 6, 'tree_plateau': 4, 'tree_pineDefaultB': 2, 'tree_oak': 3, 'tree_detailed': 2}
+ZONE R-N3-T: n=24 models={'tree_pineDefaultB': 6, 'tree_pineDefaultA': 3, 'tree_thin': 4, 'tree_oak': 4, 'tree_detailed': 3, 'tree_default': 3, 'tree_plateau': 1}
+L1+R2-T32 RELOCATED: 40
+  RELOC -120,-105 -> -119.69651855734674,-94.0 (L1-south-row)
+  RELOC -112,-105 -> -111.2699749109001,-94.0 (L1-south-row)
+  RELOC -104,-105 -> -103.68451889105572,-94.0 (L1-south-row)
+  RELOC -96,-105 -> -95.51029005993854,-94.0 (L1-south-row)
+  RELOC -88,-105 -> -87.12068310579599,-94.0 (L1-south-row)
+  RELOC -80,-105 -> -79.53891768520793,-94.0 (L1-south-row)
+  RELOC -72,-105 -> -72.53224760444093,-94.0 (L1-south-row)
+  RELOC -64,-105 -> -63.743625657491926,-94.0 (L1-south-row)
+  RELOC -56,-105 -> -56.373487869658575,-94.0 (L1-south-row)
+  RELOC -48,-105 -> -47.00277483355252,-94.0 (L1-south-row)
+  RELOC -40,-105 -> -40.181511342829985,-94.0 (L1-south-row)
+  RELOC -32,-105 -> -31.151004040130204,-94.0 (L1-south-row)
+  RELOC -24,-105 -> -23.849963041786758,-94.0 (L1-south-row)
+  RELOC -16,-105 -> -28.0,-94.0 (L1-plaza-flank)
+  RELOC -8,-105 -> -36.0,-94.0 (L1-plaza-flank)
+  RELOC 0,-105 -> -44.0,-94.0 (L1-plaza-flank)
+  RELOC 8,-105 -> 28.0,-94.0 (L1-plaza-flank)
+  RELOC 16,-105 -> 36.0,-94.0 (L1-plaza-flank)
+  RELOC 24,-105 -> 22.990251233280226,-94.0 (L1-south-row)
+  RELOC 32,-105 -> 31.335212963024,-94.0 (L1-south-row)
+  RELOC 40,-105 -> 40.21132340661203,-94.0 (L1-south-row)
+  RELOC 48,-105 -> 48.26433854650134,-94.0 (L1-south-row)
+  RELOC 56,-105 -> 56.915916834970886,-94.0 (L1-south-row)
+  RELOC 64,-105 -> 63.95869826993232,-94.0 (L1-south-row)
+  RELOC 72,-105 -> 72.28341855570166,-94.0 (L1-south-row)
+  RELOC 80,-105 -> 79.38732878559927,-94.0 (L1-south-row)
+  RELOC 88,-105 -> 88.10928818733309,-94.0 (L1-south-row)
+  RELOC 96,105 -> 96.0,105.0 (L1-dejitter)
+  RELOC 96,-105 -> 96.21599497680853,-94.0 (L1-south-row)
+  RELOC 104,105 -> 98.0,105.0 (L1-north)
+  RELOC 104,-105 -> 100.0,-94.0 (L1-east-end-off-road)
+  RELOC 112,105 -> 118.0,105.0 (L1-north)
+  RELOC 112,-105 -> 124.0,-94.0 (L1-east-end-off-road)
+  RELOC 120,105 -> 120.0,105.0 (L1-dejitter)
+  RELOC 120,-105 -> 118.94316811322986,-94.0 (L1-south-row)
+  RELOC 120,-89 -> 120.07,-89.11 (R2-T32-dense-pair-2.6m)
+  RELOC 120,-41 -> 120.1,-40.4 (R2-T32-dense-pair-2.6m)
+  RELOC 120,79 -> 120.03,79.11 (R2-T32-dense-pair-2.6m)
+  RELOC -80,45 -> -80.0,49.0 (newroad-R-N1)
+  RELOC 0,12 -> 4.0,12.0 (walkway2)
+OLD RESKIN: 146 {'perimeter': 112, 'road': 19, 'scattered': 15}
+TREES TOTAL: 473 (new 327 + old 146)
+CHECK T-A: model=tree_detailed target=7.5 actual=7.50
+CHECK T-B: model=tree_thin target=5.9 actual=5.90
+CHECK T-C: model=tree_plateau target=6.4 actual=6.40
+CHECK D1: model=tree_pineTallD target=12.6 actual=12.60
+CHECK D3: model=CommonTree_3 target=10.8 actual=10.80
+CHECK D4: model=tree_pineTallB_detailed target=11.3 actual=11.30
+CHECK D5: model=tree_oak target=10.4 actual=10.40
+CHECK D5b: model=tree_pineTallA_detailed target=11.0 actual=11.00
+CHECK D6: model=tree_default target=5.1 actual=5.10
+CHECK R-N1-T: model=tree_thin target=7.5 actual=7.50
+CHECK R-N2-T: model=tree_pineDefaultA target=5.4 actual=5.40
+CHECK R-N3-T: model=tree_pineDefaultB target=6.2 actual=6.20
+TRIS TOTAL: 120634 (budget <= 300000)
+BY SOURCE: kenney=461 quaternius=12
+22:10:45 | INFO: Starting glTF 2.0 export
+22:10:45 | INFO: Extracting primitive: Mesh tree_default
+22:10:45 | INFO: Primitives created: 2
+22:10:45 | INFO: Extracting primitive: Mesh tree_oak
+22:10:45 | INFO: Primitives created: 2
+22:10:45 | INFO: Extracting primitive: Mesh tree_detailed
+22:10:45 | INFO: Primitives created: 3
+22:10:45 | INFO: Extracting primitive: Mesh tree_tall
+22:10:45 | INFO: Primitives created: 2
+22:10:45 | INFO: Extracting primitive: Mesh tree_pineDefaultA
+22:10:45 | INFO: Primitives created: 2
+22:10:45 | INFO: Extracting primitive: Mesh tree_pineDefaultB
+22:10:45 | INFO: Primitives created: 2
+22:10:45 | INFO: Extracting primitive: Mesh tree_plateau
+22:10:45 | INFO: Primitives created: 2
+22:10:45 | INFO: Extracting primitive: Mesh tree_thin
+22:10:45 | INFO: Primitives created: 2
+22:10:45 | INFO: Extracting primitive: Mesh tree_pineTallA
+22:10:45 | INFO: Primitives created: 2
+22:10:45 | INFO: Extracting primitive: Mesh tree_pineTallB
+22:10:45 | INFO: Primitives created: 2
+22:10:45 | INFO: Extracting primitive: Mesh tree_pineTallC
+22:10:45 | INFO: Primitives created: 2
+22:10:45 | INFO: Extracting primitive: Mesh tree_pineTallD
+22:10:45 | INFO: Primitives created: 2
+22:10:45 | INFO: Extracting primitive: Mesh tree_pineTallA_detailed
+22:10:45 | INFO: Primitives created: 2
+22:10:45 | INFO: Extracting primitive: Mesh tree_pineTallB_detailed
+22:10:45 | INFO: Primitives created: 2
+22:10:45 | INFO: Extracting primitive: Mesh tree_pineTallC_detailed
+22:10:45 | INFO: Primitives created: 2
+22:10:45 | INFO: Extracting primitive: Mesh tree_pineTallD_detailed
+22:10:45 | INFO: Primitives created: 2
+22:10:45 | INFO: Extracting primitive: tree.025
+22:10:45 | WARNING: More than one shader node tex image used for a texture. The resulting glTF sampler will behave like the first shader node tex image.
+22:10:45 | WARNING: More than one shader node tex image used for a texture. The resulting glTF sampler will behave like the first shader node tex image.
+22:10:45 | INFO: Primitives created: 2
+22:10:45 | INFO: Extracting primitive: tree.027
+22:10:45 | INFO: Primitives created: 2
+22:10:45 | INFO: Extracting primitive: tree.031
+22:10:45 | WARNING: More than one shader node tex image used for a texture. The resulting glTF sampler will behave like the first shader node tex image.
+22:10:45 | INFO: Primitives created: 2
+22:10:45 | INFO: Extracting primitive: tree.032
+22:10:45 | INFO: Primitives created: 2
+22:10:45 | INFO: Finished glTF 2.0 export in 0.6456708908081055 s
+22:10:45 | INFO: Data are loaded, start creating Blender stuff
+22:10:45 | INFO: Blender create Mesh node Mesh tree_default
+22:10:45 | INFO: Blender create Mesh node Mesh tree_oak
+22:10:45 | INFO: Blender create Mesh node Mesh tree_detailed
+22:10:45 | INFO: Blender create Mesh node Mesh tree_tall
+22:10:45 | INFO: Blender create Mesh node Mesh tree_pineDefaultA
+22:10:45 | INFO: Blender create Mesh node Mesh tree_pineDefaultB
+22:10:45 | INFO: Blender create Mesh node Mesh tree_plateau
+22:10:45 | INFO: Blender create Mesh node Mesh tree_thin
+22:10:45 | INFO: Blender create Mesh node Mesh tree_pineTallA
+22:10:45 | INFO: Blender create Mesh node Mesh tree_pineTallB
+22:10:45 | INFO: Blender create Mesh node Mesh tree_pineTallC
+22:10:45 | INFO: Blender create Mesh node Mesh tree_pineTallD
+22:10:45 | INFO: Blender create Mesh node Mesh tree_pineTallA_detailed
+22:10:45 | INFO: Blender create Mesh node Mesh tree_pineTallB_detailed
+22:10:45 | INFO: Blender create Mesh node Mesh tree_pineTallC_detailed
+22:10:45 | INFO: Blender create Mesh node Mesh tree_pineTallD_detailed
+22:10:45 | INFO: Blender create Mesh node tree.025
+22:10:45 | INFO: Blender create Mesh node tree.027
+22:10:45 | INFO: Blender create Mesh node tree.031
+22:10:45 | INFO: Blender create Mesh node tree.032
+22:10:46 | INFO: glTF import finished in 0.22s
+Info: Saved "ov-trees.blend"
+INFO Draco mesh compression is available, use library at /home/hatch/workspace/tools/blender/blender-4.2.0-linux-x64/4.2/python/lib/python3.11/site-packages/libextern_draco.so
+
+GLB reimport OK: 473 objects
+GLB reimport trees: 473 tree objects
+GLB MAT Bark_NormalTree.001: has_image_texture=True base_color_linear=(0.8, 0.8, 0.8)
+GLB MAT leafsDark.001: has_image_texture=False base_color_linear=(0.1686, 0.651, 0.6667)
+GLB MAT leafsGreen.001: has_image_texture=False base_color_linear=(0.1608, 0.7882, 0.6706)
+GLB MAT woodBark.001: has_image_texture=False base_color_linear=(0.8863, 0.5137, 0.3412)
+GLB MAT woodBarkDark.001: has_image_texture=False base_color_linear=(0.8, 0.4627, 0.3686)
+DONE ov-trees v5
+
+Blender quit

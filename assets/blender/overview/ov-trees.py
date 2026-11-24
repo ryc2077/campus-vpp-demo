@@ -1,3 +1,19 @@
+# ov-trees v5 (R2-T43, 2026-11-25): v4 + R-N2-T 西列 5 棵移出新跑道环面（只动
+#   这 5 棵新树位置，数量/模型/高度一字不改；其余 468 棵一字不动）。
+#   R2-T33 §33 ②称 5 棵（x=-38，y=-40/-32/-16/-8/0）压在环面上；本次 GLB 回读 +
+#   网格 ray-cast 复核：y=-40/-32/-16/-8 四棵确在环面内（环东臂内/外缘见下），
+#   y=0 一棵不在环面上——在环外缘以东 2.15m（外椭圆归一化半径 r²=1.125），但在
+#   +3m 缓冲内（缓冲东界 -37.80，树在 -38.00）；5 棵仍按任务书全移。
+#   移向：y=-40/-32/-16/-8 向西（出环内缘，y 不变）；y=0 向东（向西须过内缘路缘石
+#   -49.90 落到球场上，不可行；向东 -36.00 亦出 +3m 缓冲）。
+#   向东不可行的实测：y=-32/-16 处外缘路缘石东缘（-34.14/-34.24）已在 R-N2 路廊
+#   西缘（-34.65）以东，零间隙；y=-40 东侧间隙 1.09m、树干半径 0.42m，只剩 0.03m；
+#   y=-8 东侧有 Shrub_01（x[-35.50,-34.50] y[-7.50,-6.50]），只剩 0.06m。
+#   T287（y=-16）y 须北移 4m 至 -12：y=-16 处西侧槽（内缘路缘石 -43.11 至看台
+#   东缘 -44.10）仅 0.99m 宽，树干直径 0.96m，只剩 0.03m；y=-12 已出看台 y 段
+#   [-37,-13]，西侧槽（内缘路缘石 -44.04 至球场东缘 -47.00）2.93m 宽。
+#   树干半径实测（GLB 回读，z<1m 顶点最大水平距）：0.42–0.49m；冠底 1.89–2.86m，
+#   高于看台顶 1.2m，冠层悬挑不碰件。见 BLENDER_MODELS.md §44。
 # ov-trees v4 (R2-T32, 2026-11-25): v3 + 密植带 3 对拉开至 2.60m（只动 3 棵旧树位置，
 #   数量/模型/高度一字不改）；西沿线 3 棵经实测已在现行跑道缓冲外，不动（见下）。
 # ov-trees v3 (R2-T15, 2026-11-24): 树木（总览件）— 网上现成 CC0 模型换模重建
@@ -220,10 +236,25 @@ def plant(idx, x, y, target_h, pool_kind):
 with open(LAYOUT_PATH, encoding="utf-8") as f:
     layout = json.load(f)
 
+# R2-T43：R-N2-T 西列 5 棵移出跑道环面（键为 green_layout.json 原坐标，值为新位；
+#   只改位置，模型/高度档/随机数消费顺序一字不改）：
+#   (-38,-40)->(-45.80,-40) 西：内缘路缘石 -44.65，树干边净空 0.73m；球场东线 -46.92，净空 0.70m
+#   (-38,-32)->(-43.44,-32) 西：内缘路缘石 -42.79 / 看台 step_3 东缘 -44.10，净空各约 0.16m（紧，实测无接触）
+#   (-38,-16)->(-45.50,-12) 西 + y 北移 4m：y=-16 西槽仅 0.99m（见文件头），y=-12 槽 2.93m，净空各约 1.02m
+#   (-38,-8)->(-46.16,-8) 西：内缘路缘石 -45.38，净空 0.34m；球场东线 -46.92 / Shrub_00，净空 0.32m/0.39m
+#   (-38,0)->(-36.00,0) 东：外缘路缘石 -39.81，净空 3.34m；R-N2 西路缘 -34.65，净空 0.88m；亦出 +3m 缓冲
+R43_RELOC = {(-38, -40): (-45.80, -40.0), (-38, -32): (-43.44, -32.0),
+             (-38, -16): (-45.50, -12.0), (-38, -8): (-46.16, -8.0),
+             (-38, 0): (-36.00, 0.0)}
+R43_TAG = {(-38, -40): "R2-T43-west-off-ring", (-38, -32): "R2-T43-west-off-ring",
+           (-38, -16): "R2-T43-west-off-ring-y-shift", (-38, -8): "R2-T43-west-off-ring",
+           (-38, 0): "R2-T43-east-off-buffer"}
+
 planted = []       # (obj, zone_id, model, target_h, actual_h)
 spot_checks = []   # 每区首棵 + 抽查
 idx = 0
 zone_counts = {}
+n_r43 = 0
 for zone in layout["trees"]["zones"]:
     zid = zone["id"]
     kind = zone["kind"]
@@ -231,6 +262,11 @@ for zone in layout["trees"]["zones"]:
     assert len(positions) == zone["count"], f"{zid} count mismatch"
     zone_counts[zid] = {"n": len(positions), "models": {}}
     for j, (x, y, h) in enumerate(positions):
+        if (x, y) in R43_RELOC:
+            nx, ny = R43_RELOC[(x, y)]
+            print(f"  RELOC {x},{y} -> {nx},{ny} ({R43_TAG[(x, y)]})")
+            x, y = nx, ny
+            n_r43 += 1
         obj, model, actual = plant(idx, x, y, h, kind)
         zone_counts[zid]["models"][model] = zone_counts[zid]["models"].get(model, 0) + 1
         planted.append((obj, zid, model, h, actual))
@@ -238,6 +274,8 @@ for zone in layout["trees"]["zones"]:
             spot_checks.append((zid, model, h, actual))
         idx += 1
 print(f"NEW TREES: {idx} (zones {len(layout['trees']['zones'])})")
+print(f"R2-T43 RELOCATED: {n_r43} (expected 5)")
+assert n_r43 == 5, f"R2-T43 reloc count {n_r43} != 5"
 for zid, c in zone_counts.items():
     print(f"ZONE {zid}: n={c['n']} models={c['models']}")
 
@@ -423,4 +461,4 @@ blend1 = BLEND_PATH + "1"
 if os.path.exists(blend1):
     os.remove(blend1)
 
-print("DONE ov-trees v4")
+print("DONE ov-trees v5")
