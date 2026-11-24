@@ -181,10 +181,11 @@ func update_frame(hour: float, delta: float) -> void:
 	# 地平线混白 0.35 -> 0.22（Round 2：总览偏淡，天空下半再压一点）；
 	# 雾色混白 0.15 -> 0.08，雾本身也随之少泛白。
 	sky_mat.sky_horizon_color = sky_col.lerp(Color.WHITE, 0.22)
-	# F4 返工（2026-11-24）：天光 0.28+0.45*daylight（晴天 0.73）→
-	# 0.12+0.16*daylight（晴天 0.28）。晴天总览地面偏淡的主因之一是
-	# 天光过强且偏蓝（程序化天空的环境光），与太阳 1.38→0.83 配合，
-	# 把晴天总光照从约 2.3× 压回约 1.1×（见上面太阳处的标定注释）。
+	# F4 后续（2026-11-24，探针证实）：天光能量这档对 SKY 天光源不起作用
+	# （ambient_light_energy 在 GL Compatibility 下 0↔2 渲染分毫不差；
+	# 真正的天光强度由 ProceduralSkyMaterial 的 sky/ground energy 控制），
+	# 此处数值保留只为不扰动其他天气档。地面偏淡的残留根因是太阳阴影
+	# （见 scenes/main.tscn：Sun shadow_enabled=false），不在此改。
 	env.environment.ambient_light_energy = 0.12 + 0.16 * daylight
 	env.environment.fog_light_color = sky_col.lerp(Color.WHITE, 0.08)
 	# 云漂移 + 云影（减弱动效时冻结，P3-4）

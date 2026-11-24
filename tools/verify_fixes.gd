@@ -882,6 +882,13 @@ func _process(_delta: float) -> bool:
 	var wsys2 = _main.get_node("Weather")
 	# F4（2026-11-24）：雾 0.0005→0.0002——晴天总览地面偏淡，雾色偏蓝是其中一份。
 	_chk("fog density 0.0002 (F4: less blue haze)", absf(wsys2.env.environment.fog_density - 0.0002) < 0.00001, str(wsys2.env.environment.fog_density))
+	var sun2 = _main.get_node("Sun") as DirectionalLight3D
+	# F4 根因（2026-11-24，探针证实）：太阳开阴影时地面被洗白。最小对照
+	# （平色地面 #4F9D43、同一环境/太阳/机位）：阴影关 (75,156,87) 近反照率，
+	# 阴影开 (99,226,121)，G 直顶 226；草地 #69B45D：阴影关 (95,177,111) 近
+	# SPEC #69B45E，阴影开 (128,255,156)。bias/ortho/maxdist/blur 全测过均
+	# 无变化，shadow_normal_bias=0 也只到 (78,191,105)。阴影必须保持关闭。
+	_chk("sun shadows off (F4: shadow path washes ground)", sun2 != null and not sun2.shadow_enabled, "shadow=" + str(sun2.shadow_enabled if sun2 != null else "no-sun"))
 	# ---- ABC 表格保供列 ----
 	var ui = _main.get_node("UI")
 	var grid = _main.get_node("UI/ABCPanel/VBox/ABCGrid") as GridContainer

@@ -65,7 +65,7 @@ environment = SubResource("Environment_main")
 [node name="Sun" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 80, 0)
 light_energy = 1.2
-shadow_enabled = true
+shadow_enabled = false
 directional_shadow_max_distance = 420.0
 
 [node name="CameraRig" type="Camera3D" parent="."]
