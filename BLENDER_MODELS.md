@@ -457,6 +457,26 @@
 - **通过但有弱项备注**：`ov-lawn`（绿篱远景呈虚线状、草叶单体不可辨、主体偏小）、`ov-road-walk`（步道细长、留白大）、`ov-trees`（全景尺度下单棵仅为小点）；`ov-windows-roofs` 中、右两栋窗带间可透视见对侧，是单件渲染隐藏墙体件 ov-bldA/B/C 所致（与 cl-windows 悬空窗同理），非本件缺失；`st-fence` 右侧一根孤立立柱疑似门柱待核对。faces 表 hx/hy 对调遗留（§9 遗留①）本图无法核验长短，不计入本次不通过。
 - **只复核、不建模**：未改任何模型/Godot 文件。
 
+## §12b R2-T13：修 R2-T5 复核出的 3 张不通过单件渲染图（2026-11-24 22:46–2026-11-25 00:40 CST）
+
+- **根因（已核对脚本与建模脚本确认，非推测）**：
+  1. `di-signs` / `pv-inverter` 重图：不是映射表写重，而是 `tools/render_max.py` 稀疏分簇分支的 bug——簇分图渲完后，主图相机被设成最大簇的相机，随后 `-f 1` 主渲染用的就是该相机，所以主图与最大簇分图逐像素相同（run #83：`di-signs == di-signs-Warn`、`pv-inverter == pv-inverter-LAB`，maxdiff=0）。模型本身没错：`di-signs` 是北墙 Warn + 东墙 NoClose + 6 块 Num 牌（`di-signs.py`），`pv-inverter` 是 A1/A2/LAB 3 台逆变器（`pv-inverter.py`）。
+  2. `pv-mount` 截断 + 低对比：两点。① 细节取景只框最大一组（LAB 屋顶阵列），其余两组仍在场景里渲染，B 组阵列闯入取景框左下角、只露一角（run #83 目视 + 几何核对：相机在 LAB 东南上方约 69m，B 组在其视锥内）；② 对比：`_DETAIL_BRIGHT_BG` 曾把 pv-mount 的世界背景提亮成天空浅蓝，但支架主材是浅银（#B9BEC2），浅轨配浅背景根本看不清（run #72 的“暗主体需提亮”假设对这件是反的；同组 `pv-panels`/`pv-roof` 用深灰背景则清晰）。
+- **改动（只改 `tools/render_max.py`，不改任何 .blend/.glb 模型、不碰 Godot 文件；`py_compile` 通过）**：
+  1. 稀疏分支主图改用整件相机（whole-piece view），不再用最大簇相机；另优先用件自带的内置相机（当它能框住全部主体对象时）：`di-signs` 自带 22mm 南侧广角相机正是为“一次看清 8 块牌”设计的，从南侧看东墙牌牌面可见，而自动 3/4 整件视角（东南上方）只能看到东墙牌的红色背面、无字；无内置相机的件（`pv-inverter`）仍用整件相机。
+  2. `pv-mount` 细节取景时隐藏其余两组（`hide_render`，仅渲染会话内有效，.blend 不保存、不改模型）；只对 pv-mount 生效，其余细节件（cl-ac、ov-flag-lamp、ch-piles）的相邻同组单元仍保留在画面内。
+  3. `pv-mount` 移出 `_DETAIL_BRIGHT_BG`，恢复深灰世界背景（与 pv-panels/pv-roof 一致）；该集合现为空，机制保留。
+- **推仓**：commit `fa406e99`（第 1 批改动）→ run #85；commit `1c39c0dd`（内置相机优先）→ run #89。两 commit 均经 API 核对真实存在，单文件 `tools/render_max.py`。
+- **验证 run #85（id 45418605110，HEAD `fa406e99`，2026-11-24T14:50:34Z–16:04:18Z，success）**：pv/dist 两组已验，overview 未等完（run #89 全量重验）。
+  - `pv/pv-inverter.png`：不再重图（vs LAB maxdiff=157、meandiff=3.845；vs A1/A2 亦不同），目视：整件视角下 3 台逆变器箱（A1 左、LAB 中下、A2 右）各带线槽入画，放大裁切核对 3 台均为带散热格栅/显示屏/线槽的真逆变器；弱项：3 台在整幅 1280×720 里都很小（约 25px/台，整件跨度约 50m、单台仅 1m，单帧无法同时放大），细节仍由 A1/A2/LAB 分图承载。
+  - `pv/pv-mount.png`：单组 LAB 阵列完整入画，左下角无第二组闯入；背景已是深灰（四角均值 RGB≈59，与 pv-panels 一致），银灰支架横梁/斜撑支腿/压块清晰可辨。✅ 通过。
+  - `dist/di-signs.png`（run #85 版，整件 3/4 视角）：不再重图（vs Warn maxdiff=152、meandiff=58.3），8 块牌全入画（Warn 红牌字迹可读、6 块蓝牌成排、东墙牌在右下角）；弱项：东墙“禁止合闸”牌只能看到红色背面、无字——这正是 commit `1c39c0dd` 要修的，见 run #89。
+- **验证 run #89（id 45426806918，HEAD `1c39c0dd`，2026-11-24T15:33:04Z–16:33:46Z，success；6 组全 success）**：
+  - `dist/di-signs.png`：✅ 通过。dist job 日志实录 `main view = built-in camera Camera`；目视：内置 22mm 南侧视角下 8 块牌全部正面入画——Warn 红牌“高压危险”黄边白字、6 块蓝牌一字排开（数字可辨）、东墙白牌“禁止合闸 / 有人工作”红字红边（放大裁切核对两行字均清晰）；vs Warn/E/Num1 均不再重图（maxdiff 153/153/155）。55 张图本地留 `~/workspace/review-rework-r2/blender-89/`（不推仓）。
+  - `pv/pv-inverter.png`、`pv/pv-mount.png`：与 run #85 逐像素相同（maxdiff≤1），两项修复在 #89 里保持不变。✅ 通过。
+  - **全量回归（#89 55 张 vs #83 55 张逐像素比对 + 品红/黑/白筛查 + 全量重图对筛）**：55 张齐（overview 20、dist 13、classroom 6、charge 4、pv 7、storage 5）；变化仅 5 张——本任务 3 张 + `st-fence`（并行任务 R2-T20 模型修复 commit `587007d9`：立柱越界 17 根→13 根、4 根 stray 全清，#89 图上孤立立柱已消失、围栏+4 柜完整，非本任务改动、无回归）+ `ov-windows-roofs`（maxdiff=2、meandiff=0.003，纯渲染噪点）；其余 50 张逐像素相同；#89 内无逐像素重图对（NONE）；品红 0.00%、纯黑最高 0.11%（cl-floor-walls）、纯白最高 0.17%（ov-parking），与 #83 筛查口径一致。
+- **还剩什么**：① `pv-inverter` 主图 3 台偏小（见上，结构性限制，单帧无法同时放大；如需大图看 A1/A2/LAB 分图）；② R2-T5 弱项备注（ov-lawn、ov-road-walk、ov-trees 拉近镜头；st-fence 门柱核对已由 R2-T20 的清 stray 解决）不在本任务范围内，未动。
+
 ## §13 R2-T6 总览标签微叠 + 配电房黄雾（Godot 侧，2026-11-24）
 
 - **标签**：删 pin 机制（`scripts/labels.gd` + `scripts/main.gd`），GLB/回退总览同走正常去重叠；变压器 +44 档（868.9,435.1），与 SOC 盒底净空 26.8px，宿舍楼 A/B +66，18 条全可见、0 重叠。详见 PROGRESS.md 同名一节。
