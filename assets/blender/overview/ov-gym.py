@@ -442,6 +442,34 @@ _gym_canopy = _STEAL["import_crop"](
 _STEAL["place"](_gym_canopy, (-75.25, 47.4, 0.02), (-64.75, 51.9, 3.80),
                 "ov-gym_canopy_stolen")
 objs.append(_gym_canopy)
+# R2-T35 (2026-11-25): 删 tevy 雨棚自带的地面黄漆线。实测 (GLB/.blend 双回读):
+# canopy 的 yellow_paint 槽共 44 面, 全贴地 z=0.056, 7 个连通块拼成 3 个
+# 停车位标线 (4 条纵线 x -74.88..-65.78 各 0.09x3.02m + 3 条横线 y~50.64
+# 各 3.07x0.06m); 黄色来自材质 Mix(MULTIPLY) 的 B 常量 (0.75,0.55,0.04),
+# 与雨棚结构无关, 地面 ov-gym_ground 在下完整, 删面不留洞。只删这 44 面 +
+# 去空材质槽, 不改雨棚几何/量体/其余材质。
+import bmesh as _bmesh
+_bm = _bmesh.new()
+_bm.from_mesh(_gym_canopy.data)
+_bm.faces.ensure_lookup_table()
+_kill = [f for f in _bm.faces
+         if _gym_canopy.data.materials[f.material_index].name == "yellow_paint"]
+print("R2-T35: yellow_paint faces to delete:", len(_kill))
+assert len(_kill) == 44, "yellow_paint face count changed: %d" % len(_kill)
+_bmesh.ops.delete(_bm, geom=_kill, context='FACES')
+_orph = [v for v in _bm.verts if not v.link_faces]
+if _orph:
+    _bmesh.ops.delete(_bm, geom=_orph, context='VERTS')
+_bm.to_mesh(_gym_canopy.data)
+_bm.free()
+for _i, _s in enumerate(list(_gym_canopy.data.materials)):
+    if _s is not None and _s.name == "yellow_paint":
+        _gym_canopy.data.materials.pop(index=_i)
+        print("R2-T35: removed empty yellow_paint slot", _i)
+        break
+_gym_canopy.data.update()
+print("R2-T35: canopy now %d polys / %d verts" % (
+    len(_gym_canopy.data.polygons), len(_gym_canopy.data.vertices)))
 # 台阶两级
 box("ov-gym_step1", CX, CY - 8.0 - 0.55, 0.25, 0.5, 7.0, 1.1, MAT_CONC_TEX, bevel=0.03)
 box("ov-gym_step2", CX, CY - 8.0 - 1.45, 0.0, 0.25, 7.6, 0.9, MAT_CONC_TEX, bevel=0.03)
