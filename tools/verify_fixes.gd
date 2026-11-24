@@ -1412,23 +1412,41 @@ func _process(_delta: float) -> bool:
 				break
 	# S4 车顶 SOC 条贴车舱顶（分支感知；run 45297927902 回归：旧检查只量位置不量
 	# 可见，GLB 分支整组隐藏时也全过）：回退条中心 y=1.84、条底 1.75 = 程序化车舱顶；
-	# GLB 条中心 y=1.465、条底 1.375 = GLB 车顶（车顶节点 y 1.125 + 网格半高 0.25）。
+	# GLB 分支条底 = 各车实际 GLB 车顶（车顶节点 y + 网格半高，运行时由 mesh AABB 算，
+	# 与 campus_builder._build_charge_glb_soc_bars 同口径，不写死——R2-T19 换装后
+	# 三辆 Quaternius 真车车顶高不同：蓝 1.23 / 红 1.28 / 白 1.60，旧 1.375 只对
+	# 齐手捏小车（车顶节点 y 1.125 + 网格半高 0.25），写死它三车全错，run #112–#116
+	# 均以此 FAIL 2 项（PASS=261 FAIL=2）阻塞全线 Export/截图。
 	var exp_fill_y := 1.84
 	var exp_top_y := cabin_top_y
-	if cb.charge_glb_active:
-		exp_fill_y = 1.465
-		exp_top_y = 1.375
 	var fills_ok: bool = cb.car_fills.size() == 3
 	var fills_y_ok := true
 	var fills_vis := true
+	var fills_top_info := ""
 	for c in cb.car_fills:
 		var fl := c["fill"] as MeshInstance3D
-		if absf(fl.position.y - exp_fill_y) >= 0.001 or absf((fl.position.y - 0.09) - exp_top_y) >= 0.001:
-			fills_y_ok = false
+		if cb.charge_glb_active:
+			var grp := fl.get_parent() as Node3D
+			var roof: MeshInstance3D = null
+			if grp != null:
+				for ch in grp.get_children():
+					if ch is MeshInstance3D and String(ch.name).ends_with("_roof"):
+						roof = ch as MeshInstance3D
+						break
+			if roof == null or roof.mesh == null:
+				fills_y_ok = false
+			else:
+				var rt: float = roof.position.y + roof.mesh.get_aabb().size.y / 2.0
+				fills_top_info += String(grp.name) + "=" + str(snappedf(rt, 0.001)) + " "
+				if absf(fl.position.y - (rt + 0.09)) >= 0.001 or absf((fl.position.y - 0.09) - rt) >= 0.001:
+					fills_y_ok = false
+		else:
+			if absf(fl.position.y - exp_fill_y) >= 0.001 or absf((fl.position.y - 0.09) - exp_top_y) >= 0.001:
+				fills_y_ok = false
 		if not fl.is_visible_in_tree():
 			fills_vis = false
-	_chk("S4 车顶 SOC 条中心 y（回退 1.84 / GLB 1.465，3 辆）", fills_ok and fills_y_ok, str(cb.car_fills.size()))
-	_chk("S4 车顶 SOC 条底贴合车舱顶/GLB 车顶（不悬空）", fills_ok and fills_y_ok, "top=" + str(exp_top_y))
+	_chk("S4 车顶 SOC 条中心 y（回退 1.84 / GLB 各车顶+0.09，3 辆）", fills_ok and fills_y_ok, str(cb.car_fills.size()))
+	_chk("S4 车顶 SOC 条底贴合车舱顶/GLB 车顶（不悬空）", fills_ok and fills_y_ok, fills_top_info if cb.charge_glb_active else "top=" + str(exp_top_y))
 	_chk("S4 车顶 SOC 条 3 条在树中可见（GLB 分支整组隐藏即 FAIL）", fills_ok and fills_vis, str(cb.car_fills.size()))
 	_chk("充电区程序化组可见性与分支一致（GLB 藏 / 回退留）", cb.charge_glb_active == (not cb.charge_group.visible), str(cb.charge_group.visible))
 	# ---- 充电区标准机位下车顶 SOC 条可见长度（2026-11-24 修补，run #95 遗留）----
