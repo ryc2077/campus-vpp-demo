@@ -1,8 +1,16 @@
-# ov-track v2: 操场跑道返工 (overview piece)
-# 椭圆跑道环, Blender 中心 (-80, -25, 0):
-#   外椭圆 rx=40, ry=28; 内椭圆 rx=32, ry=20; 环宽 8 m; 跑道红 #B8543F; 厚 0.1 m
-# v1 几何保持不变 (精确椭圆环网格, 不用缩放圆环做法).
-# v2 新增:
+# ov-track v3: 操场跑道返工 R2-T1 收界 (overview piece)
+# 椭圆跑道环, Blender 中心 (-62, -25, 0):
+#   外椭圆 rx=28, ry=40; 内椭圆 rx=20, ry=32; 环宽 8 m; 跑道红 #B8543F; 厚 0.1 m
+# v2 -> v3 改动 (只改位置/尺寸, 不改配色/纹理/做法):
+#   根因: v1/v2 按 SPEC §4 / campus.json playground (rx40 rz28) 建成长轴
+#   东西向, 但鸟瞰图第一依据是长轴大致南北向; 且中心 x=-80 时西缘 -120.3,
+#   超出环校路西段内缘路缘石 (-90.85) 达 29.45 m, 建到校园外面去了。
+#   修正: 长短轴对调 (rx28/ry40, 长轴南北向, 与鸟瞰图一致); 中心东移
+#   18 m 至 x=-62, 西缘 (含路缘) -90.3, 距环校路西段内缘路缘石 -90.85
+#   净空 0.55 m; 东缘 -33.7, 北端 y=15、南端 y=-65, 不压教学楼 (bldA
+#   y>=22.5、gym y>=52) 与环校路 (北 y<=76、南 y>=-76)。起跑线改到东直道,
+#   弯道标记改到南北两端弯道中点, 磨损弯道判据由 |cos a| 改为 |sin a|。
+# v2 新增 (保留):
 #   (1) 跑道面塑胶颗粒纹理: Noise 细颗粒 -> Bump;
 #       磨损深浅: 顶点色属性 "wear" (0.76..1.0 乘子), 弯道 (东西两端)
 #       磨损重、直道 (南北两边) 磨损轻; glTF 会把 COLOR_0 乘进基础红,
@@ -25,9 +33,9 @@ PY_DIR = os.path.join(BASE, "assets/blender/overview")
 BLEND_PATH = os.path.join(PY_DIR, "ov-track.blend")
 GLB_PATH = os.path.join(BASE, "assets/models/ov-track.glb")
 
-CX, CY = -80.0, -25.0   # track centre (Blender x, y)
-RX_OUT, RY_OUT = 40.0, 28.0
-RX_IN, RY_IN = 32.0, 20.0
+CX, CY = -62.0, -25.0   # track centre (Blender x, y) — v3: east 18 m, long axis N-S
+RX_OUT, RY_OUT = 28.0, 40.0
+RX_IN, RY_IN = 20.0, 32.0
 TRACK_Z0, TRACK_Z1 = 0.0, 0.1
 LINE_W = 0.15           # lane-line width
 LINE_H = 0.02           # lane lines sit 0.02 m above the track surface
@@ -141,8 +149,8 @@ def ellipse_ring(name, rx_out, ry_out, rx_in, ry_in, z0, z1, mat):
 
 
 def add_wear(obj):
-    """Per-vertex wear multiplier 0.76..1.0: bends (E/W ends, |cos a|~1) wear
-    heavy (darker, ~0.76), straights (N/S, |cos a|~0) stay ~1.0, plus small
+    """Per-vertex wear multiplier 0.76..1.0: bends (N/S ends, |sin a|~1) wear
+    heavy (darker, ~0.76), straights (E/W, |sin a|~0) stay ~1.0, plus small
     deterministic jitter. glTF multiplies COLOR_0 into the red base colour."""
     mesh = obj.data
     col = mesh.color_attributes.new(name="wear", type="FLOAT_COLOR",
@@ -156,7 +164,7 @@ def add_wear(obj):
     for i, v in enumerate(mesh.vertices):
         seg = i // 4
         a = 2.0 * math.pi * seg / NSEG
-        bend = abs(math.cos(a)) ** 1.5
+        bend = abs(math.sin(a)) ** 1.5
         jitter = ((math.sin(seg * 12.9898) * 43758.5453) % 1.0 - 0.5) * 0.04
         w = max(0.76, min(1.0, 1.0 - 0.22 * bend + jitter))
         col.data[i].color = (w, w, w, 1.0)
@@ -200,18 +208,18 @@ ellipse_ring("track_edge_line_inner",
              RX_IN - LINE_W / 2, RY_IN - LINE_W / 2,
              TRACK_Z1, TRACK_Z1 + LINE_H, MAT_LINE)
 
-# ---- start line: south straight, across all 4 lanes ----
-# south straight spans y = CY-28 .. CY-20 (centre -49); bar 0.15 m wide in x.
-add_box("track_start_line", (0.15, RX_OUT - RX_IN, LINE_H),
-        (CX, CY - (RY_OUT + RY_IN) / 2.0, TRACK_Z1 + LINE_H / 2.0), MAT_LINE)
+# ---- start line: east straight, across all 4 lanes ----
+# east straight spans x = CX+20 .. CX+28 (centre -38); bar 0.15 m wide in y.
+add_box("track_start_line", (RX_OUT - RX_IN, 0.15, LINE_H),
+        (CX + (RX_OUT + RX_IN) / 2.0, CY, TRACK_Z1 + LINE_H / 2.0), MAT_LINE)
 
-# ---- bend lane marks: radial ticks at E and W bend midpoints, one per lane ----
-# lane centres (rx): 33, 35, 37, 39; tick 1.0 m radial x 0.12 m tangential.
-for side, sx in (("E", 1), ("W", -1)):
+# ---- bend lane marks: radial ticks at N and S bend midpoints, one per lane ----
+# lane centres (ry): 33, 35, 37, 39; tick 1.0 m radial y 0.12 m tangential.
+for side, sy in (("N", 1), ("S", -1)):
     for li, rc in enumerate((33.0, 35.0, 37.0, 39.0), start=1):
         add_box("track_bend_mark_%s%d" % (side, li),
-                (1.0, 0.12, LINE_H),
-                (CX + sx * rc, CY, TRACK_Z1 + LINE_H / 2.0), MAT_LINE)
+                (0.12, 1.0, LINE_H),
+                (CX, CY + sy * rc, TRACK_Z1 + LINE_H / 2.0), MAT_LINE)
 
 # ---- concrete curbs 0.3 m wide, inner + outer, with small bevel ----
 curb_out = ellipse_ring("track_curb_outer",

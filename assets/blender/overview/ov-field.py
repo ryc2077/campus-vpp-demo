@@ -1,9 +1,15 @@
 # ov-field: 球场与看台 (overview piece)
-# 足球场, Blender 中心 (-80, -25, 0), 56 (x) x 30 (y) m:
-#   8 条相间条带沿 x 方向, 每条 7 m 宽, 深绿 #46A04E / 浅绿 #57B25E 交替, 厚 0.08 m
+# 足球场, Blender 中心 (-62, -25, 0), 30 (x) x 56 (y) m:
+#   8 条相间条带沿 y 方向, 每条 7 m 宽, 深绿 #46A04E / 浅绿 #57B25E 交替, 厚 0.08 m
 #   白色边线 0.15 m 宽围一圈 + 中线 1 条 (贴草皮面, 高 0.02 m)
-# 球门: 东西两端各 1 个, 7.32 m 宽, 2.44 m 高, 白色圆管门框 + 浅灰半透明网面
-# 看台: 场南侧 (y=-45 附近), 长 30 m, 3 级台阶 (每级 0.4 m 高, 0.8 m 深), 混凝土 #B9B3A8
+# 球门: 南北两端各 1 个, 7.32 m 宽, 2.44 m 高, 白色圆管门框 + 浅灰半透明网面
+# 看台: 场东侧 (x=-46.5 前缘), 长 24 m, 3 级台阶 (每级 0.4 m 高, 0.8 m 深), 混凝土 #B9B3A8
+# v2 (R2-T1 收界, 只改位置/尺寸): 长轴随跑道转南北向 (原 56x30 东西向,
+#   与鸟瞰图不符且西缘 -109.5 超出环校路西段内缘 -90.85 达 18.65 m);
+#   中心随跑道东移至 (-62,-25), 场缘 x[-77,-47]、y[-53,3]; 球门改到南北两端,
+#   中线改沿 x 向; 看台由南侧改到东侧场内 (前缘距场东边线 0.5 m, 后缘
+#   -44.1, 距内椭圆东缘在看台两端仍净空 0.64 m), 长度 30 m -> 24 m
+#   (30 m 时两端后缘距内椭圆仅 0.26 m, 改短留足净空)。
 # 只做球场 + 球门 + 看台: 不做跑道环 (ov-track)、不做草坪花坛 (ov-lawn).
 # 材质: 程序化纹理 (Noise, 无贴图)——草皮条带/看台/地面各自分开的噪波:
 #   大尺度斑驳 (颜色深浅不均 + 粗糙度变化) + 细颗粒噪波 (Bump 凹凸);
@@ -21,8 +27,8 @@ BLEND_PATH = os.path.join(PY_DIR, "ov-field.blend")
 GLB_PATH = os.path.join(BASE, "assets/models/ov-field.glb")
 PNG_PATH = os.path.join(BASE, "screenshots/blender/ov-field.png")
 
-CX, CY = -80.0, -25.0   # field centre (Blender x, y)
-FIELD_LX, FIELD_LY = 56.0, 30.0
+CX, CY = -62.0, -25.0   # field centre (Blender x, y) — v2: east 18 m, long axis N-S
+FIELD_LX, FIELD_LY = 30.0, 56.0
 TURF_T = 0.08            # turf slab thickness
 N_STRIPES = 8
 LINE_W = 0.15            # white line width
@@ -30,8 +36,8 @@ LINE_H = 0.02            # white lines sit 0.02 m above the turf surface
 GOAL_W, GOAL_H = 7.32, 2.44
 GOAL_DEPTH = 1.5         # net depth behind the goal line
 POST_R = 0.06            # goal post tube radius
-STAND_LEN = 30.0
-STAND_CY = -45.0         # stand centre y (south of the field)
+STAND_LEN = 24.0
+STAND_FRONT_X = -46.5   # stand front (west) edge x, 0.5 m east of field east line
 STEP_H, STEP_D = 0.4, 0.8
 N_STEPS = 3
 
@@ -126,16 +132,16 @@ def add_procedural(mat, base_hex, dx, dy, blotch_m, grain_m,
 
 
 MAT_DARK = make_mat("Turf_Dark_46A04E", "#46A04E", 0.95)
-add_procedural(MAT_DARK, "#46A04E", 7.0, 30.0, blotch_m=1.5, grain_m=0.35,
+add_procedural(MAT_DARK, "#46A04E", 30.0, 7.0, blotch_m=1.5, grain_m=0.35,
                color_var=0.22, rough_lo=0.80, rough_hi=1.0, bump_strength=0.6)
 MAT_LIGHT = make_mat("Turf_Light_57B25E", "#57B25E", 0.95)
-add_procedural(MAT_LIGHT, "#57B25E", 7.0, 30.0, blotch_m=1.5, grain_m=0.35,
+add_procedural(MAT_LIGHT, "#57B25E", 30.0, 7.0, blotch_m=1.5, grain_m=0.35,
                color_var=0.22, rough_lo=0.80, rough_hi=1.0, bump_strength=0.6)
 MAT_LINE = make_mat("FieldLine_White_FFFFFF", "#FFFFFF", 0.8)
 MAT_GOAL = make_mat("GoalFrame_White_FFFFFF", "#FFFFFF", 0.4, metallic=0.1)
 MAT_NET = make_mat("GoalNet_Grey_D0D0D0", "#D0D0D0", 0.6, alpha=0.35)
 MAT_STAND = make_mat("Stand_Concrete_B9B3A8", "#B9B3A8", 0.95)
-add_procedural(MAT_STAND, "#B9B3A8", 30.0, 0.8, blotch_m=1.2, grain_m=0.4,
+add_procedural(MAT_STAND, "#B9B3A8", 0.8, 24.0, blotch_m=1.2, grain_m=0.4,
                color_var=0.20, rough_lo=0.85, rough_hi=1.0, bump_strength=0.5)
 MAT_GROUND = make_mat("Ground_Grass_69B45E", "#69B45E", 1.0)
 add_procedural(MAT_GROUND, "#69B45E", 170.0, 130.0, blotch_m=3.0, grain_m=0.8,
@@ -169,59 +175,57 @@ def add_cylinder(name, loc, radius, depth, rotation, mat):
     return obj
 
 
-# ---- turf: 8 stripes along x, each 7 m wide x 30 m, alternating dark/light ----
-stripe_w = FIELD_LX / N_STRIPES
+# ---- turf: 8 stripes along y, each 30 m long (x) x 7 m wide (y), alternating dark/light ----
+stripe_w = FIELD_LY / N_STRIPES
 for i in range(N_STRIPES):
-    x0 = CX - FIELD_LX / 2.0 + i * stripe_w
+    y0 = CY - FIELD_LY / 2.0 + i * stripe_w
     mat = MAT_DARK if i % 2 == 0 else MAT_LIGHT
-    add_box("field_stripe_%d" % (i + 1), x0 + stripe_w / 2.0, CY, 0.0,
-            stripe_w, FIELD_LY, TURF_T, mat)
+    add_box("field_stripe_%d" % (i + 1), CX, y0 + stripe_w / 2.0, 0.0,
+            FIELD_LX, stripe_w, TURF_T, mat)
 
 # ---- white lines: perimeter + centre line, on top of the turf ----
 x0, x1 = CX - FIELD_LX / 2.0, CX + FIELD_LX / 2.0
 y0, y1 = CY - FIELD_LY / 2.0, CY + FIELD_LY / 2.0
 lz = TURF_T
-# north / south touchlines (along x)
+# south / north goal lines (along x)
 add_box("field_line_south", CX, y0, lz, FIELD_LX, LINE_W, LINE_H, MAT_LINE)
 add_box("field_line_north", CX, y1, lz, FIELD_LX, LINE_W, LINE_H, MAT_LINE)
-# west / east goal lines (along y)
+# west / east touchlines (along y)
 add_box("field_line_west", x0, CY, lz, LINE_W, FIELD_LY, LINE_H, MAT_LINE)
 add_box("field_line_east", x1, CY, lz, LINE_W, FIELD_LY, LINE_H, MAT_LINE)
-# halfway line (along y, through the centre)
-add_box("field_line_centre", CX, CY, lz, LINE_W, FIELD_LY, LINE_H, MAT_LINE)
+# halfway line (along x, through the centre)
+add_box("field_line_centre", CX, CY, lz, FIELD_LX, LINE_W, LINE_H, MAT_LINE)
 
-# ---- goals: one at each end (west x0, east x1), mouth on the goal line ----
+# ---- goals: one at each end (south y0, north y1), mouth on the goal line ----
 # net extends outward (away from the field) by GOAL_DEPTH.
-for side, gx, outward in (("west", x0, -1.0), ("east", x1, +1.0)):
-    y_a, y_b = CY - GOAL_W / 2.0, CY + GOAL_W / 2.0
+for side, gy, outward in (("south", y0, -1.0), ("north", y1, +1.0)):
+    x_a, x_b = CX - GOAL_W / 2.0, CX + GOAL_W / 2.0
     # two upright posts (vertical tubes)
-    add_cylinder("goal_%s_post_a" % side, (gx, y_a, GOAL_H / 2.0),
+    add_cylinder("goal_%s_post_a" % side, (x_a, gy, GOAL_H / 2.0),
                  POST_R, GOAL_H, (0.0, 0.0, 0.0), MAT_GOAL)
-    add_cylinder("goal_%s_post_b" % side, (gx, y_b, GOAL_H / 2.0),
+    add_cylinder("goal_%s_post_b" % side, (x_b, gy, GOAL_H / 2.0),
                  POST_R, GOAL_H, (0.0, 0.0, 0.0), MAT_GOAL)
-    # crossbar (tube along y at the top)
-    add_cylinder("goal_%s_crossbar" % side, (gx, CY, GOAL_H),
-                 POST_R, GOAL_W + 2 * POST_R, (math.radians(90), 0.0, 0.0),
+    # crossbar (tube along x at the top)
+    add_cylinder("goal_%s_crossbar" % side, (CX, gy, GOAL_H),
+                 POST_R, GOAL_W + 2 * POST_R, (0.0, math.radians(90), 0.0),
                  MAT_GOAL)
     # net: back plane + top plane + two side planes (thin boxes, translucent)
-    back_x = gx + outward * GOAL_DEPTH
-    add_box("goal_%s_net_back" % side, back_x, CY, 0.0,
-            0.02, GOAL_W, GOAL_H, MAT_NET)
-    add_box("goal_%s_net_top" % side, gx + outward * GOAL_DEPTH / 2.0, CY,
-            GOAL_H - 0.01, GOAL_DEPTH, GOAL_W, 0.02, MAT_NET)
-    for sy in (y_a, y_b):
-        add_box("goal_%s_net_side_%s" % (side, "a" if sy == y_a else "b"),
-                gx + outward * GOAL_DEPTH / 2.0, sy, 0.0,
-                GOAL_DEPTH, 0.02, GOAL_H, MAT_NET)
+    back_y = gy + outward * GOAL_DEPTH
+    add_box("goal_%s_net_back" % side, CX, back_y, 0.0,
+            GOAL_W, 0.02, GOAL_H, MAT_NET)
+    add_box("goal_%s_net_top" % side, CX, gy + outward * GOAL_DEPTH / 2.0,
+            GOAL_H - 0.01, GOAL_W, GOAL_DEPTH, 0.02, MAT_NET)
+    for sx in (x_a, x_b):
+        add_box("goal_%s_net_side_%s" % (side, "a" if sx == x_a else "b"),
+                sx, gy + outward * GOAL_DEPTH / 2.0, 0.0,
+                0.02, GOAL_DEPTH, GOAL_H, MAT_NET)
 
-# ---- stand: south side, 30 m long, 3 steps rising away from the field ----
-# step 0 (front, nearest the field) is 0.4 m high; each step back adds 0.4 m.
-stand_x0 = CX - STAND_LEN / 2.0
-front_y = STAND_CY + N_STEPS * STEP_D / 2.0  # north edge of the stand
+# ---- stand: east side, 24 m long, 3 steps rising away from the field ----
+# step 0 (front, nearest the field) is 0.4 m high; each step east adds 0.4 m.
 for i in range(N_STEPS):
-    step_cy = front_y - STEP_D / 2.0 - i * STEP_D
-    add_box("stand_step_%d" % (i + 1), CX, step_cy, 0.0,
-            STAND_LEN, STEP_D, STEP_H * (i + 1), MAT_STAND)
+    step_cx = STAND_FRONT_X + STEP_D / 2.0 + i * STEP_D
+    add_box("stand_step_%d" % (i + 1), step_cx, CY, 0.0,
+            STEP_D, STAND_LEN, STEP_H * (i + 1), MAT_STAND)
 
 print("field objects:", len(field_objs),
       "stripes:", N_STRIPES, "goals: 2, stand steps:", N_STEPS)
