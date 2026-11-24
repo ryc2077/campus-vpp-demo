@@ -321,7 +321,7 @@ func update_frame(hour: float, delta: float) -> void:
 	var dusk_f: float = (1.0 - absf(sun_el - 0.16) / 0.24) if (sun_el > -0.05 and sun_el < 0.38) else 0.0
 	sky_col = sky_col.lerp(dusk, clampf(dusk_f, 0.0, 1.0) * 0.45)
 	if current_key != "sunny":
-		sky_col = sky_col.lerp(Color("#4d6072"), (1.0 - pvf) * 0.55)
+		sky_col = sky_col.lerp(Color("#525c66"), (1.0 - pvf) * 0.55)
 	var sky_mat: ProceduralSkyMaterial = _sky.sky_material
 	sky_mat.sky_top_color = sky_col
 	# 地平线混白 0.22 -> 0.16（R2-T7：天空下半仍偏淡、发白）。
@@ -343,8 +343,8 @@ func update_frame(hour: float, delta: float) -> void:
 			sky_e = 0.48
 			gnd_e = 0.35
 		"storm":
-			sky_e = 0.45
-			gnd_e = 0.32
+			sky_e = 0.50
+			gnd_e = 0.36
 	# 昼夜系数放缓（0.15+0.85*daylight 在暴雨清晨 daylight 0.58 时把天光
 	# 压到 0.24、草地 G 只剩 49，死黑；现 0.45+0.55*daylight，暴雨清晨约 0.77）。
 	var day_f: float = 0.45 + 0.55 * daylight
@@ -368,7 +368,7 @@ func update_frame(hour: float, delta: float) -> void:
 		"storm":
 			fog_d = 0.0011
 	env.environment.fog_density = fog_d
-	var fog_tint := Color.WHITE.lerp(Color("#9aa7b2"), (1.0 - pvf) * 0.7)
+	var fog_tint := Color.WHITE.lerp(Color("#9aa0a6"), (1.0 - pvf) * 0.7)
 	env.environment.fog_light_color = sky_col.lerp(fog_tint, 0.10)
 	# 云漂移 + 云影（减弱动效时冻结，P3-4）
 	if not reduced_motion:

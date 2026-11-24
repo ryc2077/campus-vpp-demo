@@ -990,6 +990,10 @@ func _process(_delta: float) -> bool:
 	var wsys2 = _main.get_node("Weather")
 	# F4（2026-11-24）：雾 0.0005→0.0002——晴天总览地面偏淡，雾色偏蓝是其中一份。
 	_chk("fog density 0.0002 (F4: less blue haze)", absf(wsys2.env.environment.fog_density - 0.0002) < 0.00001, str(wsys2.env.environment.fog_density))
+	# R2-T7：色调映射保持 LINEAR。ACES 已探针证伪：GL Compatibility 下 ACES
+	# 全帧提亮（天空 (112,176,186)→(164,217,223)、草地 G 176→225），冲破
+	# F4 的 SPEC 锚点。tonemap_mode 0 = LINEAR。
+	_chk("R2-T7：色调映射 LINEAR（ACES 探针证伪，全帧提亮破 SPEC）", wsys2.env.environment.tonemap_mode == Environment.TONE_MAPPER_LINEAR, str(wsys2.env.environment.tonemap_mode))
 	var sun2 = _main.get_node("Sun") as DirectionalLight3D
 	# F4 根因（2026-11-24，探针证实）：太阳开阴影时地面被洗白。最小对照
 	# （平色地面 #4F9D43、同一环境/太阳/机位）：阴影关 (75,156,87) 近反照率，
@@ -1278,8 +1282,9 @@ func _process(_delta: float) -> bool:
 	_chk("雨丝：五档数值未动（雨 pv 0.30 / 暴雨 0.15）", absf(float((_wx.presets["rain"] as Dictionary)["pv_factor"]) - 0.30) < 0.001 and absf(float((_wx.presets["storm"] as Dictionary)["pv_factor"]) - 0.15) < 0.001, "rain=" + str((_wx.presets["rain"] as Dictionary)["pv_factor"]) + " storm=" + str((_wx.presets["storm"] as Dictionary)["pv_factor"]))
 	# ---- 天气加载冒烟（run #97 回归：demo-godot 副本同名类冲突致导出包天气
 	# 系统根本没加载，全帧洗白，verify 235 全绿未拦住）----
-	# 太阳光能量是最强信号：09:00 晴天约 0.83，暴雨约 0.11（wx_dim×lf 双压暗）；
-	# 若天气系统未加载/未调光，两者会相等。晴天须亮（>0.5），暴雨须不到晴天一半。
+	# 太阳光能量是最强信号：09:00 晴天约 0.95（R2-T7：0.83→0.95，直射抬、
+	# 天光压），暴雨约 0.12（wx_dim×lf 双压暗）；若天气系统未加载/未调光，
+	# 两者会相等。晴天须亮（>0.5），暴雨须不到晴天一半。
 	_main.call("set_weather", "sunny")
 	_wx.update_frame(9.0, 0.016)
 	var _sun_e: float = _wx.sun.light_energy
@@ -1288,6 +1293,27 @@ func _process(_delta: float) -> bool:
 	var _sto_e: float = _wx.sun.light_energy
 	_chk("天气冒烟：晴天 09:00 太阳光 >0.5（调光在工作）", _sun_e > 0.5, str(_sun_e))
 	_chk("天气冒烟：暴雨 09:00 太阳光 < 晴天一半（天气压暗生效，非洗白）", _sto_e < _sun_e * 0.5, "storm=" + str(_sto_e) + " sunny=" + str(_sun_e))
+	# ---- R2-T7 灯光自然化（2026-11-24，用户：灯光太假）----
+	# 天光能量之前恒 1.0 全天气不变、雾恒 0.0002 恒蓝白，五档只剩太阳在变；
+	# 探针：阴天与雨天草地 G 同为 117。现 sky/ground energy 与雾密度/雾色
+	# 都随天气走（晴天正午地面总光照保持 F4 标定，草地 SPEC #69B45E 不动）。
+	# 口径与上面太阳光检查一致：set_weather 后立即 update_frame(9.0)。
+	var _sky_r2t7: ProceduralSkyMaterial = _main.env_node.environment.sky.sky_material
+	_main.call("set_weather", "sunny")
+	_wx.update_frame(9.0, 0.016)
+	_chk("R2-T7：晴天 09:00 太阳光 ≈0.95（修前 0.83）", absf(_sun_e - 0.95) < 0.03, str(_sun_e))
+	_chk("R2-T7：晴天 09:00 天光 sky 能量 ≈0.85（修前恒 1.0，漫射淹没直射）", absf(_sky_r2t7.sky_energy_multiplier - 0.85) < 0.03, str(_sky_r2t7.sky_energy_multiplier))
+	_chk("R2-T7：晴天 09:00 地面反弹 ground 能量 ≈0.65（修前恒 1.0）", absf(_sky_r2t7.ground_energy_multiplier - 0.65) < 0.03, str(_sky_r2t7.ground_energy_multiplier))
+	_main.call("set_weather", "storm")
+	_wx.update_frame(9.0, 0.016)
+	_chk("R2-T7：暴雨 09:00 天光 sky 能量 ≈0.39（0.50×昼夜 0.77，随天气压暗）", absf(_sky_r2t7.sky_energy_multiplier - 0.385) < 0.03, str(_sky_r2t7.sky_energy_multiplier))
+	_chk("R2-T7：暴雨 09:00 雾密度 0.0011（修前全天气 0.0002）", absf(_main.env_node.environment.fog_density - 0.0011) < 0.00005, str(_main.env_node.environment.fog_density))
+	_main.call("set_weather", "rain")
+	_wx.update_frame(9.0, 0.016)
+	_chk("R2-T7：雨天 09:00 雾密度 0.0008（五档雾厚递进）", absf(_main.env_node.environment.fog_density - 0.0008) < 0.00005, str(_main.env_node.environment.fog_density))
+	_chk("R2-T7：雨天 09:00 天光 < 晴天（档位拉开，修前恒 1.0）", _sky_r2t7.sky_energy_multiplier < 0.85, str(_sky_r2t7.sky_energy_multiplier))
+	_main.call("set_weather", "sunny")
+	_wx.update_frame(9.0, 0.016)
 	# ---- 天气冒烟补项（本轮新增，与上面两项太阳光检查互补）----
 	# A：节点/setup 断言——#97 里脚本加载失败时 setup() 不跑，main.tscn 的
 	# Environment_main 本就没有 sky（background_mode=1 纯色），sky 没挂即 setup 没跑。
