@@ -30,8 +30,12 @@ PIECES = [
 # Blender 4.2 glTF 导出器硬 clamp baseColorFactor 到 [0, 1]，西墙补偿
 # 因子 R=1.85 导不出；导出后直接改 GLB 的 JSON chunk 写回真实值。
 # .blend 里本就存 1.85，补丁后 .blend 与 .glb 一致；重跑本脚本会重打。
+# R2-T28：WhiteBoard 因子 (8.6, 3.5, 3.6) 同理，与 cl-board.py 同步。
 GLB_FACTOR_PATCH = {
     "cl-floor-walls_wall_back": [1.85, 0.62, 0.45, 1.0],
+    # R2-T28: 白板去绿提亮因子 (8.6, 3.5, 3.6)，与
+    # assets/blender/classroom/cl-board.py 里的同名补丁同步（两处须一致）。
+    "WhiteBoard": [8.6, 3.5, 3.6, 1.0],
 }
 
 

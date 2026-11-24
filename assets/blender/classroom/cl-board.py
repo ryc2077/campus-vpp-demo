@@ -98,6 +98,20 @@ MAT_FRAME = make_mat("FrameSilver", "#C0C5C9", roughness=0.35, metallic=0.6)
 add_noise_rough(MAT_FRAME, scale=30.0, r_min=0.30, r_max=0.45)
 MAT_WHITEBOARD = make_mat("WhiteBoard", "#DCDCDC", roughness=0.4)
 add_noise_rough(MAT_WHITEBOARD, scale=22.0, r_min=0.35, r_max=0.50)
+# R2-T28 (2026-11-25): 白板面在 Godot 03 图里呈暗灰绿 (62,86,81)，
+# 只调 WhiteBoard 材质，几何/墙/灯光一字不动。成因：白板贴图
+# Plaster001__DCDCDC.jpg 均值 (219,219,219)，线性反照率约 0.71；
+# 白板在西墙、面朝东，几乎只靠绿天光（ProceduralSkyMaterial
+# ground_bottom_color #4a6b38，AMBIENT_SOURCE_SKY），探针反推西墙面
+# 辐照度线性约 (0.10, 0.20, 0.19)（G/B 约为 R 的 2 倍）；出射线性
+# 约 (0.07, 0.14, 0.13) → sRGB (76,109,106)，与实测一致。
+# 修法：贴图后串 Mix MULTIPLY 常量（见 _apply_pbr_textures 的
+# BASE_COLOR_FACTOR 分支，复用 R2-T27 做法），因子 (8.6, 3.5, 3.6)：
+# R 抬最多以抵绿天光的 R 缺口，G/B 只补亮度。本地 Web 探针两轮实测：
+# 候选 A (6.8, 3.4, 3.5) → (154,168,167)/(159,166,163)，仍偏绿约 10；
+# 候选 B (8.6, 3.5, 3.6) → (166,170,169)/(171,168,165)，三通道差 ≤4，
+# 浅灰白、不偏绿；黑板 (22,36,30)、后墙 (94,86,68) 均未动。
+# 因子 >1，导出器 clamp（见下 GLB_FACTOR_PATCH），须打补丁写回。
 # 讲台台面: 程序化木纹 (Wave 条纹 + Noise 扰动), 不再是纯色
 MAT_WOOD = make_mat("DeskWood", "#8B5A2B", roughness=0.6)
 _nt = MAT_WOOD.node_tree.nodes
@@ -375,6 +389,63 @@ def _pbr_load_image(abs_path, colorspace):
     return img
 
 
+# ---- 白板 baseColorFactor >1 补丁 (R2-T28，复用 R2-T27 做法) ----
+# Blender 4.2 glTF 导出器在 __gather_base_color_factor() 里硬 clamp
+# （rgb = [max(min(c, 1.0), 0.0) ...]），>1 的补偿因子导不出，GLB 里会
+# 变成 1.0。白板要达到浅灰白必须 R=8.6（见 MAT_WHITEBOARD 上方说明），
+# 故导出后直接改 GLB 的 JSON chunk，把 WhiteBoard 的 baseColorFactor
+# 写回真实值。因子存在 .blend 的 Mix MULTIPLY 常量里（见
+# _apply_pbr_textures 的 BASE_COLOR_FACTOR 分支，Blender 自身渲染也用
+# 它），补丁后 .blend 与 .glb 一致；重跑本脚本会重新打补丁。只改 JSON
+# chunk，不动 BIN chunk。课堂场景拼装 classroom.py 里有同一份补丁
+# （它从 .blend 重导出，也会触发同一 clamp），两处须保持同步。
+BASE_COLOR_FACTOR = {
+    "WhiteBoard": (8.6, 3.5, 3.6),  # 线性值，白板去绿提亮（R2-T28 探针候选 B 实测）
+}
+
+GLB_FACTOR_PATCH = {
+    "WhiteBoard": [8.6, 3.5, 3.6, 1.0],
+}
+
+
+def _patch_glb_factors(glb_path):
+    import json as _json
+    import struct as _struct
+    with open(glb_path, "rb") as f:
+        data = bytearray(f.read())
+    assert data[:4] == b"glTF", "not a GLB file: %s" % glb_path
+    total_len = _struct.unpack_from("<I", data, 8)[0]
+    assert total_len == len(data), "GLB length mismatch: %s" % glb_path
+    json_len = _struct.unpack_from("<I", data, 12)[0]
+    json_start = 20
+    js = _json.loads(bytes(data[json_start:json_start + json_len]))
+    patched = []
+    for m in js.get("materials", []):
+        want = GLB_FACTOR_PATCH.get(m.get("name"))
+        if want is not None:
+            m.setdefault("pbrMetallicRoughness", {})["baseColorFactor"] = want
+            patched.append(m["name"])
+    if not patched:
+        print("GLB factor patch: no matching material in", glb_path)
+        return
+    new_json = _json.dumps(js, separators=(",", ":")).encode("utf-8")
+    pad = (-len(new_json)) % 4  # JSON chunk 须 4 字节对齐，空格补齐
+    new_json += b" " * pad
+    rest = bytes(data[json_start + json_len:])
+    new_total = 20 + len(new_json) + len(rest)
+    out = bytearray()
+    out += data[:8]  # magic + version
+    out += _struct.pack("<I", new_total)
+    out += _struct.pack("<I", len(new_json))
+    out += b"JSON"
+    out += new_json
+    out += rest
+    assert len(out) == new_total
+    with open(glb_path, "wb") as f:
+        f.write(out)
+    print("GLB factor patch: %s -> %s" % (patched, glb_path))
+
+
 def _apply_pbr_textures():
     for mat_name, (color_f, rough_f, normal_f, scale) in PBR_TEXTURES.items():
         mat = bpy.data.materials.get(mat_name)
@@ -396,7 +467,26 @@ def _apply_pbr_textures():
         tex_c = nt.nodes.new("ShaderNodeTexImage")
         tex_c.image = _pbr_load_image(os.path.join(TEX_DIR, color_f), "sRGB")
         nt.links.new(mapping.outputs["Vector"], tex_c.inputs["Vector"])
-        nt.links.new(tex_c.outputs["Color"], bsdf.inputs["Base Color"])
+        # 白板去绿提亮 (R2-T28，见 BASE_COLOR_FACTOR)：Base Color 已链接贴图
+        # 时导出器不读 socket 默认值，只认 Mix 节点 (type MIX，非旧 MixRGB)
+        # 的 MULTIPLY 常量 (detect_multiply_by_constant)，把它写成
+        # baseColorFactor 与贴图相乘；其余材质仍直连。注意：导出器会把 >1
+        # 的常量 clamp 到 1.0，导出后由文件末尾的 _patch_glb_factors() 写回。
+        # 注意：Mix 节点有 10 个输入槽，RGBA 的 A/B 是 inputs[6]/[7]
+        # (4 元)，输出 RGBA 是 outputs[2]；按名字取 "A" 会取到 VALUE 槽。
+        factor = BASE_COLOR_FACTOR.get(mat_name)
+        if factor is not None:
+            mix = nt.nodes.new("ShaderNodeMix")
+            mix.data_type = "RGBA"
+            mix.blend_type = "MULTIPLY"
+            mix.inputs[0].default_value = 1.0  # Fac 须为 1, 导出器才认
+            mix.inputs[6].default_value = (1.0, 1.0, 1.0, 1.0)
+            mix.inputs[7].default_value = (*factor, 1.0)
+            nt.links.new(tex_c.outputs["Color"], mix.inputs[6])
+            nt.links.new(mix.outputs[2], bsdf.inputs["Base Color"])
+            print("PBR color-factor:", mat_name, factor)
+        else:
+            nt.links.new(tex_c.outputs["Color"], bsdf.inputs["Base Color"])
         tex_r = nt.nodes.new("ShaderNodeTexImage")
         tex_r.image = _pbr_load_image(os.path.join(EXT_DIR, rough_f), "Non-Color")
         nt.links.new(mapping.outputs["Vector"], tex_r.inputs["Vector"])
@@ -450,6 +540,7 @@ for o in PARTS:
 bpy.context.view_layer.objects.active = PARTS[0]
 bpy.ops.export_scene.gltf(filepath=GLB_PATH, export_format="GLB",
                            use_selection=True, export_apply=True)
+_patch_glb_factors(GLB_PATH)
 print("EXPORTED", GLB_PATH, "objects:", len(PARTS))
 
 # ---------- 渲染预览 (本地默认跳过, 走 GitHub Actions; 置 CL_BOARD_RENDER=1 才渲染) ----------
