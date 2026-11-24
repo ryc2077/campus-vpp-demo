@@ -1075,7 +1075,7 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 ### 推仓
 
 - **ba5f08b2**（tower + dorm：6 文件，父 71952d0d）与 **b9748d4d**（lib + bldA + bldB：9 文件，父 ba5f08b2），均经 API 核对 commit 真建出、父链连续；远端 ov-lib.glb 大小 7,761,784 B 与本地一致。单 blob 均 <40MB（最大 11.3MB）。
-- 本记录 §23 随推（commit 待填）。
+- 本记录 §23 随推 bb61bd8e（首版；本行补填在后续 docs 提交）。
 
 ### 验证
 
