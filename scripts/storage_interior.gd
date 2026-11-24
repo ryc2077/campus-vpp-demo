@@ -61,9 +61,12 @@ func _build() -> void:
 	# 对齐 GLB（storage.glb 实测）：3 台电池柜局部中心 X −2.4/−0.8/0.8（柜体 X 依次
 	# −3.05–−1.75、−1.45–−0.15、0.15–1.45；GLB 只有 3 台电池柜，另 1 台是 PCS 柜，
 	# 中心 2.4，不放流光点），柜前脸局部 Z 0.5，柜顶 Y 2.55。
-	# 球 r0.14，z=0.64 时球后缘恰贴前脸 0.5（格栅条最凸 0.514，球面仅在 y 1.71–2.10
-	# 段与格栅平面相交 ≤0.014m，可忽略）；y 行程 0.3–2.5，球体基本贴在柜面高度内
-	#（下缘 0.16 略高于踢脚顶 0.15，上缘 2.64 仅在行程顶端越过柜顶 0.09m）。
+	# 球 r0.08，z=0.58 时球后缘恰贴前脸 0.5（格栅条最凸 0.514，球面仅在 y 1.71–2.10
+	# 段与格栅平面相交 ≤0.014m，可忽略，与 r0.14/z=0.64 旧口径同值）；球前缘只探出
+	# 柜面 0.16m（旧 0.28m）、近拍直径约 23px（旧约 40px），不再是浮空大圆点。
+	# y 行程 0.3–2.47：球顶缘 2.47+0.08=2.55 恰为柜顶，不再越过柜顶 0.09m 浮在
+	# 屋顶线上（run 45297927902 的 10 号特写右上点即此顶端越界）；下缘 0.22
+	# 仍高于踢脚顶 0.15。X 列/灯带/风扇一行未动。
 	var i := 0
 	while i < 9:
 		var m := StandardMaterial3D.new()
@@ -73,11 +76,11 @@ func _build() -> void:
 		m.emission_energy_multiplier = 1.4
 		var dot := MeshInstance3D.new()
 		var sm := SphereMesh.new()
-		sm.radius = 0.14
-		sm.height = 0.28
+		sm.radius = 0.08
+		sm.height = 0.16
 		dot.mesh = sm
 		dot.material_override = m
-		dot.position = Vector3(-2.4 + (i % 3) * 1.6, 0.3 + (i / 3) * 1.1, 0.64)
+		dot.position = Vector3(-2.4 + (i % 3) * 1.6, 0.3 + (i / 3) * 1.085, 0.58)
 		add_child(dot)
 		flow_dots.append(dot)
 		flow_mats.append(m)
@@ -108,4 +111,4 @@ func update_frame(batt_kw: float, t: float, delta: float) -> void:
 			var u := fmod(t * (0.12 + absf(batt_kw) / 300.0) + float(i) / 9.0, 1.0)
 			if batt_kw < -1.0:
 				u = 1.0 - u
-			d.position.y = 0.3 + u * 2.2
+			d.position.y = 0.3 + u * 2.17

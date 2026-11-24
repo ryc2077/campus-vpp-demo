@@ -602,6 +602,37 @@ func _process(_delta: float) -> bool:
 			_chk("04-charge ABC 打开：充电区 · V2G 仍屏内可见（在 ABC 外，未被误藏）", _label_onscreen_visible(_labels_ab, "充电区 · V2G"), "visible=" + str(_label_visible(_labels_ab, "充电区 · V2G")))
 			var _band_ab: Array = _labels_band_detail(_labels_ab)
 			_chk("04-charge ABC 打开：屏内标签渲染中心都不进顶栏/场景栏（90≤y≤642）", bool(_band_ab[0]), String(_band_ab[1]))
+			# ---- 16 双开溢出修补：场景面板内容包进 SPScroll（滚动方案）----
+			# 根因：双开时 layout_panels 只给场景面板 184px 锚高（顶 452、底 636），
+			# 但充电面板内容最小高约 500px；Control 的 rect 会被内容最小高撑大，
+			# 面板背景与行一直画到视口底边之外，「车辆 3」行被截、导航「配电房」
+			# 被半遮。修后面板 rect 就是 452–636，超出的内容在 SPScroll 里滚，
+			# 不再撑大面板；单开排版一行未动（内容未超高时不出现滚动条）。
+			var _sp7: Control = _main.get_node("UI/ScenePanel")
+			var _r7: Rect2 = _sp7.get_global_rect()
+			_chk("16 双开：场景面板 rect 顶 452 / 底 636（不被内容最小高撑大）", absf(_r7.position.y - 452.0) < 1.5 and absf(_r7.end.y - 636.0) < 1.5, str(_r7))
+			_chk("16 双开：场景面板底边在场景栏顶 652 之上（不盖底部导航）", _r7.end.y < 652.0, str(_r7))
+			var _sc7 = _sp7.get_node_or_null("SPScroll") as ScrollContainer
+			var _vb7 = _sp7.get_node_or_null("SPScroll/VBox") as VBoxContainer
+			var _vb7_min := _vb7.get_combined_minimum_size().y if _vb7 != null else -1.0
+			_chk("16 双开：SPScroll 在场且内容高于面板（可滚动）", _sc7 != null and _vb7 != null and _vb7_min > _r7.size.y, "vbox_min=" + str(_vb7_min) + " panel_h=" + str(_r7.size.y))
+			# 「车辆 3」行滚到底可见：滚到最大时该行底边仍在面板底边之上、顶边
+			# 在面板顶边之下（纯算术，不依赖下一帧排版：子节点随 scroll 上移恰好一个 scroll 值）。
+			var _row7: Control = null
+			for _ch7 in _main.panel.live_box.get_children():
+				if _ch7 is HBoxContainer and (_ch7 as HBoxContainer).get_child_count() > 0:
+					var _k7 := (_ch7 as HBoxContainer).get_child(0) as Label
+					if _k7 != null and String(_k7.text).begins_with("车辆 3"):
+						_row7 = _ch7 as Control
+			# 「车辆 3」行够得着：滚 need px 后其底边进面板底边、顶边仍在面板顶边
+			# 之下；need ≤ 最大可滚偏移即滚得到。注意滚动条 max_value 含 page，
+			# 最大可滚偏移 = max_value − page（不是 max_value 本身）；行在内容
+			# 中部（offset 约 200/534），滚到底反而会把它顶出面板上方，须按 need 算。
+			var _bar7 = _sc7.get_v_scroll_bar() if _sc7 != null else null
+			var _max7: float = (_bar7.max_value - _bar7.page) if _bar7 != null else -1.0
+			_chk("16 双开：内容可滚动（最大可滚偏移 >0）", _max7 > 0.0, "max_value=" + str(_bar7.max_value if _bar7 != null else -1.0) + " page=" + str(_bar7.page if _bar7 != null else -1.0) + " offset=" + str(_max7))
+			var _need7: float = (_row7.get_global_rect().end.y - _r7.end.y) if _row7 != null else -1.0
+			_chk("16 双开：「车辆 3」行滚 need px 后完整在面板内（不再被截）", _row7 != null and _need7 >= 0.0 and _need7 <= _max7 and _row7.get_global_rect().position.y - _need7 >= _r7.position.y - 1.0, "row=" + str(_row7.get_global_rect() if _row7 != null else Rect2()) + " need=" + str(_need7) + " max_off=" + str(_max7) + " panel=" + str(_r7))
 			# 总览 ABC 打开放到新 phase 再量：先关 ABC、回总览（_restore_scene_state
 			# 解除近拍 rig limits + 藏场景面板，见 phase 3 同款陷阱），切场景后等 4 帧。
 			(_main.get_node("UI/ABCPanel") as Control).visible = false
@@ -876,7 +907,7 @@ func _process(_delta: float) -> bool:
 	_chk("HintLabel 深色 #1e293b", _col(_label_color(hint)) == "#1e293b", _col(_label_color(hint)))
 	_chk("HintLabel 有白描边", hint.get_theme_color("font_outline_color").a > 0.5 and hint.get_theme_constant("outline_size") >= 4, "outline=" + str(hint.get_theme_constant("outline_size")))
 	# ---- 面板标题 ----
-	var sp_title := _main.get_node("UI/ScenePanel/VBox/SPTitleRow/SPTitle") as Label
+	var sp_title := _main.get_node("UI/ScenePanel/SPScroll/VBox/SPTitleRow/SPTitle") as Label
 	_chk("SPTitle 深色 #0f172a", _col(_label_color(sp_title)) == "#0f172a", _col(_label_color(sp_title)))
 	var abc_title := _main.get_node("UI/ABCPanel/VBox/ABCTitle") as Label
 	_chk("ABCTitle 深色 #0f172a", _col(_label_color(abc_title)) == "#0f172a", _col(_label_color(abc_title)))
@@ -886,7 +917,7 @@ func _process(_delta: float) -> bool:
 	# ---- 场景面板数值列（调 set_live 生成一行再查） ----
 	var panel = _main.get_node("UI/ScenePanel")
 	panel.call("set_live", [["储能 SOC", "56% · 215 kWh"]], [])
-	var live_box = _main.get_node("UI/ScenePanel/VBox/SPLive")
+	var live_box = _main.get_node("UI/ScenePanel/SPScroll/VBox/SPLive")
 	var row = live_box.get_child(0)
 	var vlab := row.get_child(1) as Label
 	_chk("面板数值列深色 #1e293b", _col(_label_color(vlab)) == "#1e293b", _col(_label_color(vlab)))
@@ -1041,25 +1072,41 @@ func _process(_delta: float) -> bool:
 		for d in sto.flow_dots:
 			var dd := d as MeshInstance3D
 			dot_xs[snappedf(dd.position.x, 0.01)] = true
-			if absf(dd.position.z - 0.64) >= 0.001:
+			if absf(dd.position.z - 0.58) >= 0.001:
 				dot_ok = false
 	_chk("流光点 9 个、X 列 −2.4/−0.8/0.8（3 台电池柜中心）", dot_ok and dot_xs.has(-2.4) and dot_xs.has(-0.8) and dot_xs.has(0.8), str(dot_xs.keys()))
-	_chk("流光点 Z=0.64（球后缘恰贴柜前脸 0.5）", dot_ok, "")
-	var dot_ys := [0.3, 1.4, 2.5]
+	_chk("流光点 Z=0.58（球后缘 0.50 恰贴柜前脸，格栅相交 ≤0.014）", dot_ok, "")
+	_chk("流光点半径 r=0.08（近拍直径约 23px，不再是 40px 大圆点）", sto != null and sto.flow_dots.size() > 0 and absf(((sto.flow_dots[0] as MeshInstance3D).mesh as SphereMesh).radius - 0.08) < 0.001, "")
+	var dot_ys := [0.3, 1.385, 2.47]
 	var dot_rows_ok: bool = sto != null and sto.flow_dots.size() == 9
 	if dot_rows_ok:
 		for k in range(9):
 			if absf((sto.flow_dots[k] as MeshInstance3D).position.y - dot_ys[k / 3]) >= 0.001:
 				dot_rows_ok = false
-	_chk("流光点静态行 Y 0.3/1.4/2.5", dot_rows_ok, "")
+	_chk("流光点静态行 Y 0.3/1.385/2.47", dot_rows_ok, "")
 	if sto != null:
 		sto.call("update_frame", 100.0, 5.0, 0.016)
 		var dot_range_ok := true
 		for d in sto.flow_dots:
 			var yy := (d as MeshInstance3D).position.y
-			if yy < 0.3 - 0.001 or yy > 2.5 + 0.001:
+			if yy < 0.3 - 0.001 or yy > 2.47 + 0.001:
 				dot_range_ok = false
-		_chk("流光点动画行程 Y 0.3–2.5（柜面高度内）", dot_range_ok, "")
+		_chk("流光点动画行程 Y 0.3–2.47（球顶缘 2.55 不越柜顶）", dot_range_ok, "")
+		# 顶端越界扫查（run 45297927902 的 10 号特写：行程顶端球顶 2.64 越过柜顶
+		# 2.55，右上点浮在屋顶线上）：多 t 扫一遍行程，球顶缘 ≤2.55、球底缘 ≥0.14。
+		var _dot_r := 0.08
+		if sto.flow_dots.size() > 0:
+			_dot_r = ((sto.flow_dots[0] as MeshInstance3D).mesh as SphereMesh).radius
+		var _dot_edge_ok := true
+		var _t := 0.0
+		while _t <= 6.0:
+			sto.call("update_frame", 100.0, _t, 0.016)
+			for d in sto.flow_dots:
+				var yy2 := (d as MeshInstance3D).position.y
+				if yy2 + _dot_r > 2.551 or yy2 - _dot_r < 0.14:
+					_dot_edge_ok = false
+			_t += 0.25
+		_chk("流光点球顶缘 ≤2.55 / 球底缘 ≥0.14（行程全程不越柜顶、不沉踢脚）", _dot_edge_ok, "")
 	_chk("检修灯带中心 y=5.415（底面 5.375 恰贴 GLB 屋顶顶）", sto_strip != null and absf(sto_strip.position.y - 5.415) < 0.001, str(sto_strip.position.y) if sto_strip != null else "null")
 	_chk("检修灯带底面 5.375 不埋入屋顶", sto_strip != null and absf((sto_strip.position.y - 0.04) - 5.375) < 0.001, str(sto_strip.position.y - 0.04) if sto_strip != null else "null")
 	var pv = _main.pv_detail
@@ -1273,13 +1320,13 @@ func _process(_delta: float) -> bool:
 	var _sp = _main.get_node("UI/ScenePanel")
 	_sp.call("set_shell_open", true)
 	var _shell_txt := ""
-	for _c in (_sp.get_node("VBox/SPExtra") as HBoxContainer).get_children():
+	for _c in (_sp.get_node("SPScroll/VBox/SPExtra") as HBoxContainer).get_children():
 		if _c is Button:
 			_shell_txt = (_c as Button).text
 	_chk("储能面板：自动开壳后开关文案为“开”", _shell_txt == "外壳半透明：开", _shell_txt)
 	_sp.call("set_shell_open", false)
 	_shell_txt = ""
-	for _c in (_sp.get_node("VBox/SPExtra") as HBoxContainer).get_children():
+	for _c in (_sp.get_node("SPScroll/VBox/SPExtra") as HBoxContainer).get_children():
 		if _c is Button:
 			_shell_txt = (_c as Button).text
 	_chk("储能面板：set_shell_open(false) 后文案为“关”", _shell_txt == "外壳半透明：关", _shell_txt)
@@ -1292,7 +1339,7 @@ func _process(_delta: float) -> bool:
 	_chk("SOC 56% 时 _soc_color 为绿 #1d9e63（不再判红）", _col(_main.call("_soc_color", 0.56)) == "#1d9e63", _col(_main.call("_soc_color", 0.56)))
 	_main.active_scene = "storage"
 	_main.call("_refresh_panel")
-	var _live = _main.get_node("UI/ScenePanel/VBox/SPLive")
+	var _live = _main.get_node("UI/ScenePanel/SPScroll/VBox/SPLive")
 	var _pbar: ProgressBar = null
 	var _pbar_n := 0
 	var _resv_lab: Label = null

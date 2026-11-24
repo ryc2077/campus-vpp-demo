@@ -33,18 +33,18 @@ var _shell_btn: Button # 储能外壳开关按钮：进场自动开壳时 main.g
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(330, 0)
-	title_label = $VBox/SPTitleRow/SPTitle
-	extra_box = $VBox/SPExtra
-	live_box = $VBox/SPLive
-	chart = $VBox/SPChart
-	min_btn = $VBox/SPTitleRow/SPMinBtn
+	title_label = $SPScroll/VBox/SPTitleRow/SPTitle
+	extra_box = $SPScroll/VBox/SPExtra
+	live_box = $SPScroll/VBox/SPLive
+	chart = $SPScroll/VBox/SPChart
+	min_btn = $SPScroll/VBox/SPTitleRow/SPMinBtn
 	# 面板按钮与顶栏按钮共用 UITokens 一套 token（P2-4），不再用默认主题样式。
 	UITokens.style_solid_button(min_btn)
-	UITokens.style_solid_button($VBox/SPBack)
+	UITokens.style_solid_button($SPScroll/VBox/SPBack)
 	min_btn.pressed.connect(_on_min_pressed)
-	$VBox/SPBack.pressed.connect(func() -> void: back_pressed.emit())
+	$SPScroll/VBox/SPBack.pressed.connect(func() -> void: back_pressed.emit())
 	_springs.attach(min_btn)
-	_springs.attach($VBox/SPBack)
+	_springs.attach($SPScroll/VBox/SPBack)
 	# 附加控件里的按钮（储能外壳开关）也在 build() 里挂弹簧，见 build() 末尾
 
 func _process(delta: float) -> void:
@@ -76,6 +76,9 @@ func _play_enter() -> void:
 
 func build(title: String, extra_kind: String, shell_open: bool) -> void:
 	title_label.text = title
+	# 双开溢出修补（run 45297927902 的 16 图）：内容包进 SPScroll 后，换场景
+	# 回到顶部；set_live() 每 400ms 重建行，不在这里复位，免得用户滚不动。
+	($SPScroll as ScrollContainer).scroll_vertical = 0
 	_play_enter()
 	for c in extra_box.get_children():
 		c.queue_free()

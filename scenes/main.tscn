@@ -353,33 +353,37 @@ offset_bottom = 620.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
 script = ExtResource("7")
 
-[node name="VBox" type="VBoxContainer" parent="UI/ScenePanel"]
+[node name="SPScroll" type="ScrollContainer" parent="UI/ScenePanel"]
+horizontal_scroll_mode = 0
+
+[node name="VBox" type="VBoxContainer" parent="UI/ScenePanel/SPScroll"]
+size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="SPTitleRow" type="HBoxContainer" parent="UI/ScenePanel/VBox"]
+[node name="SPTitleRow" type="HBoxContainer" parent="UI/ScenePanel/SPScroll/VBox"]
 
-[node name="SPTitle" type="Label" parent="UI/ScenePanel/VBox/SPTitleRow"]
+[node name="SPTitle" type="Label" parent="UI/ScenePanel/SPScroll/VBox/SPTitleRow"]
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.059, 0.09, 0.165, 1)
 theme_override_font_sizes/font_size = 16
 text = "场景"
 
-[node name="SPMinBtn" type="Button" parent="UI/ScenePanel/VBox/SPTitleRow"]
+[node name="SPMinBtn" type="Button" parent="UI/ScenePanel/SPScroll/VBox/SPTitleRow"]
 custom_minimum_size = Vector2(0, 44)
 text = "收起详情"
 
-[node name="SPExtra" type="HBoxContainer" parent="UI/ScenePanel/VBox"]
+[node name="SPExtra" type="HBoxContainer" parent="UI/ScenePanel/SPScroll/VBox"]
 theme_override_constants/separation = 8
 
-[node name="SPLive" type="VBoxContainer" parent="UI/ScenePanel/VBox"]
+[node name="SPLive" type="VBoxContainer" parent="UI/ScenePanel/SPScroll/VBox"]
 theme_override_constants/separation = 4
 
-[node name="SPChart" type="Control" parent="UI/ScenePanel/VBox"]
+[node name="SPChart" type="Control" parent="UI/ScenePanel/SPScroll/VBox"]
 custom_minimum_size = Vector2(320, 200)
 size_flags_vertical = 3
 script = ExtResource("8")
 
-[node name="SPBack" type="Button" parent="UI/ScenePanel/VBox"]
+[node name="SPBack" type="Button" parent="UI/ScenePanel/SPScroll/VBox"]
 custom_minimum_size = Vector2(0, 44)
 text = "返回总览"
 

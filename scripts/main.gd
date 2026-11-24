@@ -462,7 +462,7 @@ func _enter_instant(key: String) -> void:
 		pv_detail.visible = true
 	if key == "storage" and _close_cam:
 		# 柜面近拍：正对 3 台电池柜前脸（世界 x 61.6–64.8、前脸 z −29.5），
-		# 流光点 z −29.36 正贴柜面。dist 5m、目标柜面中心 (63.2, 1.4, −29.4)；
+		# 流光点 z −29.42、球后缘 −29.50 恰贴柜面。dist 5m、目标柜面中心 (63.2, 1.4, −29.4)；
 		# limits 的 dist 下限 8m 会把机位钳回 8m，近拍改用放宽的副本
 		#（只改运行时 limits，不动 data/scenes.json）。
 		_snap_to({"az": 0.0, "el": 0.18, "dist": 5.0, "target": [63.2, 1.4, -29.4]})
