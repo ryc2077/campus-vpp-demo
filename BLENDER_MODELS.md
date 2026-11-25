@@ -670,6 +670,8 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
   材质按 SPEC §3 染色（桌面 `#C8A06A`、椅面深色、钢架浅灰），原材质仅 2 种、无贴图。
   任务口径“桌 1.1–1.3m”指双人桌：两张选定单桌并排 = 1.20m，或改用备选 ③（1.40m 单张双人桌）。
 - **未动**：`cl-desks.py` / `.blend` / `.glb`、Godot scripts/scenes/data 一律未碰；换装是下一波任务。
+- **推仓**：commit `b346200a`（`b346200a5219b04188f86261a9446e2972e9421a`，父 `e2e68bdc`，2026-11-24T15:00:54Z）：1 批 push-files，24 个新文件 + 本文档（BLENDER_MODELS.md blob `f60aa933`，+54 行；24 件新文件在父链 `e2e68bdc` 中一个没有），共 7,981,558 B（7.61 MB）：`assets/external/SOURCES.md`（59,790 B，blob `8cdb2876`，§7 课桌椅 sourcing 同批入仓）、选定两件 `student-desk.glb`（51,796 B，blob `4ea77039`）/ `student-chair.glb`（43,632 B，blob `9e0001ff`）、备选 8 件 GLB（3DAssets 研讨桌椅 2 + 1400mm 桌 1、Kenney 桌椅 3、poly.pizza 桌椅 2）、Kenney 整包 `furniture-kit.zip`（5,130,729 B，blob `fdb9db32`）+ `LICENSE-kenney.txt`、Eevee 预览 10 张、`verify_results.json`（8,202 B，blob `4fb763b7`）；单 blob 均 <40MB。推后核对（API 实测）：contents API 逐文件核对 24 件大小与 blob SHA 与 tree 一致，本地两件选定 GLB 的 blob SHA 与远端一字相同；旁证：同轮 R2-T11 的 commit `8e84da3e` 之父即 `b346200a`（其首推因 HEAD 被本任务抢先而 422，见 §14 R2-T11 推仓行）。本行系推后补填（R2-T56），随仅本文档的推送入仓。
+- **验证**：本任务只 sourcing、无模型改动、无触发 run——无 CI run、无 Godot 截图。验证即本节“核验”行的 Blender 4.2.0 只读导入实测：10 个 `.glb` 全部导入通过，选定两件尺寸与面数实测与 SOURCES.md §7.1 一致（桌 0.60×0.50×0.70m/780 面、椅 0.38×0.42×0.89m/580 面，48 套 65,280 面），各 508 个顶点真腿落地（z<0.02），Eevee 预览 10 张、明细 `verify_results.json` 均已随 commit `b346200a` 入仓；备选结论出处：SOURCES.md §7.2 打分表（①选定 96 分；③ 87 分、② 81 分、⑤ 74 分、④ 70 分、⑥ tevy 57 分不选）与 §7.3/§7.4。本行系推后补填（R2-T56），随仅本文档的推送入仓。
 
 ## §14 R2-T11 草地网上模型第二轮搜寻（2026-11-24 22:46–23:05 CST，只 sourcing，不建模）
 
