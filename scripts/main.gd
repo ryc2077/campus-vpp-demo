@@ -33,6 +33,7 @@ var _t := 0.0
 var _shot_mode := false
 var _url_params := {} # ?scene=&wx=&hour=&fallback=&close=…：_ready 开头解析一次，build 前置开关用
 var _close_cam := false # ?close=1：储能场景改用柜面近拍机位（截图验收用）
+var _door_cam := false # R2-T57 探针专用：?door=1 教室门洞近景机位（截图验收用；只在探针分支存在）
 var _transformer_closeup := false # ?close=1 变压器近景（总览改近景机位）：V2G 弧线藏起
 var _freeze_u := -1.0 # ?freeze=0..1：冻结在飞行进度 u 处（慢速/逐帧检查缓动与弧线）
 var _glass_mode := "auto" # ?glass=0 关闭 / low 低质量 / high 高质量 / auto（窄屏自动降质）
@@ -108,6 +109,7 @@ func _ready() -> void:
 	if str(_url_params.get("fallback", "")) in ["1", "true", "on"]:
 		GlbLoader.force_fallback = true
 	_close_cam = _url_params.has("close")
+	_door_cam = _url_params.has("door")
 	_rebuild_sim()
 	cls_model = ClassroomModel.new(classroom_data, current_wx, sim.price_at, sim.sun_shape)
 	_rebuild_classroom()
@@ -469,6 +471,17 @@ func _enter_instant(key: String) -> void:
 		lim["dist"] = [3.0, 36.0]
 		rig.set_limits(lim)
 		rig.arm_limits(true)
+	elif key == "classroom" and _door_cam:
+		# R2-T57 探针专用：门洞近景——从室内西侧向东拍东墙门洞。
+		# target (-52.5, 1.1, -30.0)、az -1.57、el 0.15、dist 4.5；
+		# 按 camera_rig.gd 公式相机 (-56.95, 1.77, -30.0)，门中心 Godot
+		# (-51.16, 1.1, -30.0) 在视轴上。target/camera/dist/el 均在
+		# scenes.json classroom 的 target_box/camera_box/dist/el 限位内，
+		# 直接用原 limits，不放宽、不改 data/scenes.json、不改 03 正式机位。
+		_snap_to({"az": -1.57, "el": 0.15, "dist": 4.5, "target": [-52.5, 1.1, -30.0]})
+		if sc.has("limits"):
+			rig.set_limits(sc["limits"])
+			rig.arm_limits(true)
 	else:
 		_snap_to(sc["cam"])
 		if sc.has("limits"):

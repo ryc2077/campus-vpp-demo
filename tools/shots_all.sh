@@ -49,5 +49,8 @@ shot "scene=overview&shot=1&hour=9&close=1" 17-transformer-closeup.png
 #   多云/阴两档的云量与贴图无图可验；与 00-overview 同机位同时刻，只换 wx）
 shot "shot=1&hour=9&wx=cloudy" 18-overview-cloudy.png
 shot "shot=1&hour=9&wx=overcast" 19-overview-overcast.png
+# 20：教室门洞近景探针（R2-T57，只在探针分支上：main.gd 的 ?door=1 开关只在探针分支存在；
+#   scene=classroom + door=1 时机位改拍东墙门洞，其余场景/机位一字不动）
+shot "scene=classroom&shot=1&hour=10&door=1" 20-classroom-door.png
 if [ "$FAILED" -ne 0 ]; then echo "SHOTS FAILED"; exit 1; fi
 echo "ALL DONE"
