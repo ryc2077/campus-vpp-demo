@@ -1,3 +1,12 @@
+# ov-trees v8 (R3, 2026-11-25): 充电区机位挡树 2 棵移位（只移这 2 棵，
+#   不动其他 471 棵、不改高度/缩放/模型来源）。见 hidden_files/r3-charge-trees-spec.md：
+#   Tree_035（T-B 行道树，tree_pineDefaultA，12.8m）：(56,-100) -> (52,-100)，
+#     向西 4m，冠缘离视线中心线 3.52m，最近邻 Tree_034 (48,-100) 4.00m；
+#   Tree_372（OLD-perimeter 南沿线，tree_pineTallA，12.3m）：(56.92,-94) -> (60.92,-94)，
+#     向东 4m，冠缘离视线中心线 3.02m，最近邻 Tree_374 (63.96,-94) 3.04m。
+#   移法照 R43/R58 款式：R3_RELOC（新树，键为 green_layout.json 原坐标）+
+#   R3_OLD_RELOC（旧树，键为全局 Tree 序号）；只改 x，y/高度/模型/缩放一字不动；
+#   移后充电区主体采样 0/405 挡、细网格 0/1445 挡（spec §2.4）。
 # ov-trees v7 (R2-T58, 2026-11-25): 8 棵既有布位问题树移位（只移这 8 棵，
 #   不动其他 465 棵、不改高度/缩放/模型来源）。§53 验收③定夺、§51 复核⑤留档：
 #   D4 Tree_160–163（(-72/-64/-56/-48, 8)）+ OLD-scattered Tree_460（(-60,12)）
@@ -321,12 +330,19 @@ R43_TAG = {(-38, -40): "R2-T43-west-off-ring", (-38, -32): "R2-T43-west-off-ring
 R58_RELOC = {(-72, 8): (-72.0, 16.0), (-64, 8): (-64.0, 16.0),
              (-56, 8): (-56.0, 16.0), (-48, 8): (-48.0, 16.0)}
 
+# R3：充电区机位挡树 Tree_035 移出视线（键为 green_layout.json 原坐标，值为新位；
+#   只改位置，模型/高度档/随机数消费顺序一字不改）：
+#   (56,-100) -> (52.0,-100.0)：沿 T-B 行向西 4.00m，冠缘离视线中心线 3.52m，
+#   最近邻 Tree_034 (48,-100) 4.00m；草带内，不压路/缘石。见 r3-charge-trees-spec.md §2。
+R3_RELOC = {(56, -100): (52.0, -100.0)}
+
 planted = []       # (obj, zone_id, model, target_h, actual_h)
 spot_checks = []   # 每区首棵 + 抽查
 idx = 0
 zone_counts = {}
 n_r43 = 0
 n_r58 = 0
+n_r3 = 0
 for zone in layout["trees"]["zones"]:
     zid = zone["id"]
     kind = zone["kind"]
@@ -344,6 +360,11 @@ for zone in layout["trees"]["zones"]:
             print(f"  RELOC {x},{y} -> {nx},{ny} (R2-T58-north-off-ring)")
             x, y = nx, ny
             n_r58 += 1
+        if (x, y) in R3_RELOC:
+            nx, ny = R3_RELOC[(x, y)]
+            print(f"  RELOC {x},{y} -> {nx},{ny} (R3-charge-off-sightline)")
+            x, y = nx, ny
+            n_r3 += 1
         obj, model, actual, eff_h = plant(idx, x, y, h, kind)
         zone_counts[zid]["models"][model] = zone_counts[zid]["models"].get(model, 0) + 1
         planted.append((obj, zid, model, eff_h, actual))
@@ -355,6 +376,8 @@ print(f"R2-T43 RELOCATED: {n_r43} (expected 5)")
 assert n_r43 == 5, f"R2-T43 reloc count {n_r43} != 5"
 print(f"R2-T58 RELOCATED (new): {n_r58} (expected 4)")
 assert n_r58 == 4, f"R2-T58 reloc count {n_r58} != 4"
+print(f"R3 RELOCATED (new): {n_r3} (expected 1)")
+assert n_r3 == 1, f"R3 reloc count {n_r3} != 1"
 for zid, c in zone_counts.items():
     print(f"ZONE {zid}: n={c['n']} models={c['models']}")
 
@@ -459,8 +482,14 @@ POOL_OLD = {"perimeter": "dense_belt", "road": "street",
 #   460：OLD-scattered，(-60,12) -> (-76,12)（y 不变，西移出跑道北弯段）。
 R58_OLD_RELOC = {440: (100.50, None), 445: (100.50, None),
                  453: (100.50, 52.0), 460: (-76.0, 12.0)}
+# R3：充电区机位挡树 Tree_372 移出视线（键为全局 Tree 序号，值为新位，None 表该分量不动；
+#   只改位置，高度抽取 rng_h 与模型/随机数消费顺序一字不改）：
+#   Tree_372 (56.92,-94.00) -> (60.92,-94.00)：沿 OLD 南沿线向东 4.00m，
+#   冠缘离视线中心线 3.02m，最近邻 Tree_374 (63.96,-94) 3.04m。见 r3-charge-trees-spec.md §2。
+R3_OLD_RELOC = {372: (60.92, None)}
 old_counts = {"perimeter": 0, "road": 0, "scattered": 0}
 n_r58_old = 0
+n_r3_old = 0
 for (x, y, k) in fixed:
     lo, hi = HEIGHT_OLD[k]
     h = rng_h.uniform(lo, hi)
@@ -470,6 +499,12 @@ for (x, y, k) in fixed:
         x = nx
         y = ny if ny is not None else y
         n_r58_old += 1
+    if idx in R3_OLD_RELOC:
+        nx, ny = R3_OLD_RELOC[idx]
+        print(f"  RELOC Tree_{idx:03d} {x},{y} -> {nx},{ny if ny is not None else y} (R3-charge-off-sightline)")
+        x = nx
+        y = ny if ny is not None else y
+        n_r3_old += 1
     obj, model, actual, eff_h = plant(idx, x, y, h, POOL_OLD[k])
     old_counts[k] += 1
     planted.append((obj, "OLD-" + k, model, eff_h, actual))
@@ -477,6 +512,8 @@ for (x, y, k) in fixed:
 print(f"OLD RESKIN: {sum(old_counts.values())} {old_counts}")
 print(f"R2-T58 RELOCATED (old): {n_r58_old} (expected 4)")
 assert n_r58_old == 4, f"R2-T58 old reloc count {n_r58_old} != 4"
+print(f"R3 RELOCATED (old): {n_r3_old} (expected 1)")
+assert n_r3_old == 1, f"R3 old reloc count {n_r3_old} != 1"
 print(f"TREES TOTAL: {len(planted)} (new 327 + old 146)")
 
 # ---- 高度抽查：每区首棵 + 旧树各区首棵（实测缩放后高度必须在档内） ----
@@ -557,4 +594,4 @@ blend1 = BLEND_PATH + "1"
 if os.path.exists(blend1):
     os.remove(blend1)
 
-print("DONE ov-trees v7")
+print("DONE ov-trees v8")
