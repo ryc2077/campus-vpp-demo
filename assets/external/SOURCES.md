@@ -1091,4 +1091,4 @@ Kenney 塔 1 个）；CC BY 4.0——vinish.dev 6 栋（署名 vinish.dev）；C
   故正解是 **§17.6**（两个 §14 均不是），`.6` 一字未动、只把节号 14 订正为 17；L240 正文已同步改写。
   另 L494“commit 见 BLENDER_MODELS.md §14”按 BLENDER_MODELS.md §58.6 指 §14（R2-T11）草地节、commit `8e84da3e`，本文不动。
 
-- **推仓**：待推后回填。
+- **推仓**：commit `921fa20f`（`921fa20fa2e466c74431865765263ff19bb6bb2d`，父 `972da39e`，2026-11-25T01:55:01Z）：1 批 push-files，1 文件（SOURCES.md blob `5674cd27`，134,099 B，+2,939 B / +30 行；只改 L240 一行 + 文末追加编号对照表一节，其余 1,063 行一字未动）；推后核对：HEAD 即 `921fa20f`、父链连续、contents API 核对远端文档 blob SHA 与大小与本地逐字节一致。只改文档，未触发新 run（属正常）。注：推前 HEAD 已由 `93bceda7` 推进至 `972da39e`（他人推送），SOURCES.md blob 其间未变（仍为 `5f7a124b`），无撞车、无 422。
