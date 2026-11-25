@@ -1,3 +1,19 @@
+# ov-trees v7 (R2-T58, 2026-11-25): 8 棵既有布位问题树移位（只移这 8 棵，
+#   不动其他 465 棵、不改高度/缩放/模型来源）。§53 验收③定夺、§51 复核⑤留档：
+#   D4 Tree_160–163（(-72/-64/-56/-48, 8)）+ OLD-scattered Tree_460（(-60,12)）
+#   5 棵立于跑道环面北弯段（y=8 处环面为整段弦宽 x -77.83..-46.17，y=12 同理）；
+#   OLD-road Tree_440/445/453 干身压东环路缘石线（v6 嵌入 -0.49/-0.56/-0.81m）。
+#   移法（照 R2-T43 款式，移出环面/石线、移进就近草地槽；只改 x/y，不改缩放）：
+#     D4 4 棵：y 8 -> 16（x 不变），北移进 D6 行北侧草槽，与 D6 行（y=16）交错成行，
+#       与 D6 邻树各 4.0m；跑道外缘石净空 0.48–4.47m（161 最紧 0.48m，仍 > R43
+#       接受的 0.11–0.16m 紧净空档），步道 1 南缘石净空 1.83–2.03m。
+#     Tree_460：(-60,12) -> (-76,12)（y 不变，西移出北弯段；(-60,16) 已是 D6 树，
+#       y=20 是步道 1，不可行），跑道外缘石净空 1.14m。
+#     OLD-road 3 棵：x -> 100.50（y 不变，特殊：453 因东主路灯杆 (101.4,50) 仅 1.09m，
+#       y 49.39 -> 52.00，灯杆间隙 1.23m），东移进环路外缘石与东主路西缘石之间
+#       2.4m 宽草带（与 T-A 行 x=100 对齐成行）；环路外缘石净空 0.33–0.62m、
+#       东主路西缘石净空 0.33–0.62m、440 倒角石净空 0.39m。
+#   全量两两间距与 v6 同一集合（<2.0m 0 对、<2.6m 21 对，无新增），见 §56。
 # ov-trees v6 (R2-T50, 2026-11-25): 树太小整改——只放大，不换来源、不改棵数/
 #   位置/模型分配。用户看 #112 ov-trees.png 与 Godot #134 总览仍觉树小；本次
 #   Blender 实测 v5（见 BLENDER_MODELS.md §51）：行道树 211 棵中位仅 6.5m
@@ -298,11 +314,19 @@ R43_TAG = {(-38, -40): "R2-T43-west-off-ring", (-38, -32): "R2-T43-west-off-ring
            (-38, -16): "R2-T43-west-off-ring-y-shift", (-38, -8): "R2-T43-west-off-ring",
            (-38, 0): "R2-T43-east-off-buffer"}
 
+# R2-T58：D4 4 棵北移出跑道环面北弯段（键为 green_layout.json 原坐标，值为新位；
+#   只改位置，模型/高度档/随机数消费顺序一字不改）：
+#   (-72/-64/-56/-48, 8) -> (x, 16)：北侧草槽即 D6 行所在带（y=16，步道 1 南缘
+#   y=18.5 以南、跑道外缘以北），与 D6 邻树各 4.0m；净空见文件头与 §56。
+R58_RELOC = {(-72, 8): (-72.0, 16.0), (-64, 8): (-64.0, 16.0),
+             (-56, 8): (-56.0, 16.0), (-48, 8): (-48.0, 16.0)}
+
 planted = []       # (obj, zone_id, model, target_h, actual_h)
 spot_checks = []   # 每区首棵 + 抽查
 idx = 0
 zone_counts = {}
 n_r43 = 0
+n_r58 = 0
 for zone in layout["trees"]["zones"]:
     zid = zone["id"]
     kind = zone["kind"]
@@ -315,6 +339,11 @@ for zone in layout["trees"]["zones"]:
             print(f"  RELOC {x},{y} -> {nx},{ny} ({R43_TAG[(x, y)]})")
             x, y = nx, ny
             n_r43 += 1
+        if (x, y) in R58_RELOC:
+            nx, ny = R58_RELOC[(x, y)]
+            print(f"  RELOC {x},{y} -> {nx},{ny} (R2-T58-north-off-ring)")
+            x, y = nx, ny
+            n_r58 += 1
         obj, model, actual, eff_h = plant(idx, x, y, h, kind)
         zone_counts[zid]["models"][model] = zone_counts[zid]["models"].get(model, 0) + 1
         planted.append((obj, zid, model, eff_h, actual))
@@ -324,6 +353,8 @@ for zone in layout["trees"]["zones"]:
 print(f"NEW TREES: {idx} (zones {len(layout['trees']['zones'])})")
 print(f"R2-T43 RELOCATED: {n_r43} (expected 5)")
 assert n_r43 == 5, f"R2-T43 reloc count {n_r43} != 5"
+print(f"R2-T58 RELOCATED (new): {n_r58} (expected 4)")
+assert n_r58 == 4, f"R2-T58 reloc count {n_r58} != 4"
 for zid, c in zone_counts.items():
     print(f"ZONE {zid}: n={c['n']} models={c['models']}")
 
@@ -420,15 +451,32 @@ HEIGHT_OLD = {"perimeter": (8.0, 15.0), "road": (5.0, 8.0),
               "scattered": (4.0, 7.0)}  # 原档；v6 在 plant() 内经 _remap_h 放大后缩放
 POOL_OLD = {"perimeter": "dense_belt", "road": "street",
             "scattered": "ornamental"}
+# R2-T58：旧树 4 棵移位（键为全局 Tree 序号，值为新位；None 表该分量不动。
+#   只改位置，高度抽取（rng_h）与模型/随机数消费顺序一字不改）：
+#   440/445：OLD-road，x -> 100.50（y 不变），东移进环路外缘石与东主路西缘石
+#     之间草带；453：同上 + y 49.39 -> 52.00（东主路灯杆 (101.4,50) 仅 1.09m，
+#     须让开灯杆；y=47 会与 T-A Tree_13 仅 2.06m，y=52 距 Tree_14 3.04m）；
+#   460：OLD-scattered，(-60,12) -> (-76,12)（y 不变，西移出跑道北弯段）。
+R58_OLD_RELOC = {440: (100.50, None), 445: (100.50, None),
+                 453: (100.50, 52.0), 460: (-76.0, 12.0)}
 old_counts = {"perimeter": 0, "road": 0, "scattered": 0}
+n_r58_old = 0
 for (x, y, k) in fixed:
     lo, hi = HEIGHT_OLD[k]
     h = rng_h.uniform(lo, hi)
+    if idx in R58_OLD_RELOC:
+        nx, ny = R58_OLD_RELOC[idx]
+        print(f"  RELOC Tree_{idx:03d} {x},{y} -> {nx},{ny if ny is not None else y} (R2-T58-old-off-curb-ring)")
+        x = nx
+        y = ny if ny is not None else y
+        n_r58_old += 1
     obj, model, actual, eff_h = plant(idx, x, y, h, POOL_OLD[k])
     old_counts[k] += 1
     planted.append((obj, "OLD-" + k, model, eff_h, actual))
     idx += 1
 print(f"OLD RESKIN: {sum(old_counts.values())} {old_counts}")
+print(f"R2-T58 RELOCATED (old): {n_r58_old} (expected 4)")
+assert n_r58_old == 4, f"R2-T58 old reloc count {n_r58_old} != 4"
 print(f"TREES TOTAL: {len(planted)} (new 327 + old 146)")
 
 # ---- 高度抽查：每区首棵 + 旧树各区首棵（实测缩放后高度必须在档内） ----
@@ -509,4 +557,4 @@ blend1 = BLEND_PATH + "1"
 if os.path.exists(blend1):
     os.remove(blend1)
 
-print("DONE ov-trees v6")
+print("DONE ov-trees v7")
