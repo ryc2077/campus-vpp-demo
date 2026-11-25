@@ -2147,3 +2147,17 @@ meadow-grass-patch `9eae3876877776ad`、red-oat-grass-clump `ec0a0519ac57da76`�
 - **验证② blender-previews #126 / 45643473072**（head `d55867b4`，push 触发，2026-11-25T15:17:24Z 创建，触发时状态 in_progress）：结论待验收专人跟进。
 - **还剩什么**：① 本任务 2 棵移位 + 总览重拼完成，截图验收另有专人；② T59 删 33 张零引用烘焙图——等用户确认，未动；③ 探针/分析脚本与日志只放 `hidden_files/r3-charge-trees/`，不推仓；④ §59 终轮注记第 6 项（充电区机位挡树）由本节接手，待截图验收通过后才算关闭。
 - **编号说明**：本节即 §60（§57=R2-T59、§58=R2-T60、§59=R2-T62，按 §58 编号对照表已认领；写前已查远端 HEAD `49721a85` 的仓库版文档确认 §60 空闲，远端文档 blob `c1356dff`、533,932 B，本地 = 远端逐字节一致，本节追加在文件末尾（§59 之后））；§24/§29/§33 一字未动；只改 ov-trees 一件（`.py` / `.blend` / `.glb`）+ 重拼总览（overview.glb/.blend 瘦身版）+ 本节，未动 Godot、未动其他件、未动 T59 的 33 张图、未动配电房雾色代码、未动已定夺不修的 6 项小瑕、未动 `data/scenes.json` 机位。
+
+## §61 R3 配电房雾色差分对照证明（2026-11-26，只改 dist 开关 + 截图断言 + 本节，不动树、不动机位、不动 T59 的 33 张图、不动已定夺不修的 6 项小瑕）
+
+- **任务**：05-dist.png 在 #119/#149/#150/#151/#152/#153 六轮逐字节相同（md5 `471c85a4…`），R2-T6 冷色补偿的像素级效果从未被证明。查因见 `hidden_files/r3-dist-stale-cause.md`（只读诊断）：不是旧帧复用——每轮全新 checkout + 覆盖写，内景在 `scene=dist&shot=1&hour=15` 下是完全静态的确定性渲染（`playing=false` → hour 恒 15.0，`dist_interior.gd` 无任何 `_t` 动画，室外元素进不了室内机位），md5 稳定是正常表现；六轮全在 R2-T6 落地之后，根本不存在“补偿前”对照帧；同轮 headless verify 已证明补偿代码在同一构建里跑通（`bg_neutralized=7`，PASS=271）。本节做有/无补偿的差分对照，闭环证明像素级效果。
+- **改动（4 文件 + 1 新文件）**：
+  - `scripts/dist_interior.gd`：加 `var skip_bg_comp := false`，`_neutralize_glb_background` 入口处 `if skip_bg_comp: return`（`bg_neutralized` 保持 0）；补偿逻辑本身一字不动。
+  - `scripts/main.gd`：加成员 `var _skip_bg_comp := false`；`_ready` 开头 `_parse_url_params()` 之后解析 `?bgcomp=0` 置起；`_setup_interiors()` 里 `instantiate()` 与 `add_child()` 之间赋值 `dist_interior.skip_bg_comp = _skip_bg_comp`。**时序要点**：`_setup_interiors()` 在 `_apply_url_params()` 之前跑，`DistInterior._ready` → `_build` 在 `add_child` 时即执行，所以开关不能只在 `_apply_url_params()` 里置（那时补偿已跑完），必须在 `_ready` 开头解析、实例化后入树前赋值。
+  - `tools/shots_all.sh`：05-dist 后加拍 `shot "scene=dist&shot=1&hour=15&bgcomp=0" 05b-dist-nocomp.png`（同机位同时刻、只关补偿）；末尾加两项断言——两帧 `cmp -s` 必须不同（否则 `DIST COMP NO-OP` 置 FAILED=1），`python3 tools/sample_png.py` 墙面采样必须通过；grep 模式加 `ERR:`、`head -8` 放宽到 `head -30`（见下）。
+  - `tools/sample_png.py`（新文件，纯标准库 zlib/struct 解码 8-bit 非交错 PNG，CI 无需装 Pillow；本地已用 PIL 逐值核对解码器一致，合成正/反用例均按预期通过/失败）：在 (655,380) 取 9×9 均值断言三条——补偿后约 (156,162,160) 容差 40、补偿前约 (177,180,139) 容差 40、方向 R_comp < R_nocomp − 5 且 B_comp > B_nocomp + 5。采样点为 3、4 号柜间北墙平坦区：现有 05-dist.png（#152）实测 (655,380)=(148,144,131)，(640,300)/(660,450) 等周边点 (148–150,144–145,131–132) 高度一致，确为纯墙面；按补偿系数反推未补偿帧该点约 (168,160,114)，在容差 40 内。绝对值受光照影响，方向才是硬证据。
+  - **管线盲区顺带修**：`shot.mjs` 把 console error 打成 `"  ERR: …"`（前导空格），旧 grep 模式 `[shot]|shot-fail|[page]|[console]|[chrome]|FONT-DIAG` 全过滤，`head -8` 还截断——每张都有的 1 个 console error 在 CI 日志里完全不可见。本轮 grep 加 `ERR:`、head 放宽到 30（ERR 最多 20 行），先曝光再定性；**不**把 console error 改为致命（每张都有 1 个，全改致命会 20 张全挂）。
+- **判据（改掉旧判据）**：不再要求 05-dist.png 自身 md5 变化——补偿代码不变时它保持 `471c85a4…` 是静态帧的正常表现。正确判据三条同时成立：① 05-dist 与 05b md5 不同；② 墙面采样一冷一暖（见上）；③ headless verify 里 `bg_neutralized=7` 仍 PASS（headless 不走 web、无 URL 参数，`skip_bg_comp` 恒 false，不受影响；05b 只在截图页加载里生效）。
+- **验证（待填）**：godot-verify run 号 / PASS 数 / 两帧 md5 / 墙面采样实测值 / ERR 明细内容，CI 回来后补。
+- **还剩什么**：① T59 删 33 张零引用烘焙图——等用户确认，未动；② 若差分显示两帧 md5 仍相同，说明补偿乘上的 albedo 在最终像素里不可见，根因升级为“R2-T6 补偿未产生像素效果”，再按采样结果定位（查 `Wall_*` 是否带 albedo 贴图、光照是否压过 albedo 差异），不继续盯 md5。
+- **编号说明**：本节即 §61（§60=R3 挡树移位；写前已查远端 HEAD `01314f0c` 的仓库版文档确认 §61 空闲，远端文档 blob `d1e31f79`、541,653 B，本地 = 远端逐字节一致，本节追加在文件末尾（§60 之后））；§24/§29/§33 一字未动；只改 dist 开关（2 个 .gd）+ 截图断言（shots_all.sh + sample_png.py 新文件）+ 本节，未动树、未动机位、未动 T59 的 33 张图、未动已定夺不修的 6 项小瑕。

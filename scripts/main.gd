@@ -33,6 +33,7 @@ var _t := 0.0
 var _shot_mode := false
 var _url_params := {} # ?scene=&wx=&hour=&fallback=&close=…：_ready 开头解析一次，build 前置开关用
 var _close_cam := false # ?close=1：储能场景改用柜面近拍机位（截图验收用）
+var _skip_bg_comp := false # R3 差分对照：?bgcomp=0 跳过配电房 GLB 墙/顶冷色补偿（_ready 开头解析）
 var _transformer_closeup := false # ?close=1 变压器近景（总览改近景机位）：V2G 弧线藏起
 var _freeze_u := -1.0 # ?freeze=0..1：冻结在飞行进度 u 处（慢速/逐帧检查缓动与弧线）
 var _glass_mode := "auto" # ?glass=0 关闭 / low 低质量 / high 高质量 / auto（窄屏自动降质）
@@ -108,6 +109,10 @@ func _ready() -> void:
 	if str(_url_params.get("fallback", "")) in ["1", "true", "on"]:
 		GlbLoader.force_fallback = true
 	_close_cam = _url_params.has("close")
+	# R3 差分对照：?bgcomp=0 须在 _setup_interiors() 之前解析——dist_interior
+	# 的 _build（含补偿）在 _setup_interiors() 的 add_child 时即跑完，
+	# _apply_url_params() 在其后才执行，那时再置开关已来不及。
+	_skip_bg_comp = str(_url_params.get("bgcomp", "")) == "0"
 	_rebuild_sim()
 	cls_model = ClassroomModel.new(classroom_data, current_wx, sim.price_at, sim.sun_shape)
 	_rebuild_classroom()
@@ -210,6 +215,7 @@ func _setup_interiors() -> void:
 	cls_interior.visible = false
 	add_child(cls_interior)
 	dist_interior = DistInteriorScene.instantiate()
+	dist_interior.skip_bg_comp = _skip_bg_comp # 须在 add_child（即 _build）前置起
 	dist_interior.position = Vector3(48, 0, -30)
 	dist_interior.visible = false
 	add_child(dist_interior)

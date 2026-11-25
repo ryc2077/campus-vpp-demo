@@ -8,6 +8,7 @@ const GlbLoader = preload("res://scripts/glb_loader.gd")
 var meter_needles: Array[MeshInstance3D] = []
 var busbar_mat: StandardMaterial3D
 var bg_neutralized := 0 # R2-T6：GLB 墙/顶冷色补偿命中的节点数（0 = 回退分支或未命中，verify 用）
+var skip_bg_comp := false # R3 差分对照：?bgcomp=0 时跳过冷色补偿（须在 add_child 前置起，_build 里即生效）
 
 # R2-T6 配电房黄雾：GLB 墙是暖米色（Wall_Cream 亮部约 #D7C8A5，B 比 R 低约 40）、
 # 顶是中性白（Ceiling_White 约 #D8D8D8）；F4 关太阳阴影后暖阳光漏进室内、
@@ -24,6 +25,8 @@ const BG_TINT_CEIL := Color(0.90, 0.92, 1.20)
 
 func _neutralize_glb_background(inst: Node) -> void:
 	bg_neutralized = 0
+	if skip_bg_comp:
+		return # R3 差分对照：补偿关，只量未补偿帧（bg_neutralized 保持 0）
 	for c in inst.find_children("*", "MeshInstance3D", true, false):
 		var mi := c as MeshInstance3D
 		var n := String(mi.name)
