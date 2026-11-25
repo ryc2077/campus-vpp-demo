@@ -237,7 +237,7 @@ lib 24×16×22（6F）、gym 36×16×18、lab 42×12×13、tower 14×14×32、ca
 - 全部通过（200）：Poly Haven 9 个资产页 + 27 条直链；ambientCG 4 个资产页 + license 页 + 4 条 `get?file=` 直链；
   tevy 4 个模型页（school-building / classroom / school-corridor-lockers / grass-clump）+ 直链；Grab3D 3 个资产页 + 3 条直链；
   kit-predios 仓库页；Render a House 2 个博客页 + PNG ZIP + GLB/FBX 直链；3DAssets 高草丛资产页 + CDN 直链；
-  BlendSwap 5 条、Sketchfab 模型页、Open3DModel、itch.io 学校包、Meshy 标签页；Kenney / KayKit / Quaternius 方案页见 BLENDER_MODELS.md §14.6。
+  BlendSwap 5 条、Sketchfab 模型页、Open3DModel、itch.io 学校包、Meshy 标签页；Kenney / KayKit / Quaternius 方案页见 BLENDER_MODELS.md §17.6（原误写作 §14.6，R2-T61 订正，见文末编号对照表）。
 - 瞬时失败、重试后 200（非死链）：`ambientcg.com/a/Grass004` 首次 000、重试 200；
   `ambientcg.com/get?file=Grass004_1K-JPG.zip` 与 `WoodFloor051` 同款首次 000、重试 200。
 - 站方拦截、非死链（页面本身存在，保留原链接）：`staging.blenderkit.com` 资产页 curl 526/000，
@@ -1062,3 +1062,33 @@ Kenney 塔 1 个）；CC BY 4.0——vinish.dev 6 栋（署名 vinish.dev）；C
 结论①：**不需要补推**。干净检出重建（重跑烘焙 / PBR hook、Actions 渲染）只读 JPG 贴图；工程内没有任何脚本、流程、场景或 `.blend` 读取这 16 个厂商格式文件。16 个文件继续只放本地；万一以后真要厂商材质包，可从 ambientCG 官网原包重下（CC0）。
 
 本次未动任何 `.blend` / `.glb` / `.py`，未重跑烘焙与渲染；只改两处文档（本节 + `BLENDER_MODELS.md` §34），一次 push-files 提交，推后以 API 核对 HEAD 与两文档 blob SHA 与本地一致。
+
+## 编号对照表（R2-T61，2026-11-25：编号一律不动，只作对照；引用重复号时须带标题或行号）
+
+> 口径：本文档 `## N.` 编号按写入顺序追加，多轮任务各领空闲号时撞号，文件顺序 ≠ 数字顺序是既定事实
+> （与 BLENDER_MODELS.md §58.5 同款），不要为“看着整齐”而移块、重排、改号。
+> 本表以远端 HEAD `93bceda7` 的本文档实测为准（blob `5f7a124b`、131,160 B、1,064 行）；
+> 行号随文末追加后移，终轮可只更新行号列，不动编号。
+
+| 编号 | 处数 | 各自所指（标题 + 行号） |
+|---|---|---|
+| §5 | ×2 | L85 教学楼 / 教室模型（已下载）；L161 草补找（GRASS-TRY，拿到真草叶 alpha 贴图 + 真草丛模型） |
+| §6 | ×2 | L147 教学楼模型：试过没成的渠道（补充 §3）；L371 草第二轮搜寻（R2-T11，只找模型、只下载、记来源） |
+| §9 | ×2 | L496 汽车模型 sourcing（R2-T8）；L655 R2-T9 PBR 硬性整改衍生贴图（`pbr-tinted/`） |
+| §7 | ×1 | L253 课桌椅模型 sourcing（R2-T2）——“两个 §7”的旧说法不成立，见 BLENDER_MODELS.md §58.6 实测 |
+
+- 其余编号均唯一：§1 L24（PBR 材质 / 纹理包）、§2 L56（草）、§3 L67（未找到 / 未下载）、§4 L78（文件清单）、
+  §8 L585（云：实拍云照片贴图，R2-T12）、§10 L232（链接核验注记，R2-T16）、§11 L701（树模型 sourcing，R2-T15）、
+  §12 L803（楼房网上模型第二轮搜寻，R2-T10b）；文末两节无数字编号：L979 PBR 源文件入仓记录（R2-T31）、
+  L1035 ambientCG 厂商格式文件是否需补推评估（R2-T34）。
+- 引用规范：引用重复号必须带标题，如 `§5（草补找）`、`§6（R2-T11 草第二轮搜寻）`、`§9（R2-T9 PBR 衍生贴图）`，
+  或带行号；裸 `§5` / `§6` / `§9` 不许再用（歧义）。BLENDER_MODELS.md 侧已按标题消歧：
+  其 §17.3 引“§5 教学楼 / 教室模型”、§17.4 引“§5 草补找”。
+- 跨文件引用订正（L240）：原句“Kenney / KayKit / Quaternius 方案页见 BLENDER_MODELS.md §14.6”悬空——
+  BLENDER_MODELS.md 两个 §14（R2-T2 课桌椅 L645、R2-T11 草 L676）均无 `.6` 小节，且两节全文均未出现 KayKit；
+  三家方案页是 R2-T3 树方案，三条链接同表列于 BLENDER_MODELS.md §17.6（Kenney Nature Kit / KayKit Forest Nature Pack /
+  Quaternius Stylized Nature MegaKit 三行），其 §17.10 第 1 项亦用同一措辞“只有方案页链接”。
+  故正解是 **§17.6**（两个 §14 均不是），`.6` 一字未动、只把节号 14 订正为 17；L240 正文已同步改写。
+  另 L494“commit 见 BLENDER_MODELS.md §14”按 BLENDER_MODELS.md §58.6 指 §14（R2-T11）草地节、commit `8e84da3e`，本文不动。
+
+- **推仓**：待推后回填。
