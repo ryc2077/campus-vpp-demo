@@ -65,18 +65,18 @@ jobs:
 
           custom_template/debug=""
           custom_template/release=""
-          variant/embed_pck=true
-          variant/debug=false
+          binary_format/embed_pck=true
+          binary_format/architecture="x86_64"
           vram_texture_compression/for_desktop=true
           vram_texture_compression/for_mobile=false
-          binary_format/architecture=0
+          application/modify_resources=false
           codesign/enable=false
           codesign/identity_type=0
           codesign/identity=""
           codesign/password=""
           codesign/timestamp=true
           codesign/timestamp_server_url=""
-          codesign/digest_algorithm=0
+          codesign/digest_algorithm=1
           codesign/description=""
           codesign/custom_options=PackedStringArray()
           PRESET_EOF
