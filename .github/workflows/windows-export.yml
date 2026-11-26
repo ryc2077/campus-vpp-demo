@@ -1,0 +1,108 @@
+name: Windows export
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build (commit SHA or branch)"
+        required: true
+        default: "f0cad50f"
+
+jobs:
+  windows-export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Godot 4.4 + export templates
+        run: |
+          mkdir -p ~/godot-cache ~/.local/share/godot/export_templates/4.4.stable
+          cd ~/godot-cache
+          if [ ! -x Godot_v4.4-stable_linux.x86_64 ]; then
+            curl -sL -o godot.zip https://github.com/godotengine/godot/releases/download/4.4-stable/Godot_v4.4-stable_linux.x86_64.zip
+            unzip -o -q godot.zip
+          fi
+          if [ ! -f templates.tpz ]; then
+            curl -sL -o templates.tpz https://github.com/godotengine/godot/releases/download/4.4-stable/Godot_v4.4-stable_export_templates.tpz
+          fi
+          rm -rf /tmp/tpl && mkdir -p /tmp/tpl && unzip -o -q templates.tpz -d /tmp/tpl
+          cp -r /tmp/tpl/templates/* ~/.local/share/godot/export_templates/4.4.stable/ 2>/dev/null || cp -r /tmp/tpl/* ~/.local/share/godot/export_templates/4.4.stable/
+          ls ~/.local/share/godot/export_templates/4.4.stable/ | grep -i windows
+          ~/godot-cache/Godot_v4.4-stable_linux.x86_64 --version
+
+      - name: Add Windows Desktop preset (if missing)
+        run: |
+          if grep -q "Windows Desktop" export_presets.cfg; then
+            echo "Windows preset already present, skipping append"
+          else
+            cat >> export_presets.cfg <<'PRESET_EOF'
+
+          [preset.1]
+
+          name="Windows Desktop"
+          platform="Windows Desktop"
+          runnable=true
+          dedicated_server=false
+          custom_features=""
+          export_filter="all_resources"
+          include_filter=""
+          exclude_filter="demo-godot/*"
+          export_path="export/windows/campus-vpp-demo.exe"
+          encryption_include_filters=""
+          encryption_exclude_filters=""
+          encrypt_pck=false
+          encrypt_directory=false
+          script_export_mode=2
+
+          [preset.1.options]
+
+          custom_template/debug=""
+          custom_template/release=""
+          variant/embed_pck=true
+          variant/debug=false
+          vram_texture_compression/for_desktop=true
+          vram_texture_compression/for_mobile=false
+          binary_format/architecture=0
+          codesign/enable=false
+          codesign/identity_type=0
+          codesign/identity=""
+          codesign/password=""
+          codesign/timestamp=true
+          codesign/timestamp_server_url=""
+          codesign/digest_algorithm=0
+          codesign/description=""
+          codesign/custom_options=PackedStringArray()
+          PRESET_EOF
+            echo "Windows preset appended"
+          fi
+          grep -A2 'name="Windows Desktop"' export_presets.cfg
+
+      - name: Import project (build script class cache)
+        timeout-minutes: 20
+        run: |
+          ~/godot-cache/Godot_v4.4-stable_linux.x86_64 --headless --path . --import
+          test -f .godot/global_script_class_cache.cfg && grep -c "class_name" .godot/global_script_class_cache.cfg || true
+
+      - name: Headless verify
+        timeout-minutes: 10
+        run: ~/godot-cache/Godot_v4.4-stable_linux.x86_64 --headless --path . -s tools/verify_fixes.gd
+
+      - name: Export Windows (single exe, pck embedded)
+        timeout-minutes: 30
+        run: |
+          mkdir -p export/windows
+          ~/godot-cache/Godot_v4.4-stable_linux.x86_64 --headless --path . --export-release "Windows Desktop" export/windows/campus-vpp-demo.exe
+          ls -lh export/windows/
+          file export/windows/campus-vpp-demo.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-export
+          path: export/windows/
