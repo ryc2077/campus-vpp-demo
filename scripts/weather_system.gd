@@ -217,7 +217,7 @@ func set_weather(key: String) -> void:
 	# 且 verify 全过，06/11 仍零雨丝）。密度是次要因素：雨天 820 粒 ×
 	# 0.12m 细丝在细节机位帧内也偏稀，故一并提到 1800 粒、丝 0.15×1.9m、
 	# alpha 0.85、颜色压深一档蓝灰；暴雨 2800 粒、丝与色原样，粒数仍高于雨天。
-	# 五档 pv_factor/时长、阳光射线门控、V2G 弧线均未动。
+	# 五档 pv_factor/时长、阳光光尘门控、V2G 弧线均未动。
 	if key == "rain":
 		rain.amount = 1800
 		rain_quad.size = Vector2(0.15, 1.9)

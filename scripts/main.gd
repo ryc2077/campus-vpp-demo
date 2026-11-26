@@ -721,9 +721,8 @@ func _update_visuals(st: Dictionary, delta: float) -> void:
 	# 也照画——run 45232401156 的 02-storage.png 里斜穿柜体的那束橙色
 	# 细线 + 黄色球就是它（charge_detail.gd：0.12m 细基线 + r0.22 橙色
 	# #fb923c 流光点，从 (44,2,76) 贝塞尔到 (64,3,−30)，终点正在储能柜），
-	# 不是阳光射线：阳光射线只在 pv_detail 里（储能场景 pv_detail.visible
-	# = false，且射线是 2.2m 宽的半透明带，形态与 01-pv 里的四条宽带一致，
-	# 与储能图里的细线完全不同）。总览保留弧线（_setup_interiors 注释的
+	# 不是阳光光尘：阳光光尘只在 pv_detail 里（储能场景 pv_detail.visible
+	# = false，且光尘是 GPUParticles3D 粒子，与储能图里的细线形态完全不同）。总览保留弧线（_setup_interiors 注释的
 	# 原设计意图：总览可见跨校园能量流），充电区保留，内景不再画。
 	# 例外：变压器近景（?close=1，active_scene 仍是总览 ""）再藏一次——
 	# 弧线远段在该机位下恰成横贯左草地的水平细线（17 图调查），只藏近景，

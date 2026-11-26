@@ -31,7 +31,7 @@ shot "scene=classroom&shot=1&hour=10&freeze=0.5" 09-freeze.png
 #   12:00 待机 batt=0 柜面无流光点；23:00 谷段充电是夜里不适合拍。
 #   ?close=1 用柜面近拍机位 dist 5m 正对 3 台电池柜前脸）
 shot "scene=storage&shot=1&hour=10&close=1" 10-storage-discharge-closeup.png
-# 11：charge 雨天（hour=12 时 V2G 放电 54kW，弧线雨天也应显示，只藏阳光射线；
+# 11：charge 雨天（hour=12 时 V2G 放电 54kW，弧线雨天也应显示，只藏阳光光尘；
 #   run 45297927902 修补：旧门控把弧线连同射线一起藏了，雨天无线无点）
 shot "scene=charge&shot=1&hour=12&wx=rain" 11-charge-rain.png
 # 12：charge 晴天对照（与 11 同机位同时刻：弧线本身存在性的阳性对照，

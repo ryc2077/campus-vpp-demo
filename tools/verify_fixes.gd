@@ -1117,7 +1117,7 @@ func _process(_delta: float) -> bool:
 	var main_src := FileAccess.get_file_as_string("res://scripts/main.gd")
 	_chk("界面文字无 DC→AC 箭头", main_src.find("DC→AC") < 0, "")
 	_chk("逆变器状态改文字 DC 转 AC", main_src.find("DC 转 AC") >= 0, "")
-	# ---- 本轮三处修复：储能风扇高度 / 雨天阳光射线 / 雨天 V2G 弧线 ----
+	# ---- 本轮三处修复：储能风扇高度 / 雨天阳光光尘 / 雨天 V2G 弧线 ----
 	var sto = _main.sto_interior
 	_chk("储能风扇中心 y=3.105（盘底 2.555=柜顶 2.55+0.005）", sto != null and absf(sto.fan.position.y - 3.105) < 0.001, str(sto.fan.position.y) if sto != null else "null")
 	_chk("储能风扇盘底 2.555m", sto != null and absf((sto.fan.position.y - 0.55) - 2.555) < 0.001, str(sto.fan.position.y - 0.55) if sto != null else "null")
@@ -1189,16 +1189,32 @@ func _process(_delta: float) -> bool:
 	_chk("检修灯带中心 y=5.415（底面 5.375 恰贴 GLB 屋顶顶）", sto_strip != null and absf(sto_strip.position.y - 5.415) < 0.001, str(sto_strip.position.y) if sto_strip != null else "null")
 	_chk("检修灯带底面 5.375 不埋入屋顶", sto_strip != null and absf((sto_strip.position.y - 0.04) - 5.375) < 0.001, str(sto_strip.position.y - 0.04) if sto_strip != null else "null")
 	var pv = _main.pv_detail
+	# 阳光粒子化：旧 4 面斜板 ray_planes 与 8 个黄球 flow_dots 已删，改为
+	# 两层 GPUParticles3D 阳光光尘（主层 sun_dust + 稀疏大颗粒层 sun_dust_far，
+	# 门控相同：pv_kw > 2.0 且 pv_factor > 0.30 时发射，visible 本身不切换）。
+	# _make_dust_layer 未给节点改名，按名取不到，故直接读脚本变量；读不到
+	# 时回退到 pv_detail 下的 GPUParticles3D 子节点（按添加顺序：主层在先）。
+	var pv_dust: GPUParticles3D = pv.get("sun_dust") as GPUParticles3D
+	var pv_dust_far: GPUParticles3D = pv.get("sun_dust_far") as GPUParticles3D
+	if pv_dust == null or pv_dust_far == null:
+		var _found: Array[GPUParticles3D] = []
+		for c in pv.get_children():
+			if c is GPUParticles3D:
+				_found.append(c)
+		if pv_dust == null and _found.size() > 0:
+			pv_dust = _found[0]
+		if pv_dust_far == null and _found.size() > 1:
+			pv_dust_far = _found[1]
 	pv.call("update_frame", 100.0, 0.30, 0.0)
-	_chk("雨天 pv_factor=0.30 阳光射线隐藏", not (pv.ray_planes[0] as MeshInstance3D).visible, str((pv.ray_planes[0] as MeshInstance3D).visible))
+	_chk("雨天 pv_factor=0.30 阳光光尘不发射", pv_dust != null and pv_dust_far != null and (not pv_dust.emitting or not pv_dust.visible) and (not pv_dust_far.emitting or not pv_dust_far.visible), str(pv_dust.emitting) + "/" + str(pv_dust_far.emitting) if pv_dust != null and pv_dust_far != null else "粒子节点未找到")
 	pv.call("update_frame", 100.0, 0.45, 0.0)
-	_chk("阴天 pv_factor=0.45 阳光射线显示", (pv.ray_planes[0] as MeshInstance3D).visible, str((pv.ray_planes[0] as MeshInstance3D).visible))
+	_chk("阴天 pv_factor=0.45 阳光光尘发射", pv_dust != null and pv_dust_far != null and pv_dust.emitting and pv_dust.visible and pv_dust_far.emitting and pv_dust_far.visible, str(pv_dust.emitting) + "/" + str(pv_dust_far.emitting) if pv_dust != null and pv_dust_far != null else "粒子节点未找到")
 	pv.call("update_frame", 100.0, 0.15, 0.0)
-	_chk("暴雨 pv_factor=0.15 阳光射线隐藏", not (pv.ray_planes[0] as MeshInstance3D).visible, str((pv.ray_planes[0] as MeshInstance3D).visible))
+	_chk("暴雨 pv_factor=0.15 阳光光尘不发射", pv_dust != null and pv_dust_far != null and (not pv_dust.emitting or not pv_dust.visible) and (not pv_dust_far.emitting or not pv_dust_far.visible), str(pv_dust.emitting) + "/" + str(pv_dust_far.emitting) if pv_dust != null and pv_dust_far != null else "粒子节点未找到")
 	var chg = _main.chg_detail
 	chg.call("update_frame", 10.0, 12.0, 0.0, 0.30)
-	# run 45297927902 修补：弧线不再随雨天隐藏（旧断言“隐藏”已翻转；阳光射线
-	# 雨天隐藏仍在上面三行，不动）。
+	# run 45297927902 修补：弧线不再随雨天隐藏（旧断言“隐藏”已翻转；阳光光尘
+	# 雨天不发射仍在上面三行，不动）。
 	_chk("雨天 V2G 弧线流光点显示（不再随雨天隐藏）", (chg.arc_dots[0] as MeshInstance3D).visible, str((chg.arc_dots[0] as MeshInstance3D).visible))
 	_chk("雨天 V2G 弧线基线显示（不再随雨天隐藏）", (chg.arc_segs[0] as MeshInstance3D).visible, str((chg.arc_segs[0] as MeshInstance3D).visible))
 	chg.call("update_frame", 10.0, 12.0, 0.0, 0.45)
@@ -1223,8 +1239,8 @@ func _process(_delta: float) -> bool:
 		sto.call("update_frame", _batt12, 5.0, 0.016)
 		_chk("待机时流光点隐藏", not (sto.flow_dots[0] as MeshInstance3D).visible, str((sto.flow_dots[0] as MeshInstance3D).visible))
 	# ---- V2G 弧线场景门控（run 45232401156 的 02-storage 斜穿细线）----
-	# 那束橙色细线 + 黄球不是阳光射线：阳光射线在 pv_detail 里、储能场景
-	# pv_detail.visible=false，且射线是 2.2m 宽带（01-pv 的四条宽带）；
+	# 那束橙色细线 + 黄球不是阳光光尘：阳光光尘在 pv_detail 里、储能场景
+	# pv_detail.visible=false，且光尘是 GPUParticles3D 粒子（01-pv 的阳光粒子）；
 	# 储能图里是 0.12m 细基线 + r0.22 #fb923c 流光点、从 (44,2,76) 到
 	# (64,3,−30)，正是 charge_detail 的弧线。弧线只留总览与充电区。
 	#（用 state_at(_main.hour) 调 _update_visuals：它会顺带按 SOC 重算机架条
@@ -1239,7 +1255,7 @@ func _process(_delta: float) -> bool:
 	_main.call("_update_visuals", _main.sim.state_at(_main.hour), 0.016)
 	_chk("V2G 弧线：总览仍画（跨校园能量流的原设计意图）", _main.chg_detail.visible, str(_main.chg_detail.visible))
 	# ---- 雨天 V2G 弧线（run 45297927902 修补：旧门控 `pv_factor > 0.30` 把弧线
-	# 连同阳光射线一起藏了，11-charge-rain 放电 54kW 却无线无点）----
+	# 连同阳光光尘一起藏了，11-charge-rain 放电 54kW 却无线无点）----
 	# 直接调 update_frame（绕开场景门控，只验弧线自身的天气门控；段/点的 visible
 	# 是自身标志，与父节点 chg_detail.visible 无关）。
 	# 12:00 放电 54kW：雨天 0.30 / 暴雨 0.15 / 晴天 1.00 都应显示；

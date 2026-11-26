@@ -69,9 +69,9 @@ func update_frame(ev_kw: float, hour: float, t: float, pv_factor: float = 1.0) -
 	var discharging := ev_kw > 1.0
 	# 天气门控（run 45297927902 修补）：弧线不再随 pv_factor 隐藏——雨天
 	# pv_factor=0.30 时旧条件 `pv_factor > 0.30` 为假，整条弧线（流光点 + 基线）
-	# 被连同阳光射线一起藏掉，11-charge-rain 放电 54kW 却无线无点；晴天 12 同功率
+	# 被连同阳光光尘一起藏掉，11-charge-rain 放电 54kW 却无线无点；晴天 12 同功率
 	# 弧线清晰。V2G 弧线是能量流（放电或日间时段即显示），与光伏出力无关；
-	# 阳光射线雨天隐藏仍在 pv_detail.gd 那一行，不动。
+	# 阳光光尘雨天不发射仍在 pv_detail.gd 那一行，不动。
 	# pv_factor 参数保留（main.gd 调用签名不变），此处不再使用。
 	var active := discharging or (hour > 7.5 and hour < 17.5)
 	var col := Color("#fb923c") if discharging else Color("#38bdf8")
