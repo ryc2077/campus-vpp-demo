@@ -8,8 +8,8 @@
 #   ov-parking 的 3 个 EMPTY（ov-parking_blue/grey/red）是 3 辆车的父级，
 #   必须保留，否则车身子物体会丢变换。
 # 拼装补齐（场景内新建，名前缀 OV_ASSEMBLY_，不是单件）：
-#   地面 340x340 草地纹理（Grass004 亮度映射到 SPEC 草地绿 #69b45e，
-#   均值即 #69B45E，不再是平色；campus.json ground）；池塘水面椭圆盘
+#   地面 340x340 草地纹理（Grass004 亮度映射到 SPEC 草地绿 #506335，
+#   均值即 #506335，不再是平色；campus.json ground）；池塘水面椭圆盘
 #   （campus.json pond [82,78] rx11 rz8 -> Blender (82,-78)，水纹理）；
 #   配电房外壳（campus.json buildings.dist [48,-30] 16x10 高 8m，
 #   Plaster001 映射到 #dfe9f2；屋顶 grey_roof_01 映射到深灰 #424A52）。
@@ -203,15 +203,15 @@ else:
     print("DORM-LAWN WARNING dorm_lawn_between not found")
 
 # ---------- 3. 拼装补齐（场景内新建，OV_ASSEMBLY_ 前缀） ----------
-# 3a. 地面 340x340，campus.json ground color #69b45e；顶面 z=-0.05，
+# 3a. 地面 340x340，campus.json ground color #506335；顶面 z=-0.05，
 #     避开各件 z=0 的底面共面（防 z-fighting），视觉上仍为地面。
-#     返工：Grass004 亮度映射到 #69B45E 的草地纹理，4m 一重复，不再平色。
+#     返工：Grass004 亮度映射到 #506335 的草地纹理，4m 一重复，不再平色。
 ground_mat = pbr_mat("OV_ASSEMBLY_ground_mat", "GroundGrass")
 bpy.ops.mesh.primitive_plane_add(size=340.0, location=(0.0, 0.0, -0.05))
 ground = bpy.context.active_object
 ground.name = "OV_ASSEMBLY_ground"
 ground.data.materials.append(ground_mat)
-print("ASSEMBLY ground 340x340 @z=-0.05 color=#69b45e")
+print("ASSEMBLY ground 340x340 @z=-0.05 color=#506335")
 
 # 3b. 池塘水面椭圆盘：Godot [82,78] rx11 rz8 -> Blender (82,-78)，
 #     rx=11（x），ry=8（y）；圆柱顶面 z=0.05、底面 z=-0.07。
