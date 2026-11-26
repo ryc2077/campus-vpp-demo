@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: "Git ref to build (commit SHA or branch)"
+        description: "Git ref to build (full 40-char commit SHA or branch)"
         required: true
-        default: "f0cad50f"
+        default: "f0cad50f17ee4ec8465c58795e9010d1a63e2061"
 
 jobs:
   windows-export:
