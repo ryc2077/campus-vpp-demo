@@ -22,6 +22,12 @@
 #   lod2 ×1.5–2.0、lod1 ×1.25–1.65、lod0 ×1.1–1.35、红燕麦 ×1.5–2.0
 #   （0 面，lod2 高 0.76m→1.14–1.52m、幅 1.21m→1.8–2.4m；总览约
 #   4.6px/m 下单丛由 ~3×5px 变 ~6×10px）。禁入椭圆（新跑道）一字不动。
+# 2026-11-26 草地改色（往目标橄榄绿 #506335 收，用户色卡二）：色带
+#   A #86CC74→#89BE52、B #3E7A32→#496929、C #A9BE4A→#7EA43D（A/B ΔG=85，
+#   深浅比不变，色相统一收至 ~82–90°）；草叶六色 / TEVY / Lawn_Green /
+#   宿舍楼草坪贴图同法逐像素 HSL 改色（H 向 85° 收、S 向 0.45 收、L ×0.85，
+#   TEVY ×0.93、Lawn_Green ×0.90，斑点保留）；GRASS_COLORS、GRASS_VAR 与
+#   mat_lawn 程序化颜色已同步新均值；原图备份见 ov-lawn_textures-orig-backup/。
 # Blender 坐标 x 向东、y 向北、z 向上，单位米
 # 内容：3 块草地（实体草丛铺满）、南门广场两侧 4 个花坛、20 个灌木球
 # v3 改动：草地底板/土面/灌木/花/草丛加程序化噪波纹理（颜色+粗糙度+轻微凹凸），
@@ -185,9 +191,9 @@ bpy.ops.object.delete(use_global=False)
 for m in list(bpy.data.materials):
     bpy.data.materials.remove(m)
 
-mat_lawn = make_mat("Lawn_Green", "#69B45E", 0.95)
+mat_lawn = make_mat("Lawn_Green", "#7BAE49", 0.95)
 # 草地底板：深绿/浅绿斑块（约 1-2m 一块）+ 粗糙度 0.8-1.0 + 轻微凹凸
-add_noise_tex(mat_lawn, "#3F7A33", "#7FC46A", noise_scale=0.9, detail=4.0,
+add_noise_tex(mat_lawn, "#4E6F2C", "#89BC53", noise_scale=0.9, detail=4.0,
               rough_lo=0.80, rough_hi=1.0, bump_strength=0.25, bump_dist=0.02)
 mat_border = make_mat("Bed_Border", "#C8C8C8", 0.85)
 mat_soil = make_mat("Bed_Soil", "#5A4632", 1.0)
@@ -211,22 +217,23 @@ flower_mats = [mat_flower_r, mat_flower_y, mat_flower_p]
 # 2026-11-24 F4 收尾：Lime/YellowGreen 两档亮黄绿压暗 ×0.80（贴图
 #   Grass_Lime/YellowGreen_color.png 均值同步改，见下；_attach_grass_color
 #   以贴图为准，此处 hex 只作初始值、渲染以贴图为准）
+# 2026-11-26 草地改色：六色 hex 已同步新贴图实测均值（往 #506335 橄榄绿收）
 GRASS_COLORS = [
-    ("DarkGreen", "#3E6B2E", 0.12),
-    ("Dark", "#4E8A3F", 0.20),
-    ("Green", "#69B45E", 0.28),
-    ("Light", "#7FC46A", 0.18),
-    ("YellowGreen", "#6E863B", 0.14),
-    ("Lime", "#869B4B", 0.08),
+    ("DarkGreen", "#425C25", 0.12),
+    ("Dark", "#557832", 0.20),
+    ("Green", "#73A444", 0.28),
+    ("Light", "#81B54A", 0.18),
+    ("YellowGreen", "#597430", 0.14),
+    ("Lime", "#6B893B", 0.08),
 ]
 # 草丛六色深浅对（仅轻微颜色不均，混搭比例不变）
 GRASS_VAR = {
-    "DarkGreen": ("#2E5222", "#4E7A3A"),
-    "Dark": ("#3A6B2E", "#5F9C4C"),
-    "Green": ("#4E8A3F", "#82C46E"),
-    "Light": ("#64A854", "#97D484"),
-    "YellowGreen": ("#6E8A38", "#A8C25E"),
-    "Lime": ("#8AA84A", "#C2D478"),
+    "DarkGreen": ("#32471C", "#4E6B2E"),
+    "Dark": ("#415D25", "#648A3B"),
+    "Green": ("#567932", "#83B94C"),
+    "Light": ("#6B9541", "#94C560"),
+    "YellowGreen": ("#5A762E", "#87B243"),
+    "Lime": ("#70923C", "#9BC456"),
 }
 grass_mats = {k: make_mat("Grass_" + k, hx, 0.95) for k, hx, _ in GRASS_COLORS}
 for k, m in grass_mats.items():

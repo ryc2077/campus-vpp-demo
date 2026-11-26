@@ -106,7 +106,8 @@ MAT_METAL = _new_mat("MetalGrey_tex", "#C0C5C9", 0.55, 0.3)
 MAT_GRILLE = _new_mat("AC_Grille_3A4046_tex", "#3A4046", 0.7, 0.1)
 MAT_DOOR = _new_mat("Door_Dark_3A4046", "#3A4046", 0.6, 0.2)
 MAT_DOOR_GLASS = _new_mat("Door_Glass_9FC3D8", "#9FC3D8", 0.25, 0.1)
-MAT_GRASS = _new_mat("Grass_69B45E", "#69B45E", 1.0)
+# 2026-11-26 草地改色：往目标橄榄绿 #506335 收，材质名 Grass_69B45E 不变（贴图文件名同名）
+MAT_GRASS = _new_mat("Grass_69B45E", "#527333", 1.0)
 MAT_BUSH = _new_mat("Bush_4F7D3A", "#4F7D3A", 0.9)
 
 
