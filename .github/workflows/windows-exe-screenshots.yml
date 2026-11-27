@@ -1,0 +1,52 @@
+name: Windows exe screenshots
+
+# Run the built Windows exe on a windows-latest runner and take real
+# screenshots (proves the exe actually launches and renders, not just
+# that the headless CI verification passed).
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "windows-export run id to take the exe from"
+        required: true
+        default: "45872665473"
+      clicks:
+        description: "Click points 'x,y;x,y' (absolute screen coords), empty = overview only"
+        required: false
+        default: ""
+      shot_names:
+        description: "Shot names for each click, semicolon separated (e.g. pv;classroom)"
+        required: false
+        default: ""
+
+jobs:
+  exe-screenshots:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download exe artifact from windows-export run
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-export
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: exe-pkg
+
+      - name: List downloaded exe
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse exe-pkg | Select-Object FullName, Length
+          (Get-FileHash exe-pkg\campus-vpp-demo.exe -Algorithm SHA256).Hash
+
+      - name: Launch exe and take screenshots
+        shell: pwsh
+        run: .\tools\shot_exe.ps1 -ExePath "$PWD\exe-pkg\campus-vpp-demo.exe" -OutDir "$PWD\shots" -Clicks "${{ inputs.clicks }}" -ShotNames "${{ inputs.shot_names }}"
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe-screenshots
+          path: shots/
