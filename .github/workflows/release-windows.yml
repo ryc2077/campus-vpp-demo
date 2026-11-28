@@ -3,24 +3,31 @@ name: Release Windows exe
 # Publish the Windows exe as a GitHub Release asset.
 # Takes the exe from a windows-export run artifact and publishes it with
 # the runner's gh CLI (GITHUB_TOKEN) — never upload the ~860MB exe from a
-# local machine. The downloaded exe is verified (size + SHA-256) before
-# the release is created, so a wrong file can never be published.
+# local machine. The downloaded exe is verified (size + SHA-256, passed as
+# dispatch inputs) before the release is created, so a wrong file can never
+# be published.
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g. v2026.11.27)"
+        description: "Release tag (e.g. v2026.11.29)"
         required: true
-        default: "v2026.11.27"
+        default: "v2026.11.29"
       run_id:
         description: "windows-export run id to take the exe from"
         required: true
-        default: "45872665473"
+        default: "46162123276"
       artifact:
         description: "Artifact name in that run"
         required: true
         default: "windows-export"
+      exe_size:
+        description: "Expected exe size in bytes (from the windows-export artifact)"
+        required: true
+      exe_sha256:
+        description: "Expected exe SHA-256 (from the windows-export artifact)"
+        required: true
 
 jobs:
   release-windows:
@@ -45,42 +52,46 @@ jobs:
           test -f exe-pkg/campus-vpp-demo.exe
           EXE_SIZE=$(stat -c%s exe-pkg/campus-vpp-demo.exe)
           echo "exe size: $EXE_SIZE"
-          test "$EXE_SIZE" = "859457072"
+          test "$EXE_SIZE" = "${{ inputs.exe_size }}"
           EXE_SHA=$(sha256sum exe-pkg/campus-vpp-demo.exe | awk '{print $1}')
           echo "exe sha256: $EXE_SHA"
-          test "$EXE_SHA" = "df7adcb5dcf37a1b566f74fdc9b85e70cf077e6efb48b5f1eb5fd4aa2530ba5e"
+          test "$EXE_SHA" = "${{ inputs.exe_sha256 }}"
 
       - name: Create GitHub Release with exe asset
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          TAG_DATE=$(echo "${{ inputs.tag }}" | sed 's/^v//; s/\./-/g')
+          EXE_MB=$(( ${{ inputs.exe_size }} / 1048576 ))
           cat > release-notes.md <<'NOTES_EOF'
-          ## 校园虚拟电厂 Demo — Windows 版（2026-11-27）
+          ## 校园虚拟电厂 Demo — Windows 版（__TAG_DATE__）
 
           单文件 exe，下载后双击即玩，无需安装 Godot、无需额外 DLL。
 
           ### 版本
-          - 仓库 HEAD：544af9d1（构建提交 5a209e63，仅补 Windows 导出预设，Demo 内容与 544af9d1 一字相同）
+          - 仓库 HEAD：20da56c1（改版规格 v2026.11.28）
           - Godot 4.4 stable，Windows Desktop 导出，.pck 已嵌进 exe
           - 图标为 Godot 默认图标
 
           ### 文件
-          - `campus-vpp-demo.exe`：859,457,072 字节（约 820 MB），内嵌 .pck 761,960,496 B
-          - SHA-256：df7adcb5dcf37a1b566f74fdc9b85e70cf077e6efb48b5f1eb5fd4aa2530ba5e
+          - `campus-vpp-demo.exe`：__EXE_SIZE__ 字节（约 __EXE_MB__ MB），内嵌 .pck 761,961,200 B
+          - SHA-256：__EXE_SHA__
 
           ### 验证
-          - GitHub Actions windows-export run #4 构建成功，导出前无头逻辑验证 PASS=271 FAIL=0
-          - 2026-11-27 已在 Actions Windows runner 上真跑 exe，6 个场景（总览 / 光伏 / 教室 / 充电区 / 储能 / 配电房）截图齐：草地橄榄绿 #506335、光伏粒子阳光、配电房雾色补偿在 exe 里都成立，充电区树不再挡视线
+          - GitHub Actions windows-export run 46162123276 构建成功，导出前无头逻辑验证 PASS=270 FAIL=0（godot-verify run 46160407039）
+          - Web 截图 21 张已验收：两种运行方式对照表（现状 7.91h / 本研究 4.40h 均达标绿字，净收益约 18.1 元/日）、储能保留线 55.61% · 119.57 kWh、放电窗口 08:00–08:30 柜面流光点可见、配电房运行模式日常调度 · 峰段
 
-          ### 本版新内容（相对 2026-11-26 版）
-          - 光伏屋顶阳光改成粒子效果：光尘在阳光里慢慢漂，不再是平的黄色光带
-          - 草地整体改色：往暗橄榄绿 #506335 改，深浅格层次保留
+          ### 本版新内容（相对 v2026.11.27）
+          - 三方案改为「现状 / 本研究」两种运行方式；电价改两段（峰 8—21、谷 21—8，无平段）；数字按 96 点数据重算
+          - 现状 2866.1/1328.6/1670.2/335.0kW/78.7%/7.91h；本研究 2778.1/1279.5/1618.8/279.7kW/81.8%/4.40h；保留线 119.57kWh（55.61%），日常可调度 95.43kWh
+          - 储能放电窗口前移至 08:00–08:30（峰段 08:00 即开始），近拍截图与断言同步改到 08:00
 
           ### 待验证
           - 请在真机 Windows 上双击启动一次，确认能进总览、6 场景与天气切换正常
           NOTES_EOF
+          sed -i "s/__TAG_DATE__/$TAG_DATE/g; s/__EXE_SIZE__/${{ inputs.exe_size }}/g; s/__EXE_MB__/$EXE_MB/g; s/__EXE_SHA__/${{ inputs.exe_sha256 }}/g" release-notes.md
           gh release create "${{ inputs.tag }}" \
             --repo ryc2077/campus-vpp-demo \
-            --title "校园虚拟电厂 Demo — Windows exe（2026-11-27）" \
+            --title "校园虚拟电厂 Demo — Windows exe（$TAG_DATE）" \
             --notes-file release-notes.md \
             exe-pkg/campus-vpp-demo.exe
