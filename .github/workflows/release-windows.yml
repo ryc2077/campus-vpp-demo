@@ -29,6 +29,8 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download exe artifact from windows-export run
         uses: actions/download-artifact@v4
         with:
@@ -78,6 +80,7 @@ jobs:
           - 请在真机 Windows 上双击启动一次，确认能进总览、6 场景与天气切换正常
           NOTES_EOF
           gh release create "${{ inputs.tag }}" \
+            --repo ryc2077/campus-vpp-demo \
             --title "校园虚拟电厂 Demo — Windows exe（2026-11-27）" \
             --notes-file release-notes.md \
             exe-pkg/campus-vpp-demo.exe
