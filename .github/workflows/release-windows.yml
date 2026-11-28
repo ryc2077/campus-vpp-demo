@@ -1,0 +1,83 @@
+name: Release Windows exe
+
+# Publish the Windows exe as a GitHub Release asset.
+# Takes the exe from a windows-export run artifact and publishes it with
+# the runner's gh CLI (GITHUB_TOKEN) — never upload the ~860MB exe from a
+# local machine. The downloaded exe is verified (size + SHA-256) before
+# the release is created, so a wrong file can never be published.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v2026.11.27)"
+        required: true
+        default: "v2026.11.27"
+      run_id:
+        description: "windows-export run id to take the exe from"
+        required: true
+        default: "45872665473"
+      artifact:
+        description: "Artifact name in that run"
+        required: true
+        default: "windows-export"
+
+jobs:
+  release-windows:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - name: Download exe artifact from windows-export run
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact }}
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: exe-pkg
+
+      - name: Verify downloaded exe (size + SHA-256)
+        run: |
+          ls -lh exe-pkg/
+          test -f exe-pkg/campus-vpp-demo.exe
+          EXE_SIZE=$(stat -c%s exe-pkg/campus-vpp-demo.exe)
+          echo "exe size: $EXE_SIZE"
+          test "$EXE_SIZE" = "859457072"
+          EXE_SHA=$(sha256sum exe-pkg/campus-vpp-demo.exe | awk '{print $1}')
+          echo "exe sha256: $EXE_SHA"
+          test "$EXE_SHA" = "df7adcb5dcf37a1b566f74fdc9b85e70cf077e6efb48b5f1eb5fd4aa2530ba5e"
+
+      - name: Create GitHub Release with exe asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat > release-notes.md <<'NOTES_EOF'
+          ## 校园虚拟电厂 Demo — Windows 版（2026-11-27）
+
+          单文件 exe，下载后双击即玩，无需安装 Godot、无需额外 DLL。
+
+          ### 版本
+          - 仓库 HEAD：544af9d1（构建提交 5a209e63，仅补 Windows 导出预设，Demo 内容与 544af9d1 一字相同）
+          - Godot 4.4 stable，Windows Desktop 导出，.pck 已嵌进 exe
+          - 图标为 Godot 默认图标
+
+          ### 文件
+          - `campus-vpp-demo.exe`：859,457,072 字节（约 820 MB），内嵌 .pck 761,960,496 B
+          - SHA-256：df7adcb5dcf37a1b566f74fdc9b85e70cf077e6efb48b5f1eb5fd4aa2530ba5e
+
+          ### 验证
+          - GitHub Actions windows-export run #4 构建成功，导出前无头逻辑验证 PASS=271 FAIL=0
+          - 2026-11-27 已在 Actions Windows runner 上真跑 exe，6 个场景（总览 / 光伏 / 教室 / 充电区 / 储能 / 配电房）截图齐：草地橄榄绿 #506335、光伏粒子阳光、配电房雾色补偿在 exe 里都成立，充电区树不再挡视线
+
+          ### 本版新内容（相对 2026-11-26 版）
+          - 光伏屋顶阳光改成粒子效果：光尘在阳光里慢慢漂，不再是平的黄色光带
+          - 草地整体改色：往暗橄榄绿 #506335 改，深浅格层次保留
+
+          ### 待验证
+          - 请在真机 Windows 上双击启动一次，确认能进总览、6 场景与天气切换正常
+          NOTES_EOF
+          gh release create "${{ inputs.tag }}" \
+            --title "校园虚拟电厂 Demo — Windows exe（2026-11-27）" \
+            --notes-file release-notes.md \
+            exe-pkg/campus-vpp-demo.exe
