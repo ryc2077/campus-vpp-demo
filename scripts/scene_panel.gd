@@ -186,7 +186,7 @@ func set_live(rows: Array, bars: Array = []) -> void:
 		live_box.add_child(bar)
 		if b.has("resv_pct"):
 			var resv := Label.new()
-			resv.text = "应急保留线 %.0f%% · %s kWh" % [float(b["resv_pct"]), str(b.get("resv_kwh", ""))]
+			resv.text = "应急保留线 %.2f%% · %s kWh" % [float(b["resv_pct"]), str(b.get("resv_kwh", ""))]
 			if font != null:
 				resv.add_theme_font_override("font", font)
 			resv.add_theme_color_override("font_color", Color("#dc2626"))

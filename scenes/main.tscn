@@ -109,7 +109,7 @@ text = "校园虚拟电厂 · 源网荷储车协同调度"
 unique_name_in_owner = true
 theme_override_colors/font_color = Color(0.02, 0.52, 0.35, 1)
 theme_override_font_sizes/font_size = 14
-text = "平时模式 · B 平急两用"
+text = "谷段模式 · 日常调度"
 
 [node name="ClockLabel" type="Label" parent="UI/TopBar/HBox"]
 unique_name_in_owner = true
@@ -141,7 +141,7 @@ text = "开始仿真"
 [node name="ABCToggle" type="Button" parent="UI/TopBar/HBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 44)
-text = "A/B/C 对照"
+text = "运行方式对照"
 
 [node name="WxPill" type="Control" parent="UI"]
 anchors_preset = 1
@@ -322,7 +322,7 @@ theme_override_constants/separation = 8
 [node name="ABCTitle" type="Label" parent="UI/ABCPanel/VBox"]
 theme_override_colors/font_color = Color(0.059, 0.09, 0.165, 1)
 theme_override_font_sizes/font_size = 16
-text = "三组策略对照（典型日 · 9 月高峰典型日）"
+text = "两种运行方式对照（9 月高峰典型日）"
 
 [node name="ABCGrid" type="GridContainer" parent="UI/ABCPanel/VBox"]
 unique_name_in_owner = true
@@ -333,7 +333,7 @@ unique_name_in_owner = true
 autowrap_mode = 2
 theme_override_colors/font_color = Color(0.278, 0.333, 0.412, 1)
 theme_override_font_sizes/font_size = 16
-text = "B 相对 A：日减外购 88 kWh、日省 49 元、日减碳 51 kg、削峰 55 kW。"
+text = "本研究相对现状：日减外购 88.0 kWh、日省电费 49.1 元、日减碳 51.4 kg、削峰 55.3 kW。"
 
 [node name="ABCClose" type="Button" parent="UI/ABCPanel/VBox"]
 unique_name_in_owner = true

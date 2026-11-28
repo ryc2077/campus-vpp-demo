@@ -1,7 +1,11 @@
 ; Engine configuration file.
-; Campus VPP Demo — Godot 4.4 rewrite of the Three.js demo.
-; Data authority: 2026-10-31 hand-revised core files (upload.docx / 1031.docx / 1.docx).
-; All numbers live in data/*.json; scripts only read them.
+; Data authority: 仿真模型_96点典型日数据.csv（2026-11-28 口径：两种运行方式、两段电价）。
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
 
 config_version=5
 
@@ -24,9 +28,7 @@ window/handheld/orientation=1
 [gui]
 
 theme/default_font="res://assets/fonts/NotoSansSC-Regular.ttf"
-# MSDF 关：848 个 CJK 字形的 MSDF 图集在 Web 导出下会丢字形（实测全部显示为 □），
-# 改普通位图字形图集（固定字号 UI，清晰度足够）。
-theme/default_font_multichannel_signed_distance_field=false
+"#MSDFå³ï¼848ä¸ªCJKå­å½¢çMSDFå¾éå¨Webå¯¼åºä¸ä¼ä¸¢å­å½¢ï¼å®æµå¨é¨æ¾ç¤ºä¸ºâ¡ï¼ï¼#æ¹æ®éä½å¾å­å½¢å¾éï¼åºå®å­å·UIï¼æ¸æ°åº¦è¶³å¤ï¼ãtheme/default_font_multichannel_signed_distance_field"=false
 
 [input_devices]
 
@@ -36,6 +38,6 @@ pointing/emulate_touch_from_mouse=true
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
-environment/defaults/default_clear_color=Color(0.553, 0.788, 0.941, 1)
 textures/vram_compression/import_etc2_astc=true
 anti_aliasing/quality/msaa_3d=2
+environment/defaults/default_clear_color=Color(0.553, 0.788, 0.941, 1)

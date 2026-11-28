@@ -148,11 +148,10 @@ func _apply_ui_font(n: Node) -> void:
 
 func _rebuild_sim() -> void:
 	var p := {
-		"cap": 215.0, "pow": 100.0, "reserve_pct": 0.556,
+		"cap": 215.0, "pow": 100.0, "reserve_pct": 0.5561,
 		"pv_cap": float(bill_data["pv"]["capacity_kwp"]), "load_pk": 1100.0,
 		"ac_set": 26.5, "ev_rate": 0.30,
 		"price_peak": float(bill_data["price"]["peak_yuan_per_kwh"]),
-		"price_flat": float(bill_data["price"]["flat_yuan_per_kwh"]),
 		"price_valley": float(bill_data["price"]["valley_yuan_per_kwh"]),
 		"cf_avg": float(bill_data["carbon_factor_kg_per_kwh"]),
 	}
@@ -648,12 +647,10 @@ func _process(delta: float) -> void:
 		_refresh_panel()
 
 func _update_clock(st: Dictionary) -> void:
-	var mode := "平时模式"
+	var mode := "谷段模式"
 	if st["price"] >= float(bill_data["price"]["peak_yuan_per_kwh"]) - 0.001:
-		mode = "高峰模式"
-	elif st["price"] <= float(bill_data["price"]["valley_yuan_per_kwh"]) + 0.001:
-		mode = "谷段模式"
-	ui.set_clock(hour, mode + " · B 平急两用")
+		mode = "峰段模式"
+	ui.set_clock(hour, mode + " · 日常调度")
 
 ## SOC 三色口径（壳体变色与机架 SOC 条共用，同一 SOC 绝不两色）：
 ## 绿 >50%、黄 >28%、红 ≤28%。面板/图表里的“应急保留线 56%”是放电
@@ -748,7 +745,7 @@ func _refresh_panel() -> void:
 				["今日累计发电", "%s kWh" % _fmt_num(float(sim.plan.get("pv_gen", 0.0)))],
 				["逆变器状态", "DC 转 AC 转换中" if float(st["pv"]) > 2.0 else "待机（无光照）"],
 			])
-			panel.chart.set_day(sim.plan, hour, 0.556)
+			panel.chart.set_day(sim.plan, hour, 0.5561)
 		"storage":
 			var b: float = st["batt"]
 			# 面板 SOC 条与壳体/3D 机架条共用 _soc_color（绿 >50%）：56% 为绿。
@@ -758,14 +755,14 @@ func _refresh_panel() -> void:
 			# 保留线仍是独立元素：条下红字 Label + 图表里红色虚线，不另画条。
 			panel.set_live([
 				["储能 SOC", "%d%% · %s / 215 kWh" % [int(round(float(st["soc"]) * 100.0)), _fmt_num(float(st["soc"]) * 215.0)]],
-				["应急保留线（红区）", "56% · 120 kWh"],
+				["应急保留线（红区）", "55.61% · 119.57 kWh"],
 				["当前状态", ("放电 %d kW" % int(round(b))) if b > 1.0 else (("充电 %d kW" % int(round(-b))) if b < -1.0 else "待机")],
 				["散热风扇", "高速运转" if absf(b) > 1.0 else "低速待机"],
 				["日常放电", "条件触发：充电全部由午间光伏富余承担时才放电"],
 			], [
-				{"pct": float(st["soc"]) * 100.0, "color": "#" + _soc_color(float(st["soc"])).to_html(false), "resv_pct": 55.6, "resv_kwh": "120"},
+				{"pct": float(st["soc"]) * 100.0, "color": "#" + _soc_color(float(st["soc"])).to_html(false), "resv_pct": 55.61, "resv_kwh": "119.57"},
 			])
-			panel.chart.set_day(sim.plan, hour, 0.556)
+			panel.chart.set_day(sim.plan, hour, 0.5561)
 		"classroom":
 			var cur: Dictionary = cls_model.at(cls_results[cls_strategy], hour)
 			var T: float = cur["T"]
@@ -794,18 +791,18 @@ func _refresh_panel() -> void:
 				ci += 1
 			rows.append(["离校要求", "参与车辆离校电量须达 80%"])
 			panel.set_live(rows, bars)
-			panel.chart.set_day(sim.plan, hour, 0.556)
+			panel.chart.set_day(sim.plan, hour, 0.5561)
 		"dist":
 			var rate := 100.0 * float(st["grid"]) / 3000.0
 			panel.set_live([
 				["母线购电功率", "%d kW" % int(round(float(st["grid"])))],
 				["变压器负载率", "%d%%（总容量实测 3000 kVA，负载率按 kW/kVA 近似）" % int(round(rate))],
-				["储能 SOC", "%d%% · 保留线 56%%" % int(round(float(st["soc"]) * 100.0))],
-				["运行模式", "B 平急两用 · %s" % ("高峰模式" if float(st["price"]) > 0.55 else "平时模式")],
+				["储能 SOC", "%d%% · 保留线 55.61%%" % int(round(float(st["soc"]) * 100.0))],
+				["运行模式", "日常调度 · %s" % ("峰段" if float(st["price"]) >= 0.5583 - 0.001 else "谷段")],
 			], [
 				{"pct": rate, "color": "#dc2626" if rate > 90.0 else "#0284c7"},
 			])
-			panel.chart.set_day(sim.plan, hour, 0.556)
+			panel.chart.set_day(sim.plan, hour, 0.5561)
 
 func _fmt_num(n: float) -> String:
 	# 千分位格式化（如 3,399）

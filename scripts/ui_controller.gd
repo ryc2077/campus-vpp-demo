@@ -1,6 +1,6 @@
 class_name UIController
 extends CanvasLayer
-## 顶栏 / 场景栏 / 天气胶囊 / 时间控制 / A-B-C 对照面板。
+## 顶栏 / 场景栏 / 天气胶囊 / 时间控制 / 运行方式对照面板。
 ## 只发信号、不算数；仿真与场景切换由 main.gd 驱动。
 ## （UITokens 用 preload 而不用全局 class_name：新文件进不了本地陈旧的
 ## .godot 类缓存，headless 下会报未声明；preload 在本地与 Actions 都稳。）
@@ -11,7 +11,7 @@ const UITokens = preload("res://scripts/ui_tokens.gd")
 ##  - 触摸目标 ≥44×44px、间距 8px（tscn 里已定死）；正文 16px、行高 1.5；
 ##    正文与白底对比度 ≥4.5:1（#1e293b/#475569 系，见 res://data/colors.csv 第 1 行 SaaS）。
 ##  - 图表不只靠颜色：见 charts.gd（虚线/点线 + 图例色块 + 末端直标值）。
-##  - 退出比进入快：A/B/C 进入 180ms、退出 120ms（约 67%）；动效只动 transform/opacity。
+##  - 退出比进入快：对照面板进入 180ms、退出 120ms（约 67%）；动效只动 transform/opacity。
 ##  - 无 emoji/字形图标（▶ ⏸ ▴ ▾ ← 全部改文字动词）；无卡中卡；无紫蓝渐变。
 ##  - 玻璃只在两处浮层控件（场景栏、天气胶囊），文字面板保持实色可读。
 
@@ -191,7 +191,7 @@ func layout_panels() -> void:
 		_scene_panel.anchor_bottom = 0.0
 		_scene_panel.offset_bottom = 620.0
 
-## A/B/C 面板：偶尔打开的对照面板，一次进入（180ms 强 ease-out，
+## 运行方式对照面板：偶尔打开的对照面板，一次进入（180ms 强 ease-out，
 ## scale 0.95 + opacity，origin 右缘）；内容表格不 stagger。
 func _play_abc_enter() -> void:
 	_abc_token += 1
@@ -281,31 +281,45 @@ func _mk_label(text: String, bold: bool = false, color: Color = Color("#1e293b")
 	l.add_theme_font_size_override("font_size", size)
 	return l
 
+func _str_thousands(n: int) -> String:
+	# 千分位格式化（如 22000 → 22,000）
+	var s := str(abs(n))
+	var out := ""
+	while s.length() > 3:
+		out = "," + s.right(3) + out
+		s = s.left(s.length() - 3)
+	out = s + out
+	return ("-" + out) if n < 0 else out
+
 func _build_abc() -> void:
 	# 立即释放旧格（不用 queue_free）：窄屏切换会同帧重建并读回字号，延迟释放会读到旧标签。
 	for c in abc_grid.get_children():
 		c.free()
 	var s: Dictionary = strategies["strategies"]
+	var annual: Dictionary = strategies["annual"]
 	var fs := _abc_font_size
-	var headers := ["策略", "外购\nkWh/日", "电费\n元/日", "碳\nkg/日", "峰值\nkW", "自用率", "保供"]
+	var headers := ["运行方式", "外购\nkWh/日", "电费\n元/日", "碳\nkg/日", "峰值\nkW", "自用率", "保供"]
 	for h in headers:
 		abc_grid.add_child(_mk_label(h, true, Color("#0f172a"), fs))
-	for key in ["A", "B", "C"]:
+	for key in ["base", "study"]:
 		var st: Dictionary = s[key]
-		# B 行名用深绿 #047857（白底约 5:1；之前 #059669 仅 3.77:1 未达 AA）
-		var name_col := Color("#047857") if key == "B" else Color("#1e293b")
-		abc_grid.add_child(_mk_label(String(st["name"]), key == "B", name_col, fs))
-		abc_grid.add_child(_mk_label(str(int(st["grid_kwh_day"])), key == "B", Color("#1e293b"), fs))
-		abc_grid.add_child(_mk_label(str(int(st["cost_yuan_day"])), key == "B", Color("#1e293b"), fs))
-		abc_grid.add_child(_mk_label(str(int(st["co2_kg_day"])), key == "B", Color("#1e293b"), fs))
-		abc_grid.add_child(_mk_label(str(int(st["peak_kw"])), key == "B", Color("#1e293b"), fs))
-		abc_grid.add_child(_mk_label("%.1f%%" % float(st["self_use_pct"]), key == "B", Color("#1e293b"), fs))
-		# 保供是否达标按保留线 4h 判定（A 7.9h、B 4.4h 达标，C 1.6h 不达标）；
-		# 之前按 backup_ok 字段判定，A 缺该字段默认 false 被误标红。
+		# 本研究行名用深绿 #047857（白底约 5:1；之前 #059669 仅 3.77:1 未达 AA）
+		var name_col := Color("#047857") if key == "study" else Color("#1e293b")
+		abc_grid.add_child(_mk_label(String(st["name"]), key == "study", name_col, fs))
+		abc_grid.add_child(_mk_label("%.1f" % float(st["grid_kwh_day"]), key == "study", Color("#1e293b"), fs))
+		abc_grid.add_child(_mk_label("%.1f" % float(st["cost_yuan_day"]), key == "study", Color("#1e293b"), fs))
+		abc_grid.add_child(_mk_label("%.1f" % float(st["co2_kg_day"]), key == "study", Color("#1e293b"), fs))
+		abc_grid.add_child(_mk_label("%.1f" % float(st["peak_kw"]), key == "study", Color("#1e293b"), fs))
+		abc_grid.add_child(_mk_label("%.1f%%" % float(st["self_use_pct"]), key == "study", Color("#1e293b"), fs))
+		# 保供是否达标按保留线 4h 判定（现状 7.91h、本研究 4.40h 均达标）；
+		# 之前按 backup_ok 字段判定，旧版缺字段时默认 false 曾被误标红。
 		var ok := float(st["backup_h"]) >= 4.0
-		var bk := "%.1fh 达标" % float(st["backup_h"]) if ok else "%.1fh 不达标" % float(st["backup_h"])
-		abc_grid.add_child(_mk_label(bk, key == "B", Color("#047857") if ok else Color("#dc2626"), fs))
-	var d: Dictionary = strategies["delta_B_vs_A"]
-	abc_note.text = "B 相对 A：日减外购 %d kWh、日省 %d 元、日减碳 %d kg、削峰 %d kW。按 250 教学日：年省电约 22,000 kWh、年减碳约 13 吨。B 保供 4.4h 达标，C 仅 1.6h 不达标。" % [
-		-int(d["grid_kwh_day"]), -int(d["cost_yuan_day"]), -int(d["co2_kg_day"]), -int(d["peak_kw"])
+		var bk := "%.2fh 达标" % float(st["backup_h"]) if ok else "%.2fh 不达标" % float(st["backup_h"])
+		abc_grid.add_child(_mk_label(bk, key == "study", Color("#047857") if ok else Color("#dc2626"), fs))
+	var d: Dictionary = strategies["delta_vs_base"]
+	abc_note.text = "本研究相对现状：日减外购 %.1f kWh、日省电费 %.1f 元、日减碳 %.1f kg、削峰 %.1f kW；扣循环损耗 %d 元/日后净收益约 %.1f 元/日。按 250 教学日：年省电约 %s kWh、年减碳约 %d 吨。保供 %.2f h 达标。" % [
+		-float(d["grid_kwh_day"]), -float(d["cost_yuan_day"]), -float(d["co2_kg_day"]), -float(d["peak_kw"]),
+		int(d["cycle_loss_yuan_day"]), float(d["net_yuan_day"]),
+		_str_thousands(int(annual["save_kwh"])), int(annual["save_co2_t"]),
+		float(strategies["strategies"]["study"]["backup_h"])
 	]

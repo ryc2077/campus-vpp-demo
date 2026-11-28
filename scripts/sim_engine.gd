@@ -3,8 +3,8 @@ extends RefCounted
 ## 96 点（15 分钟一步）能量平衡仿真引擎。
 ## 移植自原 Three.js Demo buildPlan()：负荷形状、价格时段、碳因子曲线、
 ## 储能充放电规则与保留线约束保持一致；电价改用 bill.json 的居民峰谷电价
-## （平 0.5483 / 峰 0.5583 / 谷 0.3583），碳因子 0.5827。
-## 注意：A/B/C 对照表的展示值以 strategies.json 的权威文件值为准，
+## （峰 0.5583 / 谷 0.3583，无平段），碳因子 0.5827。
+## 注意：两种运行方式对照表的展示值以 strategies.json 的权威文件值为准，
 ## 本引擎的实时曲线是日内形状演示，不冒充实测曲线。
 
 const N := 96
@@ -23,12 +23,11 @@ func sun_shape(h: float) -> float:
 		return sin(PI * (h - wx["rise"]) / (wx["set"] - wx["rise"]))
 	return 0.0
 
+## 江苏居民峰谷：峰 8:00—21:00、谷 21:00—次日 8:00，无平段（苏价工〔2006〕223号）。
 func price_at(h: float) -> Dictionary:
-	if h >= 23.0 or h < 7.0:
-		return {"p": params["price_valley"], "name": "谷段"}
-	if (h >= 10.0 and h < 14.0) or (h >= 18.0 and h < 21.0):
+	if h >= 8.0 and h < 21.0:
 		return {"p": params["price_peak"], "name": "峰段"}
-	return {"p": params["price_flat"], "name": "平段"}
+	return {"p": params["price_valley"], "name": "谷段"}
 
 func cf_at(h: float) -> float:
 	var f: float = 1.18 - 0.55 * gauss(h, 12.5, 3.2) + 0.22 * gauss(h, 2.5, 3.0) + 0.10 * gauss(h, 20.0, 2.6)
@@ -52,7 +51,7 @@ func build(p: Dictionary, weather: Dictionary) -> Dictionary:
 	var soc_min := 0.10
 	var soc_max := 0.95
 	var eff := 0.92
-	var floor_soc: float = params["reserve_pct"] # B: 0.556 保留线；C: 0.10
+	var floor_soc: float = params["reserve_pct"] # 保留线 SOC 下限，0.5561
 	var load: Array[float] = []
 	var pv: Array[float] = []
 	var price: Array[float] = []

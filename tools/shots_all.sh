@@ -27,10 +27,11 @@ shot "scene=overview&shot=1&hour=9&wx=storm" 07-overview-storm.png
 shot "shot=1&hour=9" 08-narrow.png 390 844 20000 3000
 shot "scene=classroom&shot=1&hour=10&freeze=0.5" 09-freeze.png
 # --- 覆盖补拍（2026-11-24，验收缺口 3/4/5）---
-# 10：储能放电时段柜面近拍（hour=10 时 batt=+100kW 放电，流光点可见；
+# 10：储能放电时段柜面近拍（hour=8 时 batt=+100kW 放电，流光点可见；
 #   12:00 待机 batt=0 柜面无流光点；23:00 谷段充电是夜里不适合拍。
+#   两段电价下放电窗口 08:00–08:30（旧三段价是 10:00–10:30）。
 #   ?close=1 用柜面近拍机位 dist 5m 正对 3 台电池柜前脸）
-shot "scene=storage&shot=1&hour=10&close=1" 10-storage-discharge-closeup.png
+shot "scene=storage&shot=1&hour=8&close=1" 10-storage-discharge-closeup.png
 # 11：charge 雨天（hour=12 时 V2G 放电 54kW，弧线雨天也应显示，只藏阳光光尘；
 #   run 45297927902 修补：旧门控把弧线连同射线一起藏了，雨天无线无点）
 shot "scene=charge&shot=1&hour=12&wx=rain" 11-charge-rain.png

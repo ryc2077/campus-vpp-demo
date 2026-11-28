@@ -1,1 +1,60 @@
-{"annual_B_vs_A":{"note":"按 250 教学日年化：年省电约 22,000kWh、年减碳约 13 吨","save_co2_t":13,"save_kwh":22000},"delta_B_vs_A":{"co2_kg_day":-51,"cost_yuan_day":-49,"cycle_loss_yuan_day":31,"discharge_kwh_day":88,"grid_kwh_day":-88,"note":"B 相对 A：日减外购 88kWh、日省 49 元、日减碳 51kg、削峰 55kW；B 放电约 88kWh/日、损耗约 31 元/日（49−31≈18 可推算，文件未写净收益，不写）","peak_kw":-55},"meta":{"annual_days":250,"note":"三份文件里没有“净收益”概念，也没有五项新增节能、168000 元、183250 元；本文件只写文件里有的数。旧版 1969/1877/1805 元与 61 元/日净收益、台账 D-10 均已废弃，不得使用。","source":"2026-10-31 三份手工修改版核心文件（upload.docx / 1031.docx / 1.docx）典型日对照表","typical_day":"9 月高峰典型日，96 点、15 分钟一步"},"reserve_line":{"backup_h":4,"core_load_kw":25,"core_loads":["医务室","应急照明","水泵","信息机房"],"daily_usable_kwh":95,"efficiency":0.92,"note":"保留线 = 25kW × 4h ÷ 0.92 × 1.10 ≈ 120kWh（占 55.6%），日常可用约 95kWh；核心负荷 25kW 为情景值","reserve_kwh":120,"reserve_pct":55.6,"safety_margin":1.1},"strategies":{"A":{"backup_h":7.9,"co2_kg_day":1673,"cost_yuan_day":1250,"grid_kwh_day":2868,"key":"A","name":"A · 只应急（现状）","note":"储能满电待命，不参与日常调度","peak_kw":335,"self_use_pct":78.7},"B":{"backup_h":4.4,"backup_ok":true,"co2_kg_day":1622,"cost_yuan_day":1201,"grid_kwh_day":2780,"key":"B","name":"B · 平急两用（当前模型）","note":"保供 4.4h 达标（保留线 120kWh）；日常放电条件触发：只有充电能全部由午间光伏富余承担时才放电","peak_kw":280,"self_use_pct":81.8},"C":{"backup_h":1.6,"backup_ok":false,"co2_kg_day":1581,"cost_yuan_day":1162,"grid_kwh_day":2710,"key":"C","name":"C · 无保留线激进","note":"保供 1.6h 不达标，反面参照","peak_kw":255,"self_use_pct":84.2}}}
+{
+  "meta": {
+    "note": "两种运行方式：现状（储能仅应急备用）与本研究（保留线内调度）。除此之外的方案已整体废弃，不得再出现。",
+    "source": "仿真模型_96点典型日数据.csv（96 点、15 分钟一步，江苏居民峰谷电价）",
+    "typical_day": "9 月高峰典型日，96 点、15 分钟一步"
+  },
+  "reserve_line": {
+    "reserve_kwh": 119.57,
+    "reserve_pct": 55.61,
+    "daily_usable_kwh": 95.43,
+    "core_load_kw": 25,
+    "backup_h": 4,
+    "efficiency": 0.92,
+    "safety_margin": 1.1,
+    "core_loads": ["医务室", "应急照明", "水泵", "信息机房"],
+    "note": "保留线 = 25kW × 4h ÷ 0.92 × 1.10 = 119.57 kWh，占 215 kWh 的 55.61%，日常可调度 95.43 kWh"
+  },
+  "strategies": {
+    "base": {
+      "key": "base",
+      "name": "现状（仅应急备用）",
+      "grid_kwh_day": 2866.1,
+      "cost_yuan_day": 1328.6,
+      "co2_kg_day": 1670.2,
+      "peak_kw": 335.0,
+      "self_use_pct": 78.7,
+      "backup_h": 7.91,
+      "backup_ok": true,
+      "note": "储能满电待命，不参与日常调度"
+    },
+    "study": {
+      "key": "study",
+      "name": "本研究（保留线内调度）",
+      "grid_kwh_day": 2778.1,
+      "cost_yuan_day": 1279.5,
+      "co2_kg_day": 1618.8,
+      "peak_kw": 279.7,
+      "self_use_pct": 81.8,
+      "backup_h": 4.40,
+      "backup_ok": true,
+      "note": "保留约束始终不放松；日常放电条件触发：只有充电能全部由午间光伏富余承担时才放电"
+    }
+  },
+  "delta_vs_base": {
+    "grid_kwh_day": -88.0,
+    "cost_yuan_day": -49.1,
+    "co2_kg_day": -51.4,
+    "peak_kw": -55.3,
+    "discharge_kwh_day": 88.0,
+    "cycle_loss_yuan_day": 31,
+    "net_yuan_day": 18.1,
+    "note": "本研究相对现状：日减外购 88.0 kWh、日省 49.1 元、日减碳 51.4 kg、削峰 55.3 kW；扣损耗 31 元/日后净 18.1 元/日"
+  },
+  "annual": {
+    "annual_days": 250,
+    "save_kwh": 22000,
+    "save_co2_t": 13,
+    "note": "按 250 教学日年化：年省电约 22,000 kWh、年减碳约 13 吨"
+  }
+}

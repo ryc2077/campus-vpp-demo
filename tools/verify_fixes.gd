@@ -1001,21 +1001,19 @@ func _process(_delta: float) -> bool:
 	# SPEC #69B45E，阴影开 (128,255,156)。bias/ortho/maxdist/blur 全测过均
 	# 无变化，shadow_normal_bias=0 也只到 (78,191,105)。阴影必须保持关闭。
 	_chk("sun shadows off (F4: shadow path washes ground)", sun2 != null and not sun2.shadow_enabled, "shadow=" + str(sun2.shadow_enabled if sun2 != null else "no-sun"))
-	# ---- ABC 表格保供列 ----
+	# ---- 运行方式对照表保供列 ----
 	var ui = _main.get_node("UI")
 	var grid = _main.get_node("UI/ABCPanel/VBox/ABCGrid") as GridContainer
-	# 网格按行排列：表头 7 个，A/B/C 各 7 个。保供列是每行第 7 个（索引 6、13、20）
+	# 网格按行排列：表头 7 个，现状/本研究各 7 个。保供列是每行第 7 个（索引 13、20）
 	var cells := grid.get_children()
-	_chk("ABC 网格 28 个格（7 表头 + 21 数据）", cells.size() == 28, "size=" + str(cells.size()))
-	if cells.size() == 28:
-		var a_bk := cells[13] as Label
-		var b_bk := cells[20] as Label
-		var c_bk := cells[27] as Label
-		_chk("A 保供 7.9h 达标（绿）", a_bk.text.find("达标") >= 0 and _col(_label_color(a_bk)) == "#047857", a_bk.text + " " + _col(_label_color(a_bk)))
-		_chk("B 保供 4.4h 达标（绿）", b_bk.text.find("达标") >= 0 and _col(_label_color(b_bk)) == "#047857", b_bk.text + " " + _col(_label_color(b_bk)))
-		_chk("C 保供 1.6h 不达标（红）", c_bk.text.find("不达标") >= 0 and _col(_label_color(c_bk)) == "#dc2626", c_bk.text + " " + _col(_label_color(c_bk)))
-		var b_name := cells[14] as Label
-		_chk("B 行名绿色 #047857（bold 不覆盖）", _col(_label_color(b_name)) == "#047857", _col(_label_color(b_name)))
+	_chk("对照网格 21 个格（7 表头 + 14 数据）", cells.size() == 21, "size=" + str(cells.size()))
+	if cells.size() == 21:
+		var base_bk := cells[13] as Label
+		var study_bk := cells[20] as Label
+		_chk("现状 保供 7.91h 达标（绿）", base_bk.text.find("7.91h") >= 0 and _col(_label_color(base_bk)) == "#047857", base_bk.text + " " + _col(_label_color(base_bk)))
+		_chk("本研究 保供 4.40h 达标（绿）", study_bk.text.find("4.40h") >= 0 and _col(_label_color(study_bk)) == "#047857", study_bk.text + " " + _col(_label_color(study_bk)))
+		var study_name := cells[14] as Label
+		_chk("本研究行名绿色 #047857（bold 不覆盖）", _col(_label_color(study_name)) == "#047857", _col(_label_color(study_name)))
 	# ---- 图表舒适带绿（源码级：只查“24–28℃ 舒适带”那行文字色；SOC 线/图例色块用 #059669 是合法的，
 	#      它们不是文字，B 报告也认可“色块 + 深色字”模式） ----
 	var charts_src := FileAccess.get_file_as_string("res://scripts/charts.gd")
@@ -1226,15 +1224,16 @@ func _process(_delta: float) -> bool:
 	_chk("晴天 12:00 V2G 弧线流光点显示（雨天对照的阳性对照）", (chg.arc_dots[0] as MeshInstance3D).visible, str((chg.arc_dots[0] as MeshInstance3D).visible))
 	_chk("晴天 12:00 V2G 弧线基线显示", (chg.arc_segs[0] as MeshInstance3D).visible, str((chg.arc_segs[0] as MeshInstance3D).visible))
 	# ---- 覆盖补拍：储能放电时段流光点（验收缺口 3）----
-	# 仿真：12:00 待机 batt=0（柜面无流光点，旧截图即此态）；10:00 峰段放电
-	# batt=+100kW（唯一放电窗口 10:00–10:30，SOC 0.90→0.556 触保留线停）；
-	# 23:00 谷段充电 −80kW 是夜里，不适合截图。故近拍取 hour=10 放电态。
-	var _batt10: float = float((_main.sim.state_at(10.0) as Dictionary)["batt"])
+	# 仿真：12:00 待机 batt=0（柜面无流光点，旧截图即此态）；08:00 峰段放电
+	# batt=+100kW（放电窗口 08:00–08:30，SOC 0.90→0.5561 触保留线停；两段电价
+	# 下峰段 08:00 即开始，旧三段价的 10:00 窗口已前移）；
+	# 23:00 谷段充电 −80kW 是夜里，不适合截图。故近拍取 hour=8 放电态。
+	var _batt8: float = float((_main.sim.state_at(8.0) as Dictionary)["batt"])
 	var _batt12: float = float((_main.sim.state_at(12.0) as Dictionary)["batt"])
-	_chk("10:00 储能放电 batt=+100kW（流光点近拍时刻）", _batt10 > 1.0, str(_batt10))
+	_chk("08:00 储能放电 batt=+100kW（流光点近拍时刻）", _batt8 > 1.0, str(_batt8))
 	_chk("12:00 储能待机 batt=0（旧截图柜面无流光点的原因）", absf(_batt12) <= 1.0, str(_batt12))
 	if sto != null:
-		sto.call("update_frame", _batt10, 5.0, 0.016)
+		sto.call("update_frame", _batt8, 5.0, 0.016)
 		_chk("放电时流光点可见（贴柜面）", (sto.flow_dots[0] as MeshInstance3D).visible, str((sto.flow_dots[0] as MeshInstance3D).visible))
 		sto.call("update_frame", _batt12, 5.0, 0.016)
 		_chk("待机时流光点隐藏", not (sto.flow_dots[0] as MeshInstance3D).visible, str((sto.flow_dots[0] as MeshInstance3D).visible))
@@ -1643,7 +1642,7 @@ func _process(_delta: float) -> bool:
 	_chk("储能面板：SOC 条只有 1 根 ProgressBar（保留线不另画条）", _pbar_n == 1, str(_pbar_n))
 	_chk("储能面板：SOC 条填充色 = _soc_color(soc)（与壳/3D 条同口径）", _pbar != null and _fill_col == _col(_main.call("_soc_color", _vsoc)), "soc=" + str(_vsoc) + " fill=" + _fill_col + " expect=" + _col(_main.call("_soc_color", _vsoc)))
 	_chk("储能面板：SOC 条填充值 = SOC%（value 与 pct 一致）", _pbar != null and absf(_pbar.value - _vsoc * 100.0) < 0.01, str(_pbar.value) if _pbar != null else "无条")
-	_chk("储能面板：保留线是条下独立红字 Label（#dc2626）", _resv_lab != null and _col(_label_color(_resv_lab)) == "#dc2626", _resv_lab.text if _resv_lab != null else "无保留线 Label")
+	_chk("储能面板：保留线是条下独立红字 Label（#dc2626）", _resv_lab != null and _col(_label_color(_resv_lab)) == "#dc2626", _resv_lab.text if _resv_lab != null else "未找到保留线行")
 	# ---- 池塘遮挡（run 45219977015）：总览时场景栏须走实色 fallback（白 0.93），
 	# 玻璃须关，否则亮蓝池塘水面透进导航栏压住“教室舒适度”等文字。
 	var _bar_glass = _main.get_node("UI/SceneBar/BarGlass")

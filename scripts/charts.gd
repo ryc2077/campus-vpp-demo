@@ -16,7 +16,7 @@ var plan: Dictionary = {}
 var cls_results: Dictionary = {}
 var cls_strategy := "opt"
 var hour := 12.0
-var reserve_pct := 0.556
+var reserve_pct := 0.5561
 
 const AXIS_COL := Color("#64748b") # 轴字/刻度：白底约 4.8:1
 const TEXT_COL := Color("#1e293b") # 图例/标注文字
@@ -107,12 +107,10 @@ func _draw_day() -> void:
 	for i in range(96):
 		var h := i * 0.25
 		var col := Color(0, 0, 0, 0)
-		if h >= 23.0 or h < 7.0:
-			col = Color(0.02, 0.59, 0.42, 0.07)
-		elif (h >= 10.0 and h < 14.0) or (h >= 18.0 and h < 21.0):
-			col = Color(0.86, 0.15, 0.15, 0.06)
+		if h >= 21.0 or h < 8.0:
+			col = Color(0.02, 0.59, 0.42, 0.07)   # 谷段
 		else:
-			continue
+			col = Color(0.86, 0.15, 0.15, 0.05)   # 峰段（13 小时，alpha 压低避免整片红）
 		draw_rect(Rect2(x_of.call(i), pad_t, iw / 96.0 + 1.0, ih), col)
 	# 网格 + 纵轴
 	var font := ThemeDB.fallback_font
@@ -131,7 +129,7 @@ func _draw_day() -> void:
 	# 保留线
 	var res_y: float = y_soc.call(reserve_pct)
 	draw_dashed_line(Vector2(pad_l, res_y), Vector2(pad_l + iw, res_y), Color(0.86, 0.15, 0.15, 0.7), 1.5, 5.0)
-	draw_string(font, Vector2(pad_l + 4, res_y - 4), "保留线 %.0f%%" % (reserve_pct * 100.0), HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, Color("#dc2626"))
+	draw_string(font, Vector2(pad_l + 4, res_y - 4), "保留线 %.2f%%" % (reserve_pct * 100.0), HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, Color("#dc2626"))
 	# 图例（两行，色块 + 深色文字 + 当前值；不只靠颜色）
 	var idx := clampi(int(round(clampf(hour, 0.0, 24.0) * 4.0)), 0, 95)
 	var lx := pad_l + 4.0
